@@ -1,12 +1,8 @@
-import findAdapter from 'pouchdb-find';
-
-PouchDB.plugin(findAdapter);
-
 import { v4 as uuidv4 } from 'uuid';
 import { EntityIdKeys, IDbRecord, IIndexableEntity } from '../types/entity-types';
 import { DbSetPickDefaultActionRequired, DocumentKeySelector, EntitySelector } from '../types/common-types';
 import { IPrivateContext } from '../types/context-types';
-import { IDbSetApi, IDbSetProps } from '../types/dbset-types';
+import { DbSetType, EntityAndTag, IDbSetApi, IDbSetProps } from '../types/dbset-types';
 import { DbSetKeyType, PropertyMap } from '../types/dbset-builder-types';
 
 export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExtraExclusions extends string = never> {
@@ -20,8 +16,9 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
     protected keyType: DbSetKeyType;
     protected map: PropertyMap<TDocumentType, TEntity, any>[];
     protected filterSelector: EntitySelector<TDocumentType, TEntity> | null;
+    protected type: DbSetType;
 
-    constructor(props: IDbSetProps<TDocumentType, TEntity>) {
+    constructor(props: IDbSetProps<TDocumentType, TEntity>, type: DbSetType) {
         this.documentType = props.documentType;
         this.context = props.context as IPrivateContext<TDocumentType, TEntity>;
         this.idKeys = props.idKeys;
@@ -30,12 +27,16 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
         this.keyType = props.keyType;
         this.map = props.map;
         this.filterSelector = props.filterSelector;
+        this.type = type;
 
         this.api = this.context._getApi();
+
+        this.api.registerOnAfterSaveChanges(props.documentType, this.onAfterSaveChanges.bind(this));
+        this.api.registerOnBeforeSaveChanges(props.documentType, this.onBeforeSaveChanges.bind(this));
     }
 
-    protected async allDataAndMakeTrackable(getIndex: () => string | null) {
-        const data = await this.getAllData(getIndex);
+    protected async allDataAndMakeTrackable() {
+        const data = await this.getAllData();
 
         // process the mappings when we make the item trackable.  We are essentially prepping the entity
         const result = data.map(w => this.api.makeTrackable(w, this.defaults.retrieve, this.isReadonly, this.map) as TEntity);
@@ -47,80 +48,17 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
 
     }
 
-    private deconstructQuery(query: string, result: any) {
-
-        // we are finding the outter occurrences and working inward
-
-        let start = query.indexOf("(");
-        let end = query.lastIndexOf(")");
-
-        const test: any = {};
-
-        let left = query.substring(start, query.length);
-        let right = query.substring(0, start);
-        test.left = left;
-        test.right = right;
-        test.operator = right.split(' ').find(w => w === "&&" || w === "||")!;
-
-        start = test.left.indexOf("(");
-        end = test.left.lastIndexOf(")");
-
-        left = test.left.substring(start, end);
-        right = test.left.substring(end + 1, test.left.length);
+    protected async onBeforeSaveChanges(getChanges: () => { adds: EntityAndTag[], removes: EntityAndTag[], updates: EntityAndTag[] }) {
 
     }
 
-    protected async convertFilterSelector(selector: EntitySelector<TDocumentType, TEntity>) {
-        // try {
-        //     const stringifiedSelector = selector.toString();
-        //     const [variable, selectorFunction] = stringifiedSelector.split('=>').map(w => w.trim());
 
-   
-        //     const r: any = {};
-        //     this.deconstructQuery(selectorFunction, r)
-        //     // find the first match, replace it with a group number, try and get all parent splits and go from there
-        //     // \(.{1,}?\)
-        //     /*
+    protected async onAfterSaveChanges(getChanges: () => { adds: EntityAndTag[], removes: EntityAndTag[], updates: EntityAndTag[] }) {
 
-        //     Test Data
-        //     w._id === "" && (w.DocumentType === DocumentTypes.Books || w.author === "James" || (w.status === "approved" || w.author === "Megan")) && (w.DocumentType === DocumentTypes.Books || w.author === "James")
-        //         OR
-        //     id === 1 && test == 2 && (test === 3) && (win === 1)
-
-        //     */
-        //     const testSplit = selectorFunction.split(/()|()/g)
-        //     const cleanse = selectorFunction.replace(/\s+/g, ' ').replace(/\r/g, '').replace(/\n/g, '').replace(/\t/g, ' ')
-        //     const matches = cleanse.match(/\(.{1,}\)/g);
-        //     let result = cleanse;
-
-        //     for (let i = 0; i < result.length; i++) {
-        //         const match = matches[i];
-        //         result = result.replace(match, `__MATCH-${i}__`)
-
-        //     }
-        //     console.log(result);
-        //     //w => w._id === "" && (w.DocumentType === DocumentTypes.Books || w.author === "James")
-
-        //     // selector: {
-        //     //     $and: [
-        //     //         { rejectedCount: 1 },
-        //     //         {
-        //     //             $or: [
-        //     //                 { DocumentType: { $eq: "Books" } },
-        //     //                 { author: { $eq: "James" } }
-        //     //             ]
-        //     //         }
-        //     //     ]
-        //     // }
-
-        //     //console.log(test)
-        // } catch (e: any) {
-        //     console.error(e);
-        // }
     }
 
-    protected async _all(getIndex: () => string | null) {
-        const result = await this.allDataAndMakeTrackable(getIndex);
+    protected async _all() {
+        const result = await this.allDataAndMakeTrackable();
 
         await this.onAfterDataFetched(result);
 
@@ -137,12 +75,8 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
         return result.filter(w => this.filterSelector(w));
     }
 
-    protected async getAllData(getIndex: () => string | null) {
-        const index = getIndex();
-        return await this.api.getAllData({
-            documentType: this.documentType,
-            index
-        });
+    protected async getAllData() {
+        return await this.api.getAllData({ DocumentType: this.documentType });
     }
 
     protected getKeyFromEntity(entity: TEntity) {

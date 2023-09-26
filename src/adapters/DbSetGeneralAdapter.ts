@@ -1,14 +1,14 @@
 import { DataContext } from '../context/DataContext';
 import { IDbSetGeneralAdapter } from '../types/adapter-types';
-import { IDbSetProps, IDbSetInfo } from '../types/dbset-types';
+import { IDbSetProps, IDbSetInfo, DbSetType } from '../types/dbset-types';
 import { IDbRecord, IDbRecordBase, IIndexableEntity } from '../types/entity-types';
 import { validateAttachedEntity } from '../validation/Validation';
 import { DbSetBaseAdapter } from './DbSetBaseAdapter';
 
 export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExtraExclusions extends string = never> extends DbSetBaseAdapter<TDocumentType, TEntity, TExtraExclusions> implements IDbSetGeneralAdapter<TDocumentType, TEntity, TExtraExclusions> {
 
-    constructor(props: IDbSetProps<TDocumentType, TEntity>) {
-        super(props);
+    constructor(props: IDbSetProps<TDocumentType, TEntity>, type: DbSetType) {
+        super(props, type);
     }
 
     isMatch(first: TEntity, second: any) {

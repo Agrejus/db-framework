@@ -1,16 +1,13 @@
-import { IDbSetFetchAdapter, IDbSetIndexAdapter } from '../types/adapter-types';
+import { IDbSetFetchAdapter } from '../types/adapter-types';
 import { EntitySelector } from '../types/common-types';
-import { IDbSetProps } from '../types/dbset-types';
+import { DbSetType, IDbSetProps } from '../types/dbset-types';
 import { IDbRecord } from '../types/entity-types';
 import { DbSetBaseAdapter } from './DbSetBaseAdapter';
 
 export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExtraExclusions extends string = never> extends DbSetBaseAdapter<TDocumentType, TEntity, TExtraExclusions> implements IDbSetFetchAdapter<TDocumentType, TEntity, TExtraExclusions> {
 
-    protected indexAdapter: IDbSetIndexAdapter<TDocumentType, TEntity, TExtraExclusions>;
-
-    constructor(props: IDbSetProps<TDocumentType, TEntity>, indexAdapter: IDbSetIndexAdapter<TDocumentType, TEntity, TExtraExclusions>) {
-        super(props);
-        this.indexAdapter = indexAdapter;
+    constructor(props: IDbSetProps<TDocumentType, TEntity>, type: DbSetType) {
+        super(props, type);
     }
 
     async query(request: PouchDB.Find.FindRequest<TEntity>) {
@@ -18,8 +15,7 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
     }
 
     async filter(selector: EntitySelector<TDocumentType, TEntity>) {
-        const getIndex = this.indexAdapter.get.bind(this.indexAdapter);
-        const data = await this.allDataAndMakeTrackable(getIndex);
+        const data = await this.allDataAndMakeTrackable();
 
         const result = [...data].filter(selector);
 
@@ -31,8 +27,7 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
     }
 
     async all() {
-        const getIndex = this.indexAdapter.get.bind(this.indexAdapter);
-        return await this._all(getIndex)
+        return await this._all()
     }
 
     async get(...ids: string[]) {
@@ -50,8 +45,7 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
 
 
     async find(selector: EntitySelector<TDocumentType, TEntity>): Promise<TEntity | undefined> {
-        const getIndex = this.indexAdapter.get.bind(this.indexAdapter);
-        const data = await this.allDataAndMakeTrackable(getIndex);
+        const data = await this.allDataAndMakeTrackable();
         const result = [...data].find(selector);
 
         if (result) {
@@ -65,8 +59,7 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
     }
 
     async first() {
-        const getIndex = this.indexAdapter.get.bind(this.indexAdapter);
-        const data = await this.allDataAndMakeTrackable(getIndex);
+        const data = await this.allDataAndMakeTrackable();
         const result = data[0];
 
         if (result) {

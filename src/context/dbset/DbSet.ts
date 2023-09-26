@@ -1,7 +1,7 @@
 import { AdapterFactory } from '../../adapters/AdapterFactory';
-import { IDbSetFetchAdapter, IDbSetGeneralAdapter, IDbSetIndexAdapter, IDbSetModificationAdapter } from '../../types/adapter-types';
+import { IDbSetFetchAdapter, IDbSetGeneralAdapter, IDbSetModificationAdapter } from '../../types/adapter-types';
 import { DeepPartial, EntitySelector } from '../../types/common-types';
-import { IDbSetProps, IDbSetEnumerable, IDbSet } from '../../types/dbset-types';
+import { IDbSetProps, IDbSet, DbSetType } from '../../types/dbset-types';
 import { IDbRecord, OmittedEntity, IDbRecordBase } from '../../types/entity-types';
 
 /**
@@ -11,15 +11,19 @@ export class DbSet<TDocumentType extends string, TEntity extends IDbRecord<TDocu
 
     protected readonly _fetchAdapter: IDbSetFetchAdapter<TDocumentType, TEntity, TExtraExclusions>;
     protected readonly _generalAdapter: IDbSetGeneralAdapter<TDocumentType, TEntity, TExtraExclusions>;
-    protected readonly _indexAdapter: IDbSetIndexAdapter<TDocumentType, TEntity, TExtraExclusions>;
     protected readonly _modificationAdapter: IDbSetModificationAdapter<TDocumentType, TEntity, TExtraExclusions>;
+
+    protected getDbSetType(): DbSetType {
+        return "default";
+    }
 
     get types() {
         return {
             modify: {} as OmittedEntity<TEntity, TExtraExclusions>,
             result: {} as TEntity,
             documentType: {} as TEntity["DocumentType"],
-            map: {} as { [DocumentType in TEntity["DocumentType"]]: TEntity }
+            map: {} as { [DocumentType in TEntity["DocumentType"]]: TEntity },
+            dbsetType: this.getDbSetType()
         }
     }
 
@@ -28,12 +32,12 @@ export class DbSet<TDocumentType extends string, TEntity extends IDbRecord<TDocu
      * @param props Properties for the constructor
      */
     constructor(props: IDbSetProps<TDocumentType, TEntity>) {
-        const adapterFactory = new AdapterFactory<TDocumentType, TEntity, TExtraExclusions>(props);
 
-        this._indexAdapter = adapterFactory.createIndexAdapter();
-        this._fetchAdapter = adapterFactory.createFetchAdapter(this._indexAdapter);
+        const adapterFactory = new AdapterFactory<TDocumentType, TEntity, TExtraExclusions>(props, this.types.dbsetType);
+
+        this._fetchAdapter = adapterFactory.createFetchAdapter();
         this._generalAdapter = adapterFactory.createGeneralAdapter();
-        this._modificationAdapter = adapterFactory.createModificationAdapter(this._indexAdapter);
+        this._modificationAdapter = adapterFactory.createModificationAdapter();
     }
 
     info() {
@@ -61,11 +65,6 @@ export class DbSet<TDocumentType extends string, TEntity extends IDbRecord<TDocu
     async remove(...entities: TEntity[]): Promise<void>;
     async remove(...entities: any[]) {
         return await this._modificationAdapter.remove(...entities);
-    }
-
-    useIndex(name: string): IDbSetEnumerable<TDocumentType, TEntity> {
-        this._indexAdapter.useIndex(name);
-        return this;
     }
 
     async empty() {

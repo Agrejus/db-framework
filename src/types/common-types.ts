@@ -25,7 +25,7 @@ export type DbSetPickDefaultActionRequired<TDocumentType extends string, TEntity
 export type EntitySelector<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = (entity: TEntity, index?: number, array?: TEntity[]) => boolean
 
 export interface IQueryParams<TDocumentType extends string> {
-    documentType?: TDocumentType;
+    DocumentType?: TDocumentType;
     index?: string;
 }
 
@@ -37,11 +37,6 @@ export interface IBulkDocsResponse {
     id: string;
     rev: string;
     error?: string;
-}
-
-export interface IPurgeResponse {
-    doc_count: number;
-    loss_count: number;
 }
 
 export type DeepReadOnly<T> = { readonly [key in keyof T]: DeepReadOnly<T[key]> };

@@ -20,11 +20,6 @@ export interface IDbSetGeneralAdapter<TDocumentType extends string, TEntity exte
     markDirty(...entities: TEntity[]): Promise<TEntity[]>
 }
 
-export interface IDbSetIndexAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExtraExclusions extends string = never> {
-    useIndex(name: string): void;
-    get(): string | null
-}
-
 export interface IDbSetModificationAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExtraExclusions extends string = never> {
     instance(...entities: OmittedEntity<TEntity, TExtraExclusions>[]): TEntity[];
     add(...entities: OmittedEntity<TEntity, TExtraExclusions>[]): Promise<TEntity[]>;

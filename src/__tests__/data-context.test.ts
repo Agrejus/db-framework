@@ -3,12 +3,14 @@ import memoryAdapter from 'pouchdb-adapter-memory';
 import { v4 as uuidv4 } from 'uuid';
 import { DataContext } from '../context/DataContext';
 import { IDbRecord } from '../types/entity-types';
+import { IDbPluginOptions } from '../types/plugin-types';
+import { PouchDbPlugin } from '../plugins/PouchDbPlugin';
 
 describe('data context', () => {
 
     PouchDB.plugin(memoryAdapter);
 
-    const dbs: { [key: string]: DataContext<DocumentTypes> } = {}
+    const dbs: { [key: string]: DataContext<DocumentTypes, IDbRecord<DocumentTypes>, IDbPluginOptions, PouchDB.Find.FindRequest<IDbRecord<DocumentTypes>>, PouchDB.Find.FindResponse<IDbRecord<DocumentTypes>>> } = {}
     const dbFactory = <T extends typeof PouchDbDataContext>(Context: T, dbname?: string) => {
         const name = dbname ?? `${uuidv4()}-db`;
         const result = new Context(name);
@@ -46,10 +48,10 @@ describe('data context', () => {
         status: "pending" | "approved" | "rejected";
     }
 
-    class PouchDbDataContext extends DataContext<DocumentTypes> {
+    class PouchDbDataContext extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>, IDbPluginOptions, PouchDB.Find.FindRequest<IDbRecord<DocumentTypes>>, PouchDB.Find.FindResponse<IDbRecord<DocumentTypes>>> {
 
         constructor(name: string) {
-            super(name);
+            super({ dbName: name }, PouchDbPlugin);
         }
 
         async empty() {
@@ -462,7 +464,7 @@ describe('data context', () => {
 
         const context = dbFactory(FluentContext) as FluentContext;
 
-        expect((context.dbsetTest as any)._defaults).toEqual({ add: { contents: "some contents" }, retrieve: { contents: "some contents" } });
+        expect((context.dbsetTest as any)._params.defaults).toEqual({ add: { contents: "some contents" }, retrieve: { contents: "some contents" } });
     });
 
     it('should set one default for adding with dbset fluent api using fluent dbset builder', async () => {
@@ -478,7 +480,7 @@ describe('data context', () => {
 
         const context = dbFactory(FluentContext) as FluentContext
 
-        expect((context.dbsetTest as any)._defaults).toEqual({ add: { contents: "some contents" }, retrieve: {} });
+        expect((context.dbsetTest as any)._params.defaults).toEqual({ add: { contents: "some contents" }, retrieve: {} });
     });
 
     it('should set one default for retrieving with dbset fluent api using fluent dbset builder', async () => {
@@ -494,7 +496,7 @@ describe('data context', () => {
 
         const context = dbFactory(FluentContext) as FluentContext
 
-        expect((context.dbsetTest as any)._defaults).toEqual({ add: {}, retrieve: { contents: "some contents" } });
+        expect((context.dbsetTest as any)._params.defaults).toEqual({ add: {}, retrieve: { contents: "some contents" } });
     });
 
     it('should allow add and retrieve defaults to be different with dbset fluent api using fluent dbset builder', async () => {
@@ -510,7 +512,7 @@ describe('data context', () => {
 
         const context = dbFactory(FluentContext) as FluentContext
 
-        expect((context.dbsetTest as any)._defaults).toEqual({ add: { contents: "other contents" }, retrieve: { contents: "some contents" } });
+        expect((context.dbsetTest as any)._params.defaults).toEqual({ add: { contents: "other contents" }, retrieve: { contents: "some contents" } });
     });
 
     it('should set many defaults with dbset fluent api using fluent dbset builder', async () => {
@@ -527,7 +529,7 @@ describe('data context', () => {
 
         const context = dbFactory(FluentContext) as FluentContext
 
-        expect((context.dbsetTest as any)._defaults).toEqual({ add: { contents: "some contents", createdDate: date, userId: "jdemeuse" }, retrieve: { contents: "some contents", createdDate: date, userId: "jdemeuse" } });
+        expect((context.dbsetTest as any)._params.defaults).toEqual({ add: { contents: "some contents", createdDate: date, userId: "jdemeuse" }, retrieve: { contents: "some contents", createdDate: date, userId: "jdemeuse" } });
     });
 
     it('should set many defaults for adding with dbset fluent api using fluent dbset builder', async () => {
@@ -544,7 +546,7 @@ describe('data context', () => {
 
         const context = dbFactory(FluentContext) as FluentContext
 
-        expect((context.dbsetTest as any)._defaults).toEqual({ add: { contents: "some contents", createdDate: date, userId: "jdemeuse" }, retrieve: {} });
+        expect((context.dbsetTest as any)._params.defaults).toEqual({ add: { contents: "some contents", createdDate: date, userId: "jdemeuse" }, retrieve: {} });
     });
 
     it('should set many defaults for retrieving with dbset fluent api using fluent dbset builder', async () => {
@@ -561,7 +563,7 @@ describe('data context', () => {
 
         const context = dbFactory(FluentContext) as FluentContext
 
-        expect((context.dbsetTest as any)._defaults).toEqual({ add: {}, retrieve: { contents: "some contents", createdDate: date, userId: "jdemeuse" } });
+        expect((context.dbsetTest as any)._params.defaults).toEqual({ add: {}, retrieve: { contents: "some contents", createdDate: date, userId: "jdemeuse" } });
     });
 
     it('should allow defaults to be called more than once and append to defaults using fluent dbset builder', async () => {
@@ -578,7 +580,7 @@ describe('data context', () => {
 
         const context = dbFactory(FluentContext) as FluentContext
 
-        expect((context.dbsetTest as any)._defaults).toEqual({ add: { contents: "some contents", createdDate: date, userId: "jdemeuse" }, retrieve: { contents: "some contents", createdDate: date, userId: "jdemeuse" } });
+        expect((context.dbsetTest as any)._params.defaults).toEqual({ add: { contents: "some contents", createdDate: date, userId: "jdemeuse" }, retrieve: { contents: "some contents", createdDate: date, userId: "jdemeuse" } });
     });
 
     it('should allow defaults to be called more than once when adding and append to defaults using fluent dbset builder', async () => {
@@ -595,7 +597,7 @@ describe('data context', () => {
 
         const context = dbFactory(FluentContext) as FluentContext
 
-        expect((context.dbsetTest as any)._defaults).toEqual({ add: { contents: "some contents", createdDate: date, userId: "jdemeuse" }, retrieve: {} });
+        expect((context.dbsetTest as any)._params.defaults).toEqual({ add: { contents: "some contents", createdDate: date, userId: "jdemeuse" }, retrieve: {} });
     });
 
     it('should allow defaults to be called more than once when retrieving and append to defaults using fluent dbset builder', async () => {
@@ -612,7 +614,7 @@ describe('data context', () => {
 
         const context = dbFactory(FluentContext) as FluentContext
 
-        expect((context.dbsetTest as any)._defaults).toEqual({ add: {}, retrieve: { contents: "some contents", createdDate: date, userId: "jdemeuse" } });
+        expect((context.dbsetTest as any)._params.defaults).toEqual({ add: {}, retrieve: { contents: "some contents", createdDate: date, userId: "jdemeuse" } });
     });
 
     it('should allow defaults to be called more than once when adding and retrieving and append to defaults using fluent dbset builder', async () => {
@@ -629,7 +631,7 @@ describe('data context', () => {
 
         const context = dbFactory(FluentContext) as FluentContext
 
-        expect((context.dbsetTest as any)._defaults).toEqual({ add: { contents: "some contents", userId: "other" }, retrieve: { createdDate: date, userId: "jdemeuse" } });
+        expect((context.dbsetTest as any)._params.defaults).toEqual({ add: { contents: "some contents", userId: "other" }, retrieve: { createdDate: date, userId: "jdemeuse" } });
     });
 
     it('should exclude one property using fluent dbset builder', async () => {
@@ -645,7 +647,7 @@ describe('data context', () => {
 
         const context = dbFactory(FluentContext) as FluentContext
 
-        expect((context.dbsetTest as any)._exclusions).toEqual(["contents"]);
+        expect((context.dbsetTest as any)._params.exclusions).toEqual(["contents"]);
     });
 
     it('should exclude many properties using fluent dbset builder', async () => {
@@ -661,7 +663,7 @@ describe('data context', () => {
 
         const context = dbFactory(FluentContext) as FluentContext
 
-        expect((context.dbsetTest as any)._exclusions).toEqual(["contents", "createdDate"]);
+        expect((context.dbsetTest as any)._params.exclusions).toEqual(["contents", "createdDate"]);
     });
 
     it('should allow exclude to be called more than once and exclude many properties using fluent dbset builder', async () => {
@@ -677,7 +679,7 @@ describe('data context', () => {
 
         const context = dbFactory(FluentContext) as FluentContext
 
-        expect((context.dbsetTest as any)._exclusions).toEqual(["contents", "createdDate"]);
+        expect((context.dbsetTest as any)._params.exclusions).toEqual(["contents", "createdDate"]);
     });
 
     it('should build key using one property using fluent dbset builder', async () => {
@@ -693,7 +695,7 @@ describe('data context', () => {
 
         const context = dbFactory(FluentContext) as FluentContext
 
-        expect((context.dbsetTest as any)._idKeys).toEqual(["contents"]);
+        expect((context.dbsetTest as any)._params.idKeys).toEqual(["contents"]);
     });
 
     it('should build key using many properties using fluent dbset builder', async () => {
@@ -709,7 +711,7 @@ describe('data context', () => {
 
         const context = dbFactory(FluentContext) as FluentContext
 
-        expect((context.dbsetTest as any)._idKeys).toEqual(["contents", "userId"]);
+        expect((context.dbsetTest as any)._params.idKeys).toEqual(["contents", "userId"]);
     });
 
     it('should allow keys to be called more than once and build key using many properties using fluent dbset builder', async () => {
@@ -725,7 +727,7 @@ describe('data context', () => {
 
         const context = dbFactory(FluentContext) as FluentContext
 
-        expect((context.dbsetTest as any)._idKeys).toEqual(["contents", "userId"]);
+        expect((context.dbsetTest as any)._params.idKeys).toEqual(["contents", "userId"]);
     });
 
     it('should create dbset using fluent dbset builder', async () => {
@@ -742,71 +744,5 @@ describe('data context', () => {
         const context = dbFactory(FluentContext) as FluentContext
 
         expect(context.dbsetTest.add).toBeDefined();
-    });
-
-    it('should create an optimization index', async () => {
-
-        const context = dbFactory(PouchDbDataContext);
-
-        const notFound = await context.$indexes.find(w => w.name === "autogen_document-type-index");
-
-        expect(notFound).not.toBeDefined();
-
-        await context.optimize();
-
-        const found = await context.$indexes.find(w => w.name === "autogen_document-type-index");
-
-        expect(found).toBeDefined();
-    });
-
-    it('should create an index', async () => {
-
-        const context = dbFactory(PouchDbDataContext);
-
-        await context.$indexes.create(w => w.name("test").fields(x => x.add("DocumentType")));
-
-        const found = await context.$indexes.find(w => w.name === "test");
-
-        expect(found).toBeDefined();
-    });
-
-    it('should filter for an index', async () => {
-
-        const context = dbFactory(PouchDbDataContext);
-
-        await context.$indexes.create(w => w.name("test").fields(x => x.add("DocumentType")));
-
-        const found = await context.$indexes.filter(w => w.name === "test");
-
-        expect(found.length).toBe(1);
-    });
-
-    it('should get all indexes', async () => {
-
-        const context = dbFactory(PouchDbDataContext);
-
-        await context.$indexes.create(w => w.name("test").fields(x => x.add("DocumentType")));
-
-        const found = await context.$indexes.all();
-
-        expect(found.length).toBeGreaterThanOrEqual(1);
-    });
-
-    it('should remove an index', async () => {
-
-        const context = dbFactory(PouchDbDataContext);
-
-        await context.$indexes.create(w => w.name("test").fields(x => x.add("DocumentType")));
-
-        const found = await context.$indexes.find(w => w.name === "test");
-
-        await context.$indexes.remove({
-            ddoc: found?.ddoc ?? "",
-            name: found?.name ?? ""
-        })
-
-        const afterRemove = await context.$indexes.find(w => w.name === "test");
-
-        expect(afterRemove).not.toBeDefined();
     });
 });

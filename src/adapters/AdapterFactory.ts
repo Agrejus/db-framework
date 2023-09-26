@@ -1,32 +1,35 @@
 import { DbSetFetchAdapter } from "./DbSetFetchAdapter";
 import { DbSetGeneralAdapter } from "./DbSetGeneralAdapter";
-import { DbSetIndexAdapter } from "./DbSetIndexAdapter";
 import { DbSetModificationAdapter } from "./DbSetModificationAdapter";
-import { IDbSetProps } from "../types/dbset-types";
+import { DbSetType, IDbSetProps, IStoreDbSetProps } from "../types/dbset-types";
 import { IDbRecord } from "../types/entity-types";
-import { IDbSetFetchAdapter, IDbSetGeneralAdapter, IDbSetIndexAdapter, IDbSetModificationAdapter } from "../types/adapter-types";
+import { IDbSetFetchAdapter, IDbSetGeneralAdapter, IDbSetModificationAdapter } from "../types/adapter-types";
+import { DbSetStoreModificationAdapter } from './store/DbSetStoreModificationAdapter';
 
 export class AdapterFactory<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExtraExclusions extends string = never> {
 
     private _props: IDbSetProps<TDocumentType, TEntity>;
+    private _type: DbSetType;
 
-    constructor(props: IDbSetProps<TDocumentType, TEntity>) {
+    constructor(props: IDbSetProps<TDocumentType, TEntity>, type: DbSetType) {
         this._props = props;
+        this._type = type;
     }
 
-    createFetchAdapter(indexAdapter: IDbSetIndexAdapter<TDocumentType, TEntity, TExtraExclusions>): IDbSetFetchAdapter<TDocumentType, TEntity, TExtraExclusions> {
-        return new DbSetFetchAdapter<TDocumentType, TEntity, TExtraExclusions>(this._props, indexAdapter)
+    createFetchAdapter(): IDbSetFetchAdapter<TDocumentType, TEntity, TExtraExclusions> {
+        return new DbSetFetchAdapter<TDocumentType, TEntity, TExtraExclusions>(this._props, this._type)
     }
 
     createGeneralAdapter(): IDbSetGeneralAdapter<TDocumentType, TEntity, TExtraExclusions> {
-        return new DbSetGeneralAdapter<TDocumentType, TEntity, TExtraExclusions>(this._props)
+        return new DbSetGeneralAdapter<TDocumentType, TEntity, TExtraExclusions>(this._props, this._type)
     }
 
-    createIndexAdapter(): IDbSetIndexAdapter<TDocumentType, TEntity, TExtraExclusions> {
-        return new DbSetIndexAdapter<TDocumentType, TEntity, TExtraExclusions>(this._props)
-    }
+    createModificationAdapter(): IDbSetModificationAdapter<TDocumentType, TEntity, TExtraExclusions> {
 
-    createModificationAdapter(indexAdapter: IDbSetIndexAdapter<TDocumentType, TEntity, TExtraExclusions>): IDbSetModificationAdapter<TDocumentType, TEntity, TExtraExclusions> {
-        return new DbSetModificationAdapter<TDocumentType, TEntity, TExtraExclusions>(this._props, indexAdapter)
+        if (this._type === "store") {
+            return new DbSetStoreModificationAdapter<TDocumentType, TEntity, TExtraExclusions>(this._props as IStoreDbSetProps<TDocumentType, TEntity>, this._type)
+        }
+
+        return new DbSetModificationAdapter<TDocumentType, TEntity, TExtraExclusions>(this._props, this._type)
     }
 }

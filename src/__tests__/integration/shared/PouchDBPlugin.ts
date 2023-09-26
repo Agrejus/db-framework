@@ -1,9 +1,9 @@
 import PouchDB from 'pouchdb';
-import { IDbRecord } from '../types/entity-types';
-import { IDbPlugin, IDbPluginOptions, IBulkOperationsResponse, IBulkOperation } from '../types/plugin-types';
 import findAdapter from 'pouchdb-find';
 import memoryAdapter from 'pouchdb-adapter-memory';
-import { IQueryParams } from '../types/common-types';
+import { IBulkOperation, IBulkOperationsResponse, IDbPlugin, IDbPluginOptions } from '../../../types/plugin-types';
+import { IQueryParams } from '../../../types/common-types';
+import { IDbRecord } from '../../../types/entity-types';
 
 PouchDB.plugin(findAdapter);
 PouchDB.plugin(memoryAdapter);
@@ -33,7 +33,7 @@ export class PouchDbPlugin<TDocumentType extends string, TEntityBase extends IDb
     }
 
     async destroy() {
-        return await this.doWork(async w => await w.destroy());
+        return await this.doWork(async w => await w.destroy(), false);
     }
 
     async all(payload?: IQueryParams<TDocumentType>) {

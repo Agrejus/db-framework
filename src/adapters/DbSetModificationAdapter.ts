@@ -1,17 +1,15 @@
 import { DataContext } from '../context/DataContext';
-import { IDbSetIndexAdapter, IDbSetModificationAdapter } from '../types/adapter-types';
-import { IDbSetProps } from '../types/dbset-types';
+import { IDbSetModificationAdapter } from '../types/adapter-types';
+import { DbSetType, EntityAndTag, IDbSetProps } from '../types/dbset-types';
 import { IDbRecord, OmittedEntity, IIndexableEntity } from '../types/entity-types';
 import { DbSetBaseAdapter } from './DbSetBaseAdapter';
 
 export class DbSetModificationAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExtraExclusions extends string = never> extends DbSetBaseAdapter<TDocumentType, TEntity, TExtraExclusions> implements IDbSetModificationAdapter<TDocumentType, TEntity, TExtraExclusions> {
 
-    protected indexAdapter: IDbSetIndexAdapter<TDocumentType, TEntity, TExtraExclusions>;
     private _tag: unknown | null = null; 
 
-    constructor(props: IDbSetProps<TDocumentType, TEntity>, indexAdapter: IDbSetIndexAdapter<TDocumentType, TEntity, TExtraExclusions>) {
-        super(props);
-        this.indexAdapter = indexAdapter;
+    constructor(props: IDbSetProps<TDocumentType, TEntity>, type: DbSetType) {
+        super(props, type);
     }
 
     protected processAddition(entity: OmittedEntity<TEntity, TExtraExclusions>) {
@@ -85,8 +83,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
 
     async upsert(...entities: (OmittedEntity<TEntity, TExtraExclusions> | Omit<TEntity, "DocumentType">)[]) {
         // build the id's
-        const getIndex = this.indexAdapter.get.bind(this.indexAdapter);
-        const all = await this.getAllData(getIndex);
+        const all = await this.getAllData();
         const allDictionary: { [key: string]: TEntity } = all.reduce((a, v) => ({ ...a, [v._id]: v }), {})
         const result: TEntity[] = [];
 
@@ -140,8 +137,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
     }
 
     async empty() {
-        const getIndex = this.indexAdapter.get.bind(this.indexAdapter);
-        const items = await this._all(getIndex);
+        const items = await this._all();
         await this.remove(...items);
     }
 

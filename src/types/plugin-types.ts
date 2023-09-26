@@ -1,4 +1,5 @@
 import { IDbRecord } from '../types/entity-types'
+import { IQueryParams } from './common-types';
 
 export interface IBulkOperation {
     ok: boolean;
@@ -16,7 +17,7 @@ export interface IBulkOperationsResponse {
 
 export interface IDbPlugin<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TQueryRequest, TQueryResponse> {
     destroy(): Promise<void>;
-    all(): Promise<TEntityBase[]>;
+    all(payload?: IQueryParams<TDocumentType>): Promise<TEntityBase[]>;
     query(request: TQueryRequest): Promise<TQueryResponse>;
     getStrict(...ids: string[]): Promise<TEntityBase[]>;
     get(...ids: string[]): Promise<TEntityBase[]>;
@@ -24,7 +25,6 @@ export interface IDbPlugin<TDocumentType extends string, TEntityBase extends IDb
 }
 
 export type IDbPluginOptions = {
-    supportsRevisions: boolean;
     dbName: string;
 }
 

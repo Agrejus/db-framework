@@ -1,19 +1,21 @@
 import PouchDB from "pouchdb";
 import { DataContext } from "../../../context/DataContext";
 import { IDbSet } from "../../../types/dbset-types";
-import { IDbRecordBase } from "../../../types/entity-types";
+import { IDbRecord, IDbRecordBase } from "../../../types/entity-types";
 import { DocumentTypes, ISyncDocument, ISetStatus, IComputer, IBook, IBookV4, INote, IContact, IBookV3, ICar, IPreference, ISplitComputer, ISplitBook, INoteV2 } from "./types";
 import { v4 as uuidv4 } from 'uuid';
 import memoryAdapter from 'pouchdb-adapter-memory';
 import { DefaultDbSetBuilder } from "../../../context/dbset/builders/DefaultDbSetBuilder";
-import { ExperimentalDataContext } from "../../../context/ExperimentalDataContext";
+import { IDbPluginOptions } from "../../../types/plugin-types";
+import { PouchDbPlugin } from "./PouchDBPlugin";
+import { IDbSetBuilderParams } from "../../../types/dbset-builder-types";
 
 PouchDB.plugin(memoryAdapter);
 
-const dataContextWithParamsCreator = (type: string, name?: string) => new class extends DataContext<DocumentTypes> {
+const dataContextWithParamsCreator = (type: string, name?: string) => new class extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>, IDbPluginOptions, PouchDB.Find.FindRequest<IDbRecord<DocumentTypes>>, PouchDB.Find.FindResponse<IDbRecord<DocumentTypes>>> {
    
-    constructor() {
-        super(name ?? `${uuidv4()}-db`);
+   constructor() {
+        super({ dbName: name ?? `${uuidv4()}-db` }, PouchDbPlugin);
     }
 
     carsWithDefault = this.dbset().default<ICar>(DocumentTypes.CarsWithDefault)
@@ -27,17 +29,17 @@ const dataContextWithParamsCreator = (type: string, name?: string) => new class 
 const context = dataContextWithParamsCreator("");
 export const PouchDbDataContextWithDefaults = context;
 
-export class PouchDbDataContext extends DataContext<DocumentTypes> {
+export class PouchDbDataContext extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>, IDbPluginOptions, PouchDB.Find.FindRequest<IDbRecord<DocumentTypes>>, PouchDB.Find.FindResponse<IDbRecord<DocumentTypes>>> {
 
     constructor(name: string) {
-        super(name);
+        super({ dbName: name }, PouchDbPlugin);
     }
 
     private _setupSyncDbSet<T extends ISyncDocument<DocumentTypes>>(documentType: DocumentTypes) {
 
         const dbset = (this.dbset().default<ISyncDocument<DocumentTypes>>(documentType)
             .defaults({ SyncStatus: "Pending", SyncRetryCount: 0 })
-            .exclude("SyncStatus", "SyncRetryCount") as any) as DefaultDbSetBuilder<DocumentTypes, T, "SyncStatus" | "SyncRetryCount", IDbSet<DocumentTypes, T, "SyncStatus" | "SyncRetryCount">>;
+            .exclude("SyncStatus", "SyncRetryCount") as any) as DefaultDbSetBuilder<DocumentTypes, T, "SyncStatus" | "SyncRetryCount", IDbSet<DocumentTypes, T, "SyncStatus" | "SyncRetryCount">, IDbSetBuilderParams<DocumentTypes, T, "SyncStatus" | "SyncRetryCount", IDbSet<DocumentTypes, T, "SyncStatus" | "SyncRetryCount">>>;
 
         return dbset.extend((Instance, props) => {
             return new class extends Instance {
@@ -144,27 +146,17 @@ export class PouchDbDataContext extends DataContext<DocumentTypes> {
     booksWithTwoDefaults = this.dbset().default<IBook>(DocumentTypes.BooksWithTwoDefaults).exclude("status", "rejectedCount").defaults({ add: { status: "pending", rejectedCount: 0 }, retrieve: { status: "approved", rejectedCount: -1 } }).create();
     booksNoDefaults = this.dbset().default<IBook>(DocumentTypes.BooksWithNoDefaults).exclude("status", "rejectedCount").create();
 
-    booksWithIndex = this.dbset().default<IBook>(DocumentTypes.BooksWithIndex).exclude("status", "rejectedCount").useIndex('some-default-index').create();
+    booksWithIndex = this.dbset().default<IBook>(DocumentTypes.BooksWithIndex).exclude("status", "rejectedCount").create();
 
 
 
     notesWithMapping = this.dbset().default<INote>(DocumentTypes.NotesWithMapping).map({ property: "createdDate", map: w => new Date(w) }).create();
 }
 
-export class ExperimentalPouchDbDataContext extends ExperimentalDataContext<DocumentTypes> {
+export class BooksWithOneDefaultContext extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>, IDbPluginOptions, PouchDB.Find.FindRequest<IDbRecord<DocumentTypes>>, PouchDB.Find.FindResponse<IDbRecord<DocumentTypes>>> {
 
     constructor(name: string) {
-        super(name);
-    }
-
-    splitComputers = this.experimentalDbset().split<DocumentTypes, INoteV2, ISplitComputer>(DocumentTypes.SplitComputers).keys(w => w.auto()).create();
-    splitBooks = this.experimentalDbset().unmanagedSplit<DocumentTypes, INoteV2, ISplitBook>(DocumentTypes.SplitBooks).keys(w => w.auto()).create();
-}
-
-export class BooksWithOneDefaultContext extends DataContext<DocumentTypes> {
-
-    constructor(name: string) {
-        super(name);
+        super({ dbName: name }, PouchDbPlugin);
     }
 
     booksWithDefaults = this.dbset().default<IBook>(DocumentTypes.BooksWithDefaults).exclude("status", "rejectedCount").create();
@@ -178,10 +170,10 @@ export class BooksWithOneDefaultContext extends DataContext<DocumentTypes> {
 }
 
 
-export class BooksWithTwoDefaultContext extends DataContext<DocumentTypes> {
+export class BooksWithTwoDefaultContext extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>, IDbPluginOptions, PouchDB.Find.FindRequest<IDbRecord<DocumentTypes>>, PouchDB.Find.FindResponse<IDbRecord<DocumentTypes>>> {
 
     constructor(name: string) {
-        super(name);
+        super({ dbName: name }, PouchDbPlugin);
     }
 
     booksWithTwoDefaults = this.dbset().default<IBook>(DocumentTypes.BooksWithTwoDefaults).exclude("status", "rejectedCount").create();
@@ -189,7 +181,7 @@ export class BooksWithTwoDefaultContext extends DataContext<DocumentTypes> {
 
 export class DbContextFactory {
 
-    private _dbs: { [key: string]: DataContext<DocumentTypes> } = {}
+    private _dbs: { [key: string]: DataContext<DocumentTypes, IDbRecord<DocumentTypes>, IDbPluginOptions, PouchDB.Find.FindRequest<IDbRecord<DocumentTypes>>, PouchDB.Find.FindResponse<IDbRecord<DocumentTypes>>> } = {}
 
     getRandomDbName() {
         return uuidv4();
@@ -206,15 +198,7 @@ export class DbContextFactory {
         return result;
     }
 
-    createExperimentalContext<T extends typeof ExperimentalPouchDbDataContext>(Context: T, dbname?: string) {
-        const name = dbname ?? `${uuidv4()}-db`;
-        const result = new Context(name);
-        this._dbs[name] = result;
-        return result;
-    }
-
-
-    createDbContexts<T extends DataContext<DocumentTypes>>(factory: (name: string) => T[]) {
+    createDbContexts<T extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>, IDbPluginOptions, PouchDB.Find.FindRequest<IDbRecord<DocumentTypes>>, PouchDB.Find.FindResponse<IDbRecord<DocumentTypes>>>>(factory: (name: string) => T[]) {
         const name = `${uuidv4()}-db`;
         const contexts = factory(name);
 

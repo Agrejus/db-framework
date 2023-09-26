@@ -31,16 +31,13 @@ export interface IDbSetEnumerable<TDocumentType extends string, TEntity extends 
     first(): Promise<TEntity | undefined>;
 }
 
-export interface ISplitDbSet<
+export interface IStoreDbSet<
     TDocumentType extends string,
     TEntity extends IDbRecord<TDocumentType>,
     TExtraExclusions extends string = never,
 > extends IDbSet<TDocumentType, TEntity, TExtraExclusions> {
-    lazy(): ISplitDbSet<TDocumentType, TEntity, TExtraExclusions> & {
-        include(...properties: string[]): ISplitDbSet<TDocumentType, TEntity, TExtraExclusions>;
-    };
-    endTransaction(): Promise<void>; 
-    startTransaction(transactionId: string): Promise<void>;
+    hydrate(): Promise<number>;
+    get store(): TEntity[];
 }
 
 export interface IDbSet<
@@ -49,11 +46,12 @@ export interface IDbSet<
     TExtraExclusions extends string = never,
 > extends IDbSetEnumerable<TDocumentType, TEntity> {
 
-    get types(): { 
-        modify: OmittedEntity<TEntity, TExtraExclusions>, 
-        result: TEntity, 
+    get types(): {
+        modify: OmittedEntity<TEntity, TExtraExclusions>,
+        result: TEntity,
         documentType: TEntity["DocumentType"],
-        map: { [DocumentType in TEntity["DocumentType"]]: TEntity }
+        map: { [DocumentType in TEntity["DocumentType"]]: TEntity },
+        dbsetType: DbSetType;
     };
 
     query(request: DeepPartial<PouchDB.Find.FindRequest<TEntity>>): Promise<PouchDB.Find.FindResponse<TEntity>>;
@@ -64,13 +62,6 @@ export interface IDbSet<
      * @param value Any value
      */
     tag(value: unknown): this;
-
-    /**
-     * Direct pouchDB to use an index with your request.  Index will only be used with the single request, all subsequent requests will use the default index if any
-     * @param name Name of the index
-     * @returns {Promise<TEntity[]>}
-     */
-    useIndex(name: string): IDbSetEnumerable<TDocumentType, TEntity>;
 
     /**
      * Mark an entity as dirty, will be saved even if there are no changes detected
@@ -180,6 +171,8 @@ export interface IDbSetApi<TDocumentType extends string, TEntityBase extends IDb
     tag(id: string, value: unknown): void;
     readonly DIRTY_ENTITY_MARKER: string;
     readonly PRISTINE_ENTITY_KEY: string;
+    registerOnBeforeSaveChanges: (documentType: TDocumentType, onBeforeSaveChanges: (getChanges: () => { adds: EntityAndTag[], removes: EntityAndTag[], updates: EntityAndTag[] }) => Promise<void>) => void;
+    registerOnAfterSaveChanges: (documentType: TDocumentType, onAfterSaveChanges: (getChanges: () => { adds: EntityAndTag[], removes: EntityAndTag[], updates: EntityAndTag[] }) => Promise<void>) => void;
 }
 
 export interface IDbSetInfo<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> {
@@ -191,6 +184,13 @@ export interface IDbSetInfo<TDocumentType extends string, TEntity extends IDbRec
     Readonly: boolean;
 }
 
+export interface IStoreDbSetProps<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> extends IDbSetProps<TDocumentType, TEntity> {
+    onChange: DbSetOnChangeEvent<TDocumentType, TEntity> | null;
+}
+
+export type DbSetChangeType = "hydrate" | "change"
+export type DbSetOnChangeEvent<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = (documentType: TDocumentType, type: DbSetChangeType, changes: { adds: TEntity[], removes: TEntity[], updates: TEntity[], all: TEntity[] }) => void
+
 export interface IDbSetProps<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> {
     documentType: TDocumentType,
     context: IDataContext<TDocumentType, TEntity>,
@@ -199,9 +199,10 @@ export interface IDbSetProps<TDocumentType extends string, TEntity extends IDbRe
     readonly: boolean;
     keyType: DbSetKeyType;
     map: PropertyMap<TDocumentType, TEntity, any>[];
-    index: string | undefined;
     filterSelector: EntitySelector<TDocumentType, TEntity> | null;
 }
+
+export type DbSetType = "default" | "store";
 
 export type DbSetEventCallback<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = (entity: TEntity) => void;
 export type DbSetIdOnlyEventCallback = (entity: string) => void;
