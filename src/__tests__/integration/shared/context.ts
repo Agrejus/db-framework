@@ -1,18 +1,13 @@
-import PouchDB from "pouchdb";
 import { DataContext } from "../../../context/DataContext";
 import { IDbSet } from "../../../types/dbset-types";
 import { IDbRecord, IDbRecordBase } from "../../../types/entity-types";
-import { DocumentTypes, ISyncDocument, ISetStatus, IComputer, IBook, IBookV4, INote, IContact, IBookV3, ICar, IPreference, ISplitComputer, ISplitBook, INoteV2 } from "./types";
+import { DocumentTypes, ISyncDocument, ISetStatus, IComputer, IBook, IBookV4, INote, IContact, IBookV3, ICar, IPreference } from "./types";
 import { v4 as uuidv4 } from 'uuid';
-import memoryAdapter from 'pouchdb-adapter-memory';
 import { DefaultDbSetBuilder } from "../../../context/dbset/builders/DefaultDbSetBuilder";
-import { IDbPluginOptions } from "../../../types/plugin-types";
-import { PouchDbPlugin } from "./PouchDBPlugin";
+import { PouchDbPlugin } from "@agrejus/db-framework-plugin-pouchdb";
 import { IDbSetBuilderParams } from "../../../types/dbset-builder-types";
 
-PouchDB.plugin(memoryAdapter);
-
-const dataContextWithParamsCreator = (type: string, name?: string) => new class extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>, IDbPluginOptions, PouchDB.Find.FindRequest<IDbRecord<DocumentTypes>>, PouchDB.Find.FindResponse<IDbRecord<DocumentTypes>>> {
+const dataContextWithParamsCreator = (type: string, name?: string) => new class extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>> {
    
    constructor() {
         super({ dbName: name ?? `${uuidv4()}-db` }, PouchDbPlugin);
@@ -29,7 +24,7 @@ const dataContextWithParamsCreator = (type: string, name?: string) => new class 
 const context = dataContextWithParamsCreator("");
 export const PouchDbDataContextWithDefaults = context;
 
-export class PouchDbDataContext extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>, IDbPluginOptions, PouchDB.Find.FindRequest<IDbRecord<DocumentTypes>>, PouchDB.Find.FindResponse<IDbRecord<DocumentTypes>>> {
+export class PouchDbDataContext extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>> {
 
     constructor(name: string) {
         super({ dbName: name }, PouchDbPlugin);
@@ -153,7 +148,7 @@ export class PouchDbDataContext extends DataContext<DocumentTypes, IDbRecord<Doc
     notesWithMapping = this.dbset().default<INote>(DocumentTypes.NotesWithMapping).map({ property: "createdDate", map: w => new Date(w) }).create();
 }
 
-export class BooksWithOneDefaultContext extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>, IDbPluginOptions, PouchDB.Find.FindRequest<IDbRecord<DocumentTypes>>, PouchDB.Find.FindResponse<IDbRecord<DocumentTypes>>> {
+export class BooksWithOneDefaultContext extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>> {
 
     constructor(name: string) {
         super({ dbName: name }, PouchDbPlugin);
@@ -170,7 +165,7 @@ export class BooksWithOneDefaultContext extends DataContext<DocumentTypes, IDbRe
 }
 
 
-export class BooksWithTwoDefaultContext extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>, IDbPluginOptions, PouchDB.Find.FindRequest<IDbRecord<DocumentTypes>>, PouchDB.Find.FindResponse<IDbRecord<DocumentTypes>>> {
+export class BooksWithTwoDefaultContext extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>> {
 
     constructor(name: string) {
         super({ dbName: name }, PouchDbPlugin);
@@ -181,7 +176,7 @@ export class BooksWithTwoDefaultContext extends DataContext<DocumentTypes, IDbRe
 
 export class DbContextFactory {
 
-    private _dbs: { [key: string]: DataContext<DocumentTypes, IDbRecord<DocumentTypes>, IDbPluginOptions, PouchDB.Find.FindRequest<IDbRecord<DocumentTypes>>, PouchDB.Find.FindResponse<IDbRecord<DocumentTypes>>> } = {}
+    private _dbs: { [key: string]: DataContext<DocumentTypes, IDbRecord<DocumentTypes>> } = {}
 
     getRandomDbName() {
         return uuidv4();
@@ -198,7 +193,7 @@ export class DbContextFactory {
         return result;
     }
 
-    createDbContexts<T extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>, IDbPluginOptions, PouchDB.Find.FindRequest<IDbRecord<DocumentTypes>>, PouchDB.Find.FindResponse<IDbRecord<DocumentTypes>>>>(factory: (name: string) => T[]) {
+    createDbContexts<T extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>>>(factory: (name: string) => T[]) {
         const name = `${uuidv4()}-db`;
         const contexts = factory(name);
 

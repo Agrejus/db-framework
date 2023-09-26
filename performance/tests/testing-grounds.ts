@@ -1,8 +1,6 @@
 import { DataContext } from "../../src/context/DataContext";
 import { IDbRecord } from "../../src/types/entity-types";
-import { EntityAndTag } from "../../src/types/dbset-types";
-import { IDbPluginOptions } from "../../src/types/plugin-types";
-import { PouchDbPlugin } from "../../src/plugins/PouchDbPlugin";
+import { PouchDbPlugin } from "@agrejus/db-framework-plugin-pouchdb";
 
 enum DocumentTypes {
     Notes = "Notes",
@@ -44,7 +42,7 @@ interface ICar extends IDbRecord<DocumentTypes.Cars> {
     manufactureDate: string;
 }
 
-class PouchDbDataContext extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>, IDbPluginOptions, PouchDB.Find.FindRequest<IDbRecord<DocumentTypes>>, PouchDB.Find.FindResponse<IDbRecord<DocumentTypes>>> {
+class PouchDbDataContext extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>> {
 
     constructor() {
         super({ dbName: "Test" }, PouchDbPlugin);

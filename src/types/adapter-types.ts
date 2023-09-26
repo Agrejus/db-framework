@@ -1,5 +1,6 @@
 import { IDbRecord, IDbRecordBase, OmittedEntity } from './entity-types';
 import { IDbSetInfo } from './dbset-types';
+import { IDbPlugin } from './plugin-types';
 
 export interface IDbSetFetchAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExtraExclusions extends string = never> {
     filter(selector: (entity: TEntity, index?: number, array?: TEntity[]) => boolean): Promise<TEntity[]>;
@@ -7,7 +8,6 @@ export interface IDbSetFetchAdapter<TDocumentType extends string, TEntity extend
     first(): Promise<TEntity | undefined>;
     all(): Promise<TEntity[]>;
     get(...ids: string[]): Promise<TEntity[]>;
-    query(request: PouchDB.Find.FindRequest<TEntity>): Promise<PouchDB.Find.FindResponse<TEntity>>;
 }
 
 export interface IDbSetGeneralAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExtraExclusions extends string = never> {
@@ -17,7 +17,7 @@ export interface IDbSetGeneralAdapter<TDocumentType extends string, TEntity exte
     merge(from: TEntity, to: TEntity): TEntity;
     unlink(...entities: TEntity[]): void;
     link(...entites: TEntity[]): Promise<TEntity[]>;
-    markDirty(...entities: TEntity[]): Promise<TEntity[]>
+    markDirty(...entities: TEntity[]): Promise<TEntity[]>;
 }
 
 export interface IDbSetModificationAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExtraExclusions extends string = never> {

@@ -1,7 +1,8 @@
-import { IQueryParams, DeepPartial, DbSetPickDefaultActionRequired, EntitySelector } from "./common-types";
+import { DeepPartial, DbSetPickDefaultActionRequired, EntitySelector } from "./common-types";
 import { ITrackedData, IDataContext } from "./context-types";
 import { DbSetKeyType, PropertyMap } from "./dbset-builder-types";
 import { IDbRecord, OmittedEntity, IDbRecordBase, EntityIdKeys } from "./entity-types";
+import { IDbPlugin } from "./plugin-types";
 
 export interface IDbSetEnumerable<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> extends IDbSetBase<TDocumentType> {
     /**
@@ -53,8 +54,6 @@ export interface IDbSet<
         map: { [DocumentType in TEntity["DocumentType"]]: TEntity },
         dbsetType: DbSetType;
     };
-
-    query(request: DeepPartial<PouchDB.Find.FindRequest<TEntity>>): Promise<PouchDB.Find.FindResponse<TEntity>>;
 
     /**
      * Add a tag to the transaction (one or more entites from add/remove/upsert) and make available for onAfterSaveChanges or onBeforeSaveChanges.
@@ -158,11 +157,8 @@ export interface IDbSetBase<TDocumentType extends string> {
 }
 
 export interface IDbSetApi<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> {
+    plugin: IDbPlugin<TDocumentType, TEntityBase>;
     getTrackedData: () => ITrackedData<TDocumentType, TEntityBase>;
-    getAllData: (payload?: IQueryParams<TDocumentType>) => Promise<TEntityBase[]>;
-    query<TEntity extends IDbRecord<TDocumentType>>(selector: PouchDB.Find.FindRequest<TEntity>): Promise<PouchDB.Find.FindResponse<TEntity>>
-    get: (...ids: string[]) => Promise<TEntityBase[]>;
-    getStrict: (...ids: string[]) => Promise<TEntityBase[]>;
     send: (data: TEntityBase[]) => void;
     detach: (data: TEntityBase[]) => TEntityBase[];
     makeTrackable<T extends Object>(entity: T, defaults: DeepPartial<OmittedEntity<T>>, readonly: boolean, maps: PropertyMap<any, any, any>[]): T;

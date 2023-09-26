@@ -1,5 +1,9 @@
 import { IDbRecord } from '../types/entity-types'
-import { IQueryParams } from './common-types';
+
+export interface IQueryParams<TDocumentType extends string> {
+    DocumentType?: TDocumentType;
+    index?: string;
+}
 
 export interface IBulkOperation {
     ok: boolean;
@@ -15,10 +19,9 @@ export interface IBulkOperationsResponse {
     successes_count: number
 }
 
-export interface IDbPlugin<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TQueryRequest, TQueryResponse> {
+export interface IDbPlugin<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> {
     destroy(): Promise<void>;
     all(payload?: IQueryParams<TDocumentType>): Promise<TEntityBase[]>;
-    query(request: TQueryRequest): Promise<TQueryResponse>;
     getStrict(...ids: string[]): Promise<TEntityBase[]>;
     get(...ids: string[]): Promise<TEntityBase[]>;
     bulkOperations(operations: { adds: TEntityBase[], removes: TEntityBase[], updates: TEntityBase[] }): Promise<IBulkOperationsResponse>
@@ -28,4 +31,4 @@ export type IDbPluginOptions = {
     dbName: string;
 }
 
-export type DbPluginInstanceCreator<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TQueryRequest, TQueryResponse> = new (options: IDbPluginOptions) => IDbPlugin<TDocumentType, TEntityBase, TQueryRequest, TQueryResponse>;
+export type DbPluginInstanceCreator<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> = new (options: IDbPluginOptions) => IDbPlugin<TDocumentType, TEntityBase>;

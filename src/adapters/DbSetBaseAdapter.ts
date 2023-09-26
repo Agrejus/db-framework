@@ -76,7 +76,7 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
     }
 
     protected async getAllData() {
-        return await this.api.getAllData({ DocumentType: this.documentType });
+        return await this.api.plugin.all({ DocumentType: this.documentType });
     }
 
     protected getKeyFromEntity(entity: TEntity) {

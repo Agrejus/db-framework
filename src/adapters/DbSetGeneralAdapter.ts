@@ -70,7 +70,7 @@ export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends I
         }
 
         // Find the existing _rev just in case it's not in sync
-        const found = await this.api.getStrict(...entities.map(w => w._id));
+        const found = await this.api.plugin.getStrict(...entities.map(w => w._id));
         const foundDictionary = found.reduce((a, v) => ({ ...a, [v._id]: v._rev }), {} as IIndexableEntity);
         const result = entities.map(w => this.api.makeTrackable({ ...w, _rev: foundDictionary[w._id] }, this.defaults.add, this.isReadonly, this.map));
 

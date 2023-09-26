@@ -1,4 +1,3 @@
-import PouchDB from 'pouchdb';
 import { DbContextFactory, PouchDbDataContext, BooksWithTwoDefaultContext } from "./shared/context";
 import { DocumentTypes } from "./shared/types";
 import { EntityAndTag } from "../../types/dbset-types";

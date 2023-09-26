@@ -16,7 +16,6 @@
   "license": "MIT",
   "repository": "Agrejus/db-framework",
   "keywords": [
-    "pouchdb",
     "orm",
     "typescript",
     "web",
@@ -27,6 +26,7 @@
     "dist"
   ],
   "devDependencies": {
+    "@agrejus/db-framework-plugin-pouchdb": "file:../db-framework-plugin-pouchdb",
     "@babel/preset-env": "^7.18.0",
     "@babel/preset-typescript": "^7.17.12",
     "@faker-js/faker": "^7.1.0",
@@ -34,7 +34,6 @@
     "@types/jest": "^27.5.1",
     "@types/lodash": "^4.14.182",
     "@types/node": "^17.0.35",
-    "@types/pouchdb": "^6.4.0",
     "@types/semver": "^7.3.10",
     "@types/uuid": "^8.3.4",
     "babel-jest": "^28.1.0",
@@ -42,19 +41,11 @@
     "directory-tree": "^3.3.0",
     "jest": "^28.1.0",
     "lodash": "^4.17.21",
-    "pouchdb": "^8.0.1",
-    "pouchdb-adapter-memory": "^8.0.1",
-    "pouchdb-find": "^8.0.1",
     "rimraf": "^3.0.2",
     "semver": "^7.3.7",
     "ts-jest": "^28.0.2",
     "ts-node": "^10.8.0",
     "typescript": "5.0.2"
-  },
-  "peerDependencies": {
-    "pouchdb": ">=8.0.1",
-    "pouchdb-adapter-memory": ">=8.0.1",
-    "pouchdb-find": ">=8.0.1"
   },
   "dependencies": {
     "uuid": "^8.3.2"

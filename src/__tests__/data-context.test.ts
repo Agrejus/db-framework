@@ -1,16 +1,11 @@
-import PouchDB from 'pouchdb';
-import memoryAdapter from 'pouchdb-adapter-memory';
 import { v4 as uuidv4 } from 'uuid';
 import { DataContext } from '../context/DataContext';
 import { IDbRecord } from '../types/entity-types';
-import { IDbPluginOptions } from '../types/plugin-types';
-import { PouchDbPlugin } from '../plugins/PouchDbPlugin';
+import { PouchDbPlugin } from '@agrejus/db-framework-plugin-pouchdb';
 
 describe('data context', () => {
 
-    PouchDB.plugin(memoryAdapter);
-
-    const dbs: { [key: string]: DataContext<DocumentTypes, IDbRecord<DocumentTypes>, IDbPluginOptions, PouchDB.Find.FindRequest<IDbRecord<DocumentTypes>>, PouchDB.Find.FindResponse<IDbRecord<DocumentTypes>>> } = {}
+    const dbs: { [key: string]: DataContext<DocumentTypes, IDbRecord<DocumentTypes>> } = {}
     const dbFactory = <T extends typeof PouchDbDataContext>(Context: T, dbname?: string) => {
         const name = dbname ?? `${uuidv4()}-db`;
         const result = new Context(name);
@@ -48,7 +43,7 @@ describe('data context', () => {
         status: "pending" | "approved" | "rejected";
     }
 
-    class PouchDbDataContext extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>, IDbPluginOptions, PouchDB.Find.FindRequest<IDbRecord<DocumentTypes>>, PouchDB.Find.FindResponse<IDbRecord<DocumentTypes>>> {
+    class PouchDbDataContext extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>> {
 
         constructor(name: string) {
             super({ dbName: name }, PouchDbPlugin);
@@ -69,15 +64,8 @@ describe('data context', () => {
 
     class CreateDbOverrideContext extends PouchDbDataContext {
 
-        private _name: string
-
         constructor(name: string) {
             super(name);
-            this._name = name;
-        }
-
-        protected createDb() {
-            return new PouchDB(this._name)
         }
     }
 

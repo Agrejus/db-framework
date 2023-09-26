@@ -10,10 +10,6 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
         super(props, type);
     }
 
-    async query(request: PouchDB.Find.FindRequest<TEntity>) {
-        return this.api.query(request);
-    }
-
     async filter(selector: EntitySelector<TDocumentType, TEntity>) {
         const data = await this.allDataAndMakeTrackable();
 
@@ -31,7 +27,7 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
     }
 
     async get(...ids: string[]) {
-        const entities = await this.api.getStrict(...ids);
+        const entities = await this.api.plugin.getStrict(...ids);
         const result = entities.map(w => this.api.makeTrackable(w, this.defaults.retrieve, this.isReadonly, this.map) as TEntity);
         const filteredResult = this.filterResult(result)
         await this.onAfterDataFetched(filteredResult);

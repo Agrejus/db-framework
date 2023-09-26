@@ -8,7 +8,7 @@ import { DbSetInitializer } from './dbset/builders/DbSetInitializer';
 import { DbPluginInstanceCreator, IDbPlugin, IDbPluginOptions } from '../types/plugin-types';
 
 
-export class DataContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TPluginOptions extends IDbPluginOptions, TQueryRequest, TQueryResponse> implements IDataContext<TDocumentType, TEntityBase> {
+export class DataContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TPluginOptions extends IDbPluginOptions = IDbPluginOptions> implements IDataContext<TDocumentType, TEntityBase> {
 
     protected readonly PRISTINE_ENTITY_KEY = "__pristine_entity__";
     protected readonly DIRTY_ENTITY_MARKER = "__isDirty";
@@ -20,18 +20,18 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
     private _tags: { [id: string]: unknown } = {}
 
     protected _removeById: string[] = [];
-    private _dbPlugin: IDbPlugin<TDocumentType, TEntityBase, TQueryRequest, TQueryResponse>;
+    protected readonly dbPlugin: IDbPlugin<TDocumentType, TEntityBase>;
     protected dbSets: { [key: string]: IDbSet<string, any> } = {} as { [key: string]: IDbSet<string, any> };
     private _onBeforeSaveChangesEvents: { [key in TDocumentType]: OnChangeEvent } = {} as any;
     private _onAfterSaveChangesEvents: { [key in TDocumentType]: OnChangeEvent } = {} as any
 
-    constructor(options: TPluginOptions, Plugin: DbPluginInstanceCreator<TDocumentType, TEntityBase, TQueryRequest, TQueryResponse>) {
-        this._dbPlugin = new Plugin(options);
+    constructor(options: TPluginOptions, Plugin: DbPluginInstanceCreator<TDocumentType, TEntityBase>) {
+        this.dbPlugin = new Plugin(options);
     }
 
     async getAllDocs() {
 
-        const all = await this._dbPlugin.all();
+        const all = await this.dbPlugin.all();
 
         return all.map(w => {
 
@@ -59,17 +59,14 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
     private _getApi(): IDbSetApi<TDocumentType, TEntityBase> {
         return {
             getTrackedData: this._getTrackedData.bind(this),
-            getAllData: this._dbPlugin.all.bind(this._dbPlugin),
+            plugin: this.dbPlugin,
             send: this._sendData.bind(this),
             detach: this._detach.bind(this),
             makeTrackable: this._makeTrackable.bind(this),
-            get: this._dbPlugin.get.bind(this._dbPlugin),
-            getStrict: this._dbPlugin.getStrict.bind(this._dbPlugin),
             map: this._mapAndSetDefaults.bind(this),
             DIRTY_ENTITY_MARKER: this.DIRTY_ENTITY_MARKER,
             PRISTINE_ENTITY_KEY: this.PRISTINE_ENTITY_KEY,
             makePristine: this._makePristine.bind(this),
-            query: this._dbPlugin.query.bind(this._dbPlugin),
             tag: this._tag.bind(this),
             registerOnAfterSaveChanges: this._registerOnAfterSaveChanges.bind(this),
             registerOnBeforeSaveChanges: this._registerOnBeforeSaveChanges.bind(this)
@@ -296,7 +293,7 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
     private async _getModifications() {
         const { add, remove, removeById, updated } = this._getPendingChanges();
 
-        const extraRemovals = await this._dbPlugin.getStrict(...removeById);
+        const extraRemovals = await this.dbPlugin.getStrict(...removeById);
 
         return {
             add,
@@ -364,7 +361,7 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
             // remove pristine entity before we send to bulk docs
             this._makePristine(...modifications);
 
-            const modificationResult = await this._dbPlugin.bulkOperations({ adds: add, removes: remove, updates: updated });
+            const modificationResult = await this.dbPlugin.bulkOperations({ adds: add, removes: remove, updates: updated });
 
             for (let i = 0; i < modifications.length; i++) {
                 const modification = modifications[i];
@@ -440,8 +437,8 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
      * Starts the dbset fluent API.  Only required function call is create(), all others are optional
      * @returns {DbSetInitializer}
      */
-    protected dbset(): DbSetInitializer<TDocumentType, TEntityBase, TPluginOptions, TQueryRequest, TQueryResponse> {
-        return new DbSetInitializer<TDocumentType, TEntityBase, TPluginOptions, TQueryRequest, TQueryResponse>(this.addDbSet.bind(this), this);
+    protected dbset(): DbSetInitializer<TDocumentType, TEntityBase, TPluginOptions> {
+        return new DbSetInitializer<TDocumentType, TEntityBase, TPluginOptions>(this.addDbSet.bind(this), this);
     }
 
     hasPendingChanges() {
@@ -459,7 +456,7 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
     }
 
     async destroyDatabase() {
-        await this._dbPlugin.destroy()
+        await this.dbPlugin.destroy()
     }
 
     static asUntracked<T extends IDbRecordBase>(...entities: T[]) {

@@ -9,12 +9,12 @@ import { StoreDbSet } from "../StoreDbSet";
 import { DefaultDbSetBuilder } from "./DefaultDbSetBuilder";
 import { StoreDbSetBuilder } from "./StoreDbSetBuilder";
 
-export class DbSetInitializer<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TPluginOptions extends IDbPluginOptions, TQueryRequest, TQueryResponse> {
+export class DbSetInitializer<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TPluginOptions extends IDbPluginOptions> {
 
     protected onAddDbSet: (dbset: IDbSetBase<TDocumentType>) => void;
     protected context: IDataContext<TDocumentType, TEntityBase>;
 
-    constructor(onAddDbSet: (dbset: IDbSetBase<TDocumentType>) => void, context: DataContext<TDocumentType, TEntityBase, TPluginOptions, TQueryRequest, TQueryResponse>) {
+    constructor(onAddDbSet: (dbset: IDbSetBase<TDocumentType>) => void, context: DataContext<TDocumentType, TEntityBase, TPluginOptions>) {
         this.onAddDbSet = onAddDbSet;
         this.context = context;
     }

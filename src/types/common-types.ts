@@ -24,11 +24,6 @@ export type DbSetPickDefaultActionRequired<TDocumentType extends string, TEntity
 
 export type EntitySelector<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = (entity: TEntity, index?: number, array?: TEntity[]) => boolean
 
-export interface IQueryParams<TDocumentType extends string> {
-    DocumentType?: TDocumentType;
-    index?: string;
-}
-
 export type PouchDbLinkProtocol = "pouchdb://"
 export type PouchDbReference = `${PouchDbLinkProtocol}${string}/_id:${string}`;
 
