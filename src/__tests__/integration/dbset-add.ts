@@ -1,4 +1,4 @@
-import { DbContextFactory, PouchDbDataContext, BooksWithTwoDefaultContext } from "./shared/context";
+import { DbContextFactory, ExternalDataContext, BooksWithTwoDefaultContext } from "./shared/context";
 import { DocumentTypes } from "./shared/types";
 import { EntityAndTag } from "../../types/dbset-types";
 
@@ -11,7 +11,7 @@ describe('DbSet Add Tests', () => {
     })
 
     it('should add entity and return reference', async () => {
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         const [contact] = await context.contacts.add({
             firstName: "James",
             lastName: "DeMeuse",
@@ -30,7 +30,7 @@ describe('DbSet Add Tests', () => {
     });
 
     it('should only allow one single entity per dbset', async () => {
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         const [preference] = await context.preference.add({
             isOtherPropertyOn: true,
             isSomePropertyOn: false
@@ -45,7 +45,7 @@ describe('DbSet Add Tests', () => {
     });
 
     it('should empty and add when only single document allowed', async () => {
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         await context.preference.add({
             isOtherPropertyOn: true,
             isSomePropertyOn: false
@@ -70,7 +70,7 @@ describe('DbSet Add Tests', () => {
     });
 
     it('should only allow one single entity per dbset - no key', async () => {
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         const [preference] = await context.preferencev2.add({
             isOtherPropertyOn: true,
             isSomePropertyOn: false
@@ -85,7 +85,7 @@ describe('DbSet Add Tests', () => {
     });
 
     it('should only allow one single entity per dbset using none from fluent builder', async () => {
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         const [book] = await context.booksNoKey.add({
             author: "me"
         });
@@ -98,7 +98,7 @@ describe('DbSet Add Tests', () => {
     });
 
     it('should only allow one single entity per dbset and update one entity', async () => {
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         const [preference] = await context.preference.add({
             isOtherPropertyOn: true,
             isSomePropertyOn: false
@@ -126,7 +126,7 @@ describe('DbSet Add Tests', () => {
     });
 
     it('should add entity, save, and set _rev', async () => {
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         const [contact] = await context.contacts.add({
             firstName: "James",
             lastName: "DeMeuse",
@@ -147,7 +147,7 @@ describe('DbSet Add Tests', () => {
     });
 
     it('should add entity, save, and generate an id', async () => {
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         const [note] = await context.notes.add({
             contents: "Some Note",
             createdDate: new Date(),
@@ -168,7 +168,7 @@ describe('DbSet Add Tests', () => {
 
     it('should add entity and create id from selector', async () => {
         const now = new Date();
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         const [car] = await context.cars.add({
             make: "Chevrolet",
             manufactureDate: now,
@@ -187,7 +187,7 @@ describe('DbSet Add Tests', () => {
     });
 
     it('should add entity, exlude a property and set the default on the add event', async () => {
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
 
         const [book] = await context.books.add({
             author: "James DeMeuse",
@@ -206,7 +206,7 @@ describe('DbSet Add Tests', () => {
     });
 
     it('should add entity and not map the returning date', async () => {
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         const [book] = await context.books.add({
             author: "James DeMeuse",
             publishDate: new Date()
@@ -229,7 +229,7 @@ describe('DbSet Add Tests', () => {
     });
 
     it('should add entity and map the returning date', async () => {
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         const [book] = await context.booksWithDateMapped.add({
             author: "James DeMeuse",
             publishDate: new Date(),
@@ -254,7 +254,7 @@ describe('DbSet Add Tests', () => {
     });
 
     it('dbset should set defaults on add', async () => {
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         const date = new Date();
         const [book] = await context.booksWithDefaults.add({
             author: "james",
@@ -271,7 +271,7 @@ describe('DbSet Add Tests', () => {
     });
 
     it('dbset should set defaults on add - v2', async () => {
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         const date = new Date();
         const [book] = await context.booksWithDefaultsV2.add({
             author: "james",
@@ -288,7 +288,7 @@ describe('DbSet Add Tests', () => {
     });
 
     it('dbset should set defaults after fetch for add and retrieve', async () => {
-        const [missingContext, context] = contextFactory.createDbContexts(name => [new BooksWithTwoDefaultContext(name), new PouchDbDataContext(name)]);
+        const [missingContext, context] = contextFactory.createDbContexts(name => [new BooksWithTwoDefaultContext(name), new ExternalDataContext(name)]);
         const date = new Date();
         await missingContext.booksWithTwoDefaults.add({
             author: "james",
@@ -322,7 +322,7 @@ describe('DbSet Add Tests', () => {
     });
 
     it('dbset should set defaults after fetch for add and retrieve for all docs', async () => {
-        const [missingContext, context] = contextFactory.createDbContexts(name => [new BooksWithTwoDefaultContext(name), new PouchDbDataContext(name)]);
+        const [missingContext, context] = contextFactory.createDbContexts(name => [new BooksWithTwoDefaultContext(name), new ExternalDataContext(name)]);
         const date = new Date();
         await missingContext.booksWithTwoDefaults.add({
             author: "james",
@@ -358,7 +358,7 @@ describe('DbSet Add Tests', () => {
 
     it('should create an instance and link - same as adding', async () => {
         const dbname = contextFactory.getRandomDbName();
-        const context = contextFactory.createContext(PouchDbDataContext, dbname);
+        const context = contextFactory.createContext(ExternalDataContext, dbname);
 
         const [contact] = context.contacts.instance({
             firstName: "James",
@@ -387,7 +387,7 @@ describe('DbSet Add Tests', () => {
     });
 
     it('booksv3 - should add entity, exlude a property and set the default on the add event', async () => {
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         const [book] = await context.booksV3.add({
             author: "me",
             rejectedCount: 1,
@@ -411,11 +411,11 @@ describe('DbSet Add Tests', () => {
 
         try {
             const dbname = contextFactory.getRandomDbName();
-            const context = contextFactory.createContext(PouchDbDataContext, dbname);
+            const context = contextFactory.createContext(ExternalDataContext, dbname);
 
             const all = await context.notes.all();
 
-            expect(all.length).toBe(0);
+            expect(all.length).toEqual(0);
 
             const [one] = await context.notes.upsert({
                 contents: "some contents",
@@ -423,9 +423,9 @@ describe('DbSet Add Tests', () => {
                 userId: "some user"
             });
 
-            expect(context.hasPendingChanges()).toBe(true);
+            expect(context.hasPendingChanges()).toEqual(true);
             await context.saveChanges();
-            expect(context.hasPendingChanges()).toBe(false);
+            expect(context.hasPendingChanges()).toEqual(false);
 
             const [two] = await context.notes.upsert({
                 contents: "some contents",
@@ -433,12 +433,12 @@ describe('DbSet Add Tests', () => {
                 userId: "some user"
             });
 
-            expect(context.hasPendingChanges()).toBe(true);
+            expect(context.hasPendingChanges()).toEqual(true);
             await context.saveChanges();
-            expect(context.hasPendingChanges()).toBe(false);
+            expect(context.hasPendingChanges()).toEqual(false);
 
             const allAfterAdd = await context.notes.all();
-            expect(allAfterAdd.length).toBe(2);
+            expect(allAfterAdd.length).toEqual(2);
 
             const foundOne = await context.notes.find(w => w._id === one._id);
 
@@ -456,23 +456,23 @@ describe('DbSet Add Tests', () => {
             });
 
 
-            expect(upsertedOne._id).toBe(one._id);
-            expect(context.hasPendingChanges()).toBe(true);
+            expect(upsertedOne._id).toEqual(one._id);
+            expect(context.hasPendingChanges()).toEqual(true);
             await context.saveChanges();
-            expect(context.hasPendingChanges()).toBe(false);
+            expect(context.hasPendingChanges()).toEqual(false);
 
             const foundUpsertOne = await context.notes.find(w => w._id === one._id);
 
             expect({ ...upsertedOne, createdDate: upsertedOne.createdDate.toISOString() }).toEqual({ ...foundUpsertOne });
-            expect(foundUpsertOne?.contents).toBe("changed contents");
-            expect(foundUpsertOne?.userId).toBe("changed user");
+            expect(foundUpsertOne?.contents).toEqual("changed contents");
+            expect(foundUpsertOne?.userId).toEqual("changed user");
 
             const foundUpsertTwo = await context.notes.find(w => w._id === upsertedTwo._id);
-            expect(foundUpsertTwo?.contents).toBe("changed contents 2");
-            expect(foundUpsertTwo?.userId).toBe("changed user 2");
+            expect(foundUpsertTwo?.contents).toEqual("changed contents 2");
+            expect(foundUpsertTwo?.userId).toEqual("changed user 2");
 
             const final = await context.notes.all();
-            expect(final.length).toBe(3);
+            expect(final.length).toEqual(3);
 
         } catch (e) {
             expect(e).not.toBeDefined()
@@ -483,7 +483,7 @@ describe('DbSet Add Tests', () => {
         const metaData = "Some Meta"
         const dbName = contextFactory.getRandomDbName();
         let calls = 0;
-        const context = contextFactory.createContext(class extends PouchDbDataContext {
+        const context = contextFactory.createContext(class extends ExternalDataContext {
    
             async onAfterSaveChanges(getChanges: () => { adds: EntityAndTag[]; removes: EntityAndTag[]; updates: EntityAndTag[]; }): Promise<void> {
                 calls++;
@@ -505,7 +505,7 @@ describe('DbSet Add Tests', () => {
     it('should not append meta data to one entity', (done) => {
         const dbName = contextFactory.getRandomDbName();
         let calls = 0;
-        const context = contextFactory.createContext(class extends PouchDbDataContext {
+        const context = contextFactory.createContext(class extends ExternalDataContext {
    
             async onAfterSaveChanges(getChanges: () => { adds: EntityAndTag[]; removes: EntityAndTag[]; updates: EntityAndTag[]; }): Promise<void> {
                 calls++;
@@ -528,7 +528,7 @@ describe('DbSet Add Tests', () => {
         const tag = "Some Meta"
         const dbName = contextFactory.getRandomDbName();
         let calls = 0;
-        const context = contextFactory.createContext(class extends PouchDbDataContext {
+        const context = contextFactory.createContext(class extends ExternalDataContext {
    
             async onAfterSaveChanges(getChanges: () => { adds: EntityAndTag[]; removes: EntityAndTag[]; updates: EntityAndTag[]; }): Promise<void> {
                 calls++;
@@ -557,7 +557,7 @@ describe('DbSet Add Tests', () => {
         const tag = "Some Meta"
         const dbName = contextFactory.getRandomDbName();
         let calls = 0;
-        const context = contextFactory.createContext(class extends PouchDbDataContext {
+        const context = contextFactory.createContext(class extends ExternalDataContext {
    
             async onAfterSaveChanges(getChanges: () => { adds: EntityAndTag[]; removes: EntityAndTag[]; updates: EntityAndTag[]; }): Promise<void> {
                 calls++;
@@ -594,7 +594,7 @@ describe('DbSet Add Tests', () => {
         const tag = "Some Meta"
         const dbName = contextFactory.getRandomDbName();
         let calls = 0;
-        const context = contextFactory.createContext(class extends PouchDbDataContext {
+        const context = contextFactory.createContext(class extends ExternalDataContext {
    
             async onAfterSaveChanges(getChanges: () => { adds: EntityAndTag[]; removes: EntityAndTag[]; updates: EntityAndTag[]; }): Promise<void> {
                 calls++;

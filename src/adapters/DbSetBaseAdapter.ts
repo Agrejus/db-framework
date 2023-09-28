@@ -39,7 +39,7 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
         const data = await this.getAllData();
 
         // process the mappings when we make the item trackable.  We are essentially prepping the entity
-        const result = data.map(w => this.api.makeTrackable(w, this.defaults.retrieve, this.isReadonly, this.map) as TEntity);
+        const result = data.map(w => this.api.changeTrackingAdapter.enableChangeTracking(w, this.defaults.retrieve, this.isReadonly, this.map));
 
         return this.filterResult(result);
     }
@@ -62,7 +62,7 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
 
         await this.onAfterDataFetched(result);
 
-        this.api.send(result);
+        this.api.changeTrackingAdapter.attach(result);
 
         return this.filterResult(result);
     }
@@ -76,7 +76,7 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
     }
 
     protected async getAllData() {
-        return await this.api.plugin.all({ DocumentType: this.documentType });
+        return await this.api.dbPlugin.all({ DocumentType: this.documentType });
     }
 
     protected getKeyFromEntity(entity: TEntity) {

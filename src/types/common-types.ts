@@ -1,4 +1,4 @@
-import { IDbRecord, OmittedEntity, IDbRecordBase, IRemovalRecord } from "./entity-types";
+import { IDbRecord, OmittedEntity, IRemovalRecord } from "./entity-types";
 
 export type DeepOmit<T, K extends PropertyKey> = {
     [P in keyof T as P extends K ? never : P]: DeepOmit<T[P], K extends `${Exclude<P, symbol>}.${infer R}` ? R : never>
@@ -24,9 +24,6 @@ export type DbSetPickDefaultActionRequired<TDocumentType extends string, TEntity
 
 export type EntitySelector<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = (entity: TEntity, index?: number, array?: TEntity[]) => boolean
 
-export type PouchDbLinkProtocol = "pouchdb://"
-export type PouchDbReference = `${PouchDbLinkProtocol}${string}/_id:${string}`;
-
 export interface IBulkDocsResponse {
     ok: boolean;
     id: string;
@@ -40,12 +37,4 @@ export interface IPreviewChanges<TDocumentType extends string, TEntityBase exten
     add: TEntityBase[];
     remove: IRemovalRecord<TDocumentType, TEntityBase>[];
     update: TEntityBase[];
-}
-
-export interface DocumentReference {
-    databaseName: string,
-    selector: {
-        property: string,
-        value: string
-    }
 }

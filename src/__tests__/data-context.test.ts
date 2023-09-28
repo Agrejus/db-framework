@@ -6,7 +6,7 @@ import { PouchDbPlugin } from '@agrejus/db-framework-plugin-pouchdb';
 describe('data context', () => {
 
     const dbs: { [key: string]: DataContext<DocumentTypes, IDbRecord<DocumentTypes>> } = {}
-    const dbFactory = <T extends typeof PouchDbDataContext>(Context: T, dbname?: string) => {
+    const dbFactory = <T extends typeof ExternalDataContext>(Context: T, dbname?: string) => {
         const name = dbname ?? `${uuidv4()}-db`;
         const result = new Context(name);
         dbs[name] = result;
@@ -43,7 +43,7 @@ describe('data context', () => {
         status: "pending" | "approved" | "rejected";
     }
 
-    class PouchDbDataContext extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>> {
+    class ExternalDataContext extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>> {
 
         constructor(name: string) {
             super({ dbName: name }, PouchDbPlugin);
@@ -62,7 +62,7 @@ describe('data context', () => {
         books = this.dbset().default<IBook>(DocumentTypes.Books).exclude("status").create();
     }
 
-    class CreateDbOverrideContext extends PouchDbDataContext {
+    class CreateDbOverrideContext extends ExternalDataContext {
 
         constructor(name: string) {
             super(name);
@@ -75,8 +75,8 @@ describe('data context', () => {
     })
 
     it('should save changes when entity is added and a non auto generated id', async () => {
-
-        const context = dbFactory(PouchDbDataContext);
+        debugger;
+        const context = dbFactory(ExternalDataContext);
         const [contact] = await context.contacts.add({
             firstName: "James",
             lastName: "DeMeuse",
@@ -98,7 +98,7 @@ describe('data context', () => {
 
     it('should save changes when entities are added and a non auto generated id', async () => {
 
-        const context = dbFactory(PouchDbDataContext);
+        const context = dbFactory(ExternalDataContext);
 
         const [one, two] = await context.contacts.add({
             firstName: "James",
@@ -129,7 +129,7 @@ describe('data context', () => {
     });
 
     it('should add entity with auto generated id', async () => {
-        const context = dbFactory(PouchDbDataContext);
+        const context = dbFactory(ExternalDataContext);
         const [note] = await context.notes.add({
             contents: "some new note",
             createdDate: new Date(),
@@ -152,7 +152,7 @@ describe('data context', () => {
 
     it('should save changes when more than one entity is added', async () => {
 
-        const context = dbFactory(PouchDbDataContext);
+        const context = dbFactory(ExternalDataContext);
         const [first, second] = await context.contacts.add({
             firstName: "James",
             lastName: "DeMeuse",
@@ -182,7 +182,7 @@ describe('data context', () => {
 
     it('should save changes when entity is removed', async () => {
 
-        const context = dbFactory(PouchDbDataContext);
+        const context = dbFactory(ExternalDataContext);
         const [contact] = await context.contacts.add({
             firstName: "James",
             lastName: "DeMeuse",
@@ -211,7 +211,7 @@ describe('data context', () => {
 
     it('should save changes when entities are removed', async () => {
 
-        const context = dbFactory(PouchDbDataContext);
+        const context = dbFactory(ExternalDataContext);
         const [first, second] = await context.contacts.add({
             firstName: "James",
             lastName: "DeMeuse",
@@ -245,7 +245,7 @@ describe('data context', () => {
 
     it('should save changes when entities are removed by id', async () => {
 
-        const context = dbFactory(PouchDbDataContext);
+        const context = dbFactory(ExternalDataContext);
         const [first, second] = await context.contacts.add({
             firstName: "James",
             lastName: "DeMeuse",
@@ -279,7 +279,7 @@ describe('data context', () => {
 
     it('should save changes when entity is updated', async () => {
 
-        const context = dbFactory(PouchDbDataContext);
+        const context = dbFactory(ExternalDataContext);
         const [contact] = await context.contacts.add({
             firstName: "James",
             lastName: "DeMeuse",
@@ -309,7 +309,7 @@ describe('data context', () => {
 
     it('should show no changes when property is set to same value', async () => {
 
-        const context = dbFactory(PouchDbDataContext);
+        const context = dbFactory(ExternalDataContext);
         const [contact] = await context.contacts.add({
             firstName: "James",
             lastName: "DeMeuse",
@@ -333,7 +333,7 @@ describe('data context', () => {
 
     it('should save changes when two of the same entities with different references are updated', async () => {
 
-        const context = dbFactory(PouchDbDataContext);
+        const context = dbFactory(ExternalDataContext);
         const [contact] = await context.contacts.add({
             firstName: "James",
             lastName: "DeMeuse",
@@ -376,7 +376,7 @@ describe('data context', () => {
 
     it('should get all data', async () => {
 
-        const context = dbFactory(PouchDbDataContext);
+        const context = dbFactory(ExternalDataContext);
 
         await context.contacts.add({
             firstName: "James",
@@ -408,7 +408,7 @@ describe('data context', () => {
 
     it('should iterate over dbsets', async () => {
         const interation = jest.fn();
-        const context = dbFactory(PouchDbDataContext);
+        const context = dbFactory(ExternalDataContext);
 
         for (let dbset of context) {
             interation();
@@ -441,7 +441,7 @@ describe('data context', () => {
 
     it('should set one default with dbset fluent api using fluent dbset builder', async () => {
 
-        class FluentContext extends PouchDbDataContext {
+        class FluentContext extends ExternalDataContext {
 
             constructor(name: string) {
                 super(name);
@@ -457,7 +457,7 @@ describe('data context', () => {
 
     it('should set one default for adding with dbset fluent api using fluent dbset builder', async () => {
 
-        class FluentContext extends PouchDbDataContext {
+        class FluentContext extends ExternalDataContext {
 
             constructor(name: string) {
                 super(name);
@@ -473,7 +473,7 @@ describe('data context', () => {
 
     it('should set one default for retrieving with dbset fluent api using fluent dbset builder', async () => {
 
-        class FluentContext extends PouchDbDataContext {
+        class FluentContext extends ExternalDataContext {
 
             constructor(name: string) {
                 super(name);
@@ -489,7 +489,7 @@ describe('data context', () => {
 
     it('should allow add and retrieve defaults to be different with dbset fluent api using fluent dbset builder', async () => {
 
-        class FluentContext extends PouchDbDataContext {
+        class FluentContext extends ExternalDataContext {
 
             constructor(name: string) {
                 super(name);
@@ -506,7 +506,7 @@ describe('data context', () => {
     it('should set many defaults with dbset fluent api using fluent dbset builder', async () => {
 
         const date = new Date()
-        class FluentContext extends PouchDbDataContext {
+        class FluentContext extends ExternalDataContext {
 
             constructor(name: string) {
                 super(name);
@@ -523,7 +523,7 @@ describe('data context', () => {
     it('should set many defaults for adding with dbset fluent api using fluent dbset builder', async () => {
 
         const date = new Date()
-        class FluentContext extends PouchDbDataContext {
+        class FluentContext extends ExternalDataContext {
 
             constructor(name: string) {
                 super(name);
@@ -540,7 +540,7 @@ describe('data context', () => {
     it('should set many defaults for retrieving with dbset fluent api using fluent dbset builder', async () => {
 
         const date = new Date()
-        class FluentContext extends PouchDbDataContext {
+        class FluentContext extends ExternalDataContext {
 
             constructor(name: string) {
                 super(name);
@@ -557,7 +557,7 @@ describe('data context', () => {
     it('should allow defaults to be called more than once and append to defaults using fluent dbset builder', async () => {
 
         const date = new Date()
-        class FluentContext extends PouchDbDataContext {
+        class FluentContext extends ExternalDataContext {
 
             constructor(name: string) {
                 super(name);
@@ -574,7 +574,7 @@ describe('data context', () => {
     it('should allow defaults to be called more than once when adding and append to defaults using fluent dbset builder', async () => {
 
         const date = new Date()
-        class FluentContext extends PouchDbDataContext {
+        class FluentContext extends ExternalDataContext {
 
             constructor(name: string) {
                 super(name);
@@ -591,7 +591,7 @@ describe('data context', () => {
     it('should allow defaults to be called more than once when retrieving and append to defaults using fluent dbset builder', async () => {
 
         const date = new Date()
-        class FluentContext extends PouchDbDataContext {
+        class FluentContext extends ExternalDataContext {
 
             constructor(name: string) {
                 super(name);
@@ -608,7 +608,7 @@ describe('data context', () => {
     it('should allow defaults to be called more than once when adding and retrieving and append to defaults using fluent dbset builder', async () => {
 
         const date = new Date()
-        class FluentContext extends PouchDbDataContext {
+        class FluentContext extends ExternalDataContext {
 
             constructor(name: string) {
                 super(name);
@@ -624,7 +624,7 @@ describe('data context', () => {
 
     it('should exclude one property using fluent dbset builder', async () => {
 
-        class FluentContext extends PouchDbDataContext {
+        class FluentContext extends ExternalDataContext {
 
             constructor(name: string) {
                 super(name);
@@ -640,7 +640,7 @@ describe('data context', () => {
 
     it('should exclude many properties using fluent dbset builder', async () => {
 
-        class FluentContext extends PouchDbDataContext {
+        class FluentContext extends ExternalDataContext {
 
             constructor(name: string) {
                 super(name);
@@ -656,7 +656,7 @@ describe('data context', () => {
 
     it('should allow exclude to be called more than once and exclude many properties using fluent dbset builder', async () => {
 
-        class FluentContext extends PouchDbDataContext {
+        class FluentContext extends ExternalDataContext {
 
             constructor(name: string) {
                 super(name);
@@ -672,7 +672,7 @@ describe('data context', () => {
 
     it('should build key using one property using fluent dbset builder', async () => {
 
-        class FluentContext extends PouchDbDataContext {
+        class FluentContext extends ExternalDataContext {
 
             constructor(name: string) {
                 super(name);
@@ -688,7 +688,7 @@ describe('data context', () => {
 
     it('should build key using many properties using fluent dbset builder', async () => {
 
-        class FluentContext extends PouchDbDataContext {
+        class FluentContext extends ExternalDataContext {
 
             constructor(name: string) {
                 super(name);
@@ -704,7 +704,7 @@ describe('data context', () => {
 
     it('should allow keys to be called more than once and build key using many properties using fluent dbset builder', async () => {
 
-        class FluentContext extends PouchDbDataContext {
+        class FluentContext extends ExternalDataContext {
 
             constructor(name: string) {
                 super(name);
@@ -720,7 +720,7 @@ describe('data context', () => {
 
     it('should create dbset using fluent dbset builder', async () => {
 
-        class FluentContext extends PouchDbDataContext {
+        class FluentContext extends ExternalDataContext {
 
             constructor(name: string) {
                 super(name);

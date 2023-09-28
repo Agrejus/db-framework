@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker";
-import { DbContextFactory, PouchDbDataContext } from "./shared/context";
+import { DbContextFactory, ExternalDataContext } from "./shared/context";
 import { IContact } from "./shared/types";
 
 describe('DbSet Empty Tests', () => {
@@ -11,7 +11,7 @@ describe('DbSet Empty Tests', () => {
     })
 
     it('should empty entities from dbset', async () => {
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         const generated: IContact[] = [];
 
         for (let i = 0; i < 20; i++) {

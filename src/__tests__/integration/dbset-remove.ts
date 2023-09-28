@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker";
-import { DbContextFactory, PouchDbDataContext } from "./shared/context";
+import { DbContextFactory, ExternalDataContext } from "./shared/context";
 import { IContact } from "./shared/types";
 
 describe('DbSet Remove Tests', () => {
@@ -11,7 +11,7 @@ describe('DbSet Remove Tests', () => {
     })
 
     it('should remove one entity by reference', async () => {
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         const [contact] = await context.contacts.add({
             firstName: "James",
             lastName: "DeMeuse",
@@ -31,7 +31,7 @@ describe('DbSet Remove Tests', () => {
     });
 
     it('should remove one entity by id', async () => {
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         const [contact] = await context.contacts.add({
             firstName: "James",
             lastName: "DeMeuse",
@@ -51,7 +51,7 @@ describe('DbSet Remove Tests', () => {
     });
 
     it('should remove many entities by reference', async () => {
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         const generated: IContact[] = [];
 
         for (let i = 0; i < 20; i++) {
@@ -81,7 +81,7 @@ describe('DbSet Remove Tests', () => {
 
     it('should remove many entities by id', async () => {
 
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         const generated: IContact[] = [];
 
         for (let i = 0; i < 20; i++) {
@@ -111,7 +111,7 @@ describe('DbSet Remove Tests', () => {
     });
 
     it('should remove correct entity', async () => {
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         const [one, _] = await context.contacts.add({
             firstName: "James",
             lastName: "DeMeuse",

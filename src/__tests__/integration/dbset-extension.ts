@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker";
-import { DbContextFactory, PouchDbDataContext } from "./shared/context";
+import { DbContextFactory, ExternalDataContext } from "./shared/context";
 
 describe('DbSet Extension Tests', () => {
 
@@ -10,7 +10,7 @@ describe('DbSet Extension Tests', () => {
     })
 
     it('extended dbset should call base methods with no issues - v2', async () => {
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         await context.overrideContactsV2.add({
             firstName: "James",
             lastName: "DeMeuse",
@@ -26,7 +26,7 @@ describe('DbSet Extension Tests', () => {
     });
 
     it('should extend dbset more than once and methods should work', async () => {
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         await context.overrideContactsV3.add({
             firstName: "James",
             lastName: "DeMeuse",
@@ -44,7 +44,7 @@ describe('DbSet Extension Tests', () => {
     });
 
     it('should extend more than once when calling common method', async () => {
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         const [book] = await context.booksV4.add({
             author: "me",
             rejectedCount: 1,

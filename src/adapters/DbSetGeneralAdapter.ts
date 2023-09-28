@@ -1,4 +1,3 @@
-import { DataContext } from '../context/DataContext';
 import { IDbSetGeneralAdapter } from '../types/adapter-types';
 import { IDbSetProps, IDbSetInfo, DbSetType } from '../types/dbset-types';
 import { IDbRecord, IDbRecordBase, IIndexableEntity } from '../types/entity-types';
@@ -33,7 +32,7 @@ export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends I
     }
 
     merge(from: TEntity, to: TEntity) {
-        return { ...from, ...to, [this.api.PRISTINE_ENTITY_KEY]: { ...from, ...((to as IIndexableEntity)[this.api.PRISTINE_ENTITY_KEY] ?? {}) }, _rev: from._rev } as TEntity
+        return this.api.changeTrackingAdapter.merge(from, to);
     }
 
     unlink(...entities: TEntity[]) {
@@ -49,15 +48,7 @@ export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends I
     }
 
     async markDirty(...entities: TEntity[]) {
-
-        if (entities.some(w => DataContext.isProxy(w) === false)) {
-            throw new Error(`Entities must be linked to context in order to mark as dirty`)
-        }
-
-        return entities.map(w => {
-            (w as IIndexableEntity)[this.api.DIRTY_ENTITY_MARKER] = true;
-            return w;
-        });
+        return await this.api.changeTrackingAdapter.markDirty(...entities);
     }
 
     async link(...entities: TEntity[]) {
@@ -70,16 +61,16 @@ export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends I
         }
 
         // Find the existing _rev just in case it's not in sync
-        const found = await this.api.plugin.getStrict(...entities.map(w => w._id));
+        const found = await this.api.dbPlugin.getStrict(...entities.map(w => w._id));
         const foundDictionary = found.reduce((a, v) => ({ ...a, [v._id]: v._rev }), {} as IIndexableEntity);
-        const result = entities.map(w => this.api.makeTrackable({ ...w, _rev: foundDictionary[w._id] }, this.defaults.add, this.isReadonly, this.map));
+        const result = entities.map(w => this.api.changeTrackingAdapter.enableChangeTracking({ ...w, _rev: foundDictionary[w._id] }, this.defaults.add, this.isReadonly, this.map));
 
-        this.api.send(result);
+        this.api.changeTrackingAdapter.attach(result);
 
         return result;
     }
 
     private _detachItems(data: TEntity[]) {
-        return this.api.detach(data);
+        return this.api.changeTrackingAdapter.detach(data);
     }
 }

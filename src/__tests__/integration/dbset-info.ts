@@ -1,4 +1,4 @@
-import { DbContextFactory, PouchDbDataContext } from "./shared/context";
+import { DbContextFactory, ExternalDataContext } from "./shared/context";
 
 describe('DbSet Info Tests', () => {
 
@@ -9,7 +9,7 @@ describe('DbSet Info Tests', () => {
     })
 
     it('supplying no keys should default to auto', async () => {
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
 
         expect(context.books.info().KeyType).toBe("auto")
     });

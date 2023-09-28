@@ -1,5 +1,6 @@
+import { ProxyChangeTrackingAdapter } from "../../adapters/change-tracking/ProxyChangeTrackingAdapter";
 import { DataContext } from "../../context/DataContext";
-import { DbContextFactory, PouchDbDataContext } from "./shared/context";
+import { DbContextFactory, ExternalDataContext } from "./shared/context";
 
 describe('DbSet Update Tests', () => {
 
@@ -12,7 +13,7 @@ describe('DbSet Update Tests', () => {
     it('should update an entity with previous rev', async () => {
 
         const dbname = contextFactory.getRandomDbName();
-        const context = contextFactory.createContext(PouchDbDataContext, dbname);
+        const context = contextFactory.createContext(ExternalDataContext, dbname);
         const [newBook] = await context.books.add({
             author: "James",
             publishDate: new Date()
@@ -31,7 +32,7 @@ describe('DbSet Update Tests', () => {
         secondBook!.author = "DeMeuse"
         await context.saveChanges();
 
-        const secondaryContext = contextFactory.createContext(PouchDbDataContext, dbname);
+        const secondaryContext = contextFactory.createContext(ExternalDataContext, dbname);
         const [linkedBook] = await secondaryContext.books.link(book!);
 
         linkedBook.author = "James DeMeuse";
@@ -43,7 +44,7 @@ describe('DbSet Update Tests', () => {
     it('should should add and update in one transaction', async () => {
 
         const dbname = contextFactory.getRandomDbName();
-        const context = contextFactory.createContext(PouchDbDataContext, dbname);
+        const context = contextFactory.createContext(ExternalDataContext, dbname);
 
         const all = await context.contacts.all();
 
@@ -85,8 +86,8 @@ describe('DbSet Update Tests', () => {
         expect(foundAll.find(w => w._id === two._id)).toEqual(two);
         expect(foundAll.find(w => w._id === three._id)).toEqual(three);
 
-        expect(DataContext.isProxy(one)).toBe(true);
-        expect(DataContext.isProxy(two)).toBe(true);
-        expect(DataContext.isProxy(three)).toBe(true);
+        expect(ProxyChangeTrackingAdapter.isProxy(one)).toBe(true);
+        expect(ProxyChangeTrackingAdapter.isProxy(two)).toBe(true);
+        expect(ProxyChangeTrackingAdapter.isProxy(three)).toBe(true);
     });
 });

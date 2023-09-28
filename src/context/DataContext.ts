@@ -1,29 +1,22 @@
-import { AdvancedDictionary } from "../common/AdvancedDictionary";
-import { DeepPartial, IPreviewChanges } from "../types/common-types";
-import { IDataContext, ITrackedData, OnChangeEvent } from "../types/context-types";
-import { EntityAndTag, IDbSet, IDbSetApi } from "../types/dbset-types";
-import { IDbRecordBase, OmittedEntity, IIndexableEntity, SplitDocumentDocumentPropertyName, SplitDocumentPathPropertyName, IDbRecord } from "../types/entity-types";
-import { PropertyMap } from '../types/dbset-builder-types';
+import { IPreviewChanges } from "../types/common-types";
+import { IDataContext, OnChangeEvent } from "../types/context-types";
+import { DbSetMap, EntityAndTag, IDbSet, IDbSetApi, IStoreDbSet } from "../types/dbset-types";
+import { IDbRecordBase, IIndexableEntity, IDbRecord } from "../types/entity-types";
 import { DbSetInitializer } from './dbset/builders/DbSetInitializer';
 import { DbPluginInstanceCreator, IDbPlugin, IDbPluginOptions } from '../types/plugin-types';
+import { ChangeTrackingAdapterBase } from '../adapters/change-tracking/ChangeTrackingAdapterBase';
+import { HashChangeTrackingAdapter } from '../adapters/change-tracking/HashChangeTrackingAdapter';
 
+export abstract class DataContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TPluginOptions extends IDbPluginOptions = IDbPluginOptions> implements IDataContext<TDocumentType, TEntityBase> {
 
-export class DataContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TPluginOptions extends IDbPluginOptions = IDbPluginOptions> implements IDataContext<TDocumentType, TEntityBase> {
-
-    protected readonly PRISTINE_ENTITY_KEY = "__pristine_entity__";
-    protected readonly DIRTY_ENTITY_MARKER = "__isDirty";
-    static PROXY_MARKER: string = '__isProxy';
-
-    protected _removals: TEntityBase[] = [];
-    protected _additions: TEntityBase[] = [];
-    protected _attachments: AdvancedDictionary<TEntityBase> = new AdvancedDictionary<TEntityBase>("_id");
     private _tags: { [id: string]: unknown } = {}
 
-    protected _removeById: string[] = [];
     protected readonly dbPlugin: IDbPlugin<TDocumentType, TEntityBase>;
-    protected dbSets: { [key: string]: IDbSet<string, any> } = {} as { [key: string]: IDbSet<string, any> };
+    protected dbSets: DbSetMap = {} as DbSetMap;
     private _onBeforeSaveChangesEvents: { [key in TDocumentType]: OnChangeEvent } = {} as any;
-    private _onAfterSaveChangesEvents: { [key in TDocumentType]: OnChangeEvent } = {} as any
+    private _onAfterSaveChangesEvents: { [key in TDocumentType]: OnChangeEvent } = {} as any;
+    private _memoryDbSets: { [key in TDocumentType]: boolean } = {} as any;
+    private _changeAdapter: ChangeTrackingAdapterBase<TDocumentType, TEntityBase> = new HashChangeTrackingAdapter();
 
     constructor(options: TPluginOptions, Plugin: DbPluginInstanceCreator<TDocumentType, TEntityBase>) {
         this.dbPlugin = new Plugin(options);
@@ -40,7 +33,7 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
             if (dbSet) {
                 const info = dbSet.info();
 
-                return this._makeTrackable(w, info.Defaults.retrieve, info.Readonly, info.Map)
+                return this._changeAdapter.enableChangeTracking(w, info.Defaults.retrieve, info.Readonly, info.Map)
             }
 
             return w
@@ -58,15 +51,8 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
      */
     private _getApi(): IDbSetApi<TDocumentType, TEntityBase> {
         return {
-            getTrackedData: this._getTrackedData.bind(this),
-            plugin: this.dbPlugin,
-            send: this._sendData.bind(this),
-            detach: this._detach.bind(this),
-            makeTrackable: this._makeTrackable.bind(this),
-            map: this._mapAndSetDefaults.bind(this),
-            DIRTY_ENTITY_MARKER: this.DIRTY_ENTITY_MARKER,
-            PRISTINE_ENTITY_KEY: this.PRISTINE_ENTITY_KEY,
-            makePristine: this._makePristine.bind(this),
+            dbPlugin: this.dbPlugin,
+            changeTrackingAdapter: this._changeAdapter,
             tag: this._tag.bind(this),
             registerOnAfterSaveChanges: this._registerOnAfterSaveChanges.bind(this),
             registerOnBeforeSaveChanges: this._registerOnBeforeSaveChanges.bind(this)
@@ -96,179 +82,6 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
         this.dbSets[info.DocumentType] = dbset;
     }
 
-    /**
-     * Used by the context api
-     * @param data 
-     */
-    private _detach(data: TEntityBase[]) {
-        this._attachments.remove(...data);
-    }
-
-    /**
-     * Used by the context api
-     * @param data 
-     */
-    private _sendData(data: TEntityBase[]) {
-        this._attachments.push(...data)
-    }
-
-    /**
-     * Used by the context api
-     */
-    private _getTrackedData() {
-        return {
-            add: this._additions,
-            remove: this._removals,
-            attach: this._attachments,
-            removeById: this._removeById
-        } as ITrackedData<TDocumentType, TEntityBase>;
-    }
-
-    private _reinitialize(removals: TEntityBase[] = [], add: TEntityBase[] = []) {
-        this._additions = [];
-        this._removals = [];
-        this._removeById = [];
-
-        this._attachments.remove(...removals);
-
-        // move additions to attachments so we can track changes
-        this._attachments.push(...add);
-    }
-
-    /**
-     * Provides equality comparison for Entities
-     * @param first 
-     * @param second 
-     * @returns boolean
-     */
-    private areEqual(first: TEntityBase, second: TEntityBase) {
-
-        if (!first && !second) {
-            return true;
-        }
-
-        if (!first || !second) {
-            return false;
-        }
-
-        const skip = ["_id", "_rev"];
-        const keys = Object.keys(first).filter(w => skip.includes(w) === false);
-
-        return keys.some(w => {
-            const firstPropertyValue = (first as any)[w];
-            const secondPropertyValue = (second as any)[w];
-
-            if (Array.isArray(firstPropertyValue) && Array.isArray(secondPropertyValue)) {
-                return firstPropertyValue.length === secondPropertyValue.length && firstPropertyValue.every((val, index) => val === secondPropertyValue[index]);
-            }
-
-            return (first as any)[w] != (second as any)[w]
-        }) === false;
-    }
-
-    private _mapInstance<T extends Object>(entity: T, maps: PropertyMap<any, any, any>[]) {
-
-        const result: IIndexableEntity = entity;
-
-        for (const map of maps) {
-            result[map.property] = map.map(result[map.property], entity)
-        }
-
-        return result as T
-    }
-
-    private _mapAndSetDefaults<T extends Object>(entity: T, maps: PropertyMap<any, any, any>[], defaults: DeepPartial<OmittedEntity<T>> = {} as any) {
-        const mergedInstance = { ...defaults, ...entity };
-        let mappedInstance = {};
-
-        if (maps.length > 0) {
-            mappedInstance = maps.reduce((a, v) => {
-                const preTransformValue = (mergedInstance as any)[v.property];
-                return { ...a, [v.property]: Object.prototype.toString.call(preTransformValue) === '[object Date]' ? preTransformValue : v.map(preTransformValue, entity) }
-            }, {});
-        }
-
-        return { ...mergedInstance, ...mappedInstance };
-    }
-
-    private _makeTrackable<T extends Object>(entity: T, defaults: DeepPartial<OmittedEntity<T>>, readonly: boolean, maps: PropertyMap<any, any, any>[]): T {
-        const proxyHandler: ProxyHandler<T> = {
-            set: (entity, property, value) => {
-
-                const indexableEntity: IIndexableEntity = entity as any;
-                const key = String(property);
-
-                if (property === this.DIRTY_ENTITY_MARKER) {
-
-                    if (indexableEntity[this.PRISTINE_ENTITY_KEY] === undefined) {
-                        indexableEntity[this.PRISTINE_ENTITY_KEY] = {};
-                    }
-
-                    indexableEntity[this.PRISTINE_ENTITY_KEY][this.DIRTY_ENTITY_MARKER] = true;
-                    return true;
-                }
-
-                if (property !== this.PRISTINE_ENTITY_KEY && indexableEntity._id != null) {
-                    const oldValue = indexableEntity[key];
-
-                    if (indexableEntity[this.PRISTINE_ENTITY_KEY] === undefined) {
-                        indexableEntity[this.PRISTINE_ENTITY_KEY] = {};
-                    }
-
-                    if (indexableEntity[this.PRISTINE_ENTITY_KEY][key] === undefined) {
-                        indexableEntity[this.PRISTINE_ENTITY_KEY][key] = oldValue;
-                    }
-                }
-
-                indexableEntity[key] = value;
-
-                return true;
-            },
-            get: (target, property, receiver) => {
-
-                if (property === DataContext.PROXY_MARKER) {
-                    return true;
-                }
-
-                return Reflect.get(target, property, receiver);
-            }
-        }
-
-        const instance = this._mapAndSetDefaults(entity, maps, defaults);
-        const result = readonly ? Object.freeze(instance) : instance;
-
-        return new Proxy(result, proxyHandler) as T
-    }
-
-    private _getPendingChanges() {
-        const { add, remove, removeById } = this._getTrackedData();
-
-        const updated = this._attachments.filter(w => {
-
-            const indexableEntity = w as IIndexableEntity;
-            if (indexableEntity[this.PRISTINE_ENTITY_KEY] === undefined) {
-                return false;
-            }
-
-            const pristineKeys = Object.keys(indexableEntity[this.PRISTINE_ENTITY_KEY]);
-
-            for (let pristineKey of pristineKeys) {
-                if (indexableEntity[this.PRISTINE_ENTITY_KEY][pristineKey] != indexableEntity[pristineKey]) {
-                    return true
-                }
-            }
-
-            return false;
-        }).map(w => this._mapInstance(w, this.dbSets[w.DocumentType].info().Map));
-
-        return {
-            add,
-            remove,
-            removeById,
-            updated
-        }
-    }
-
     async previewChanges(): Promise<IPreviewChanges<TDocumentType, TEntityBase>> {
         const { add, remove, updated } = await this._getModifications();
         const clone = JSON.stringify({
@@ -280,18 +93,9 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
         return JSON.parse(clone)
     }
 
-    private _makePristine(...entities: TEntityBase[]) {
-
-        for (let i = 0; i < entities.length; i++) {
-            const indexableEntity = entities[i] as IIndexableEntity;
-
-            // make pristine again
-            delete indexableEntity[this.PRISTINE_ENTITY_KEY];
-        }
-    }
-
     private async _getModifications() {
-        const { add, remove, removeById, updated } = this._getPendingChanges();
+        const changes = this._changeAdapter.getTrackedData();
+        const { add, remove, removeById, updated } = this._changeAdapter.getPendingChanges(changes, this.dbSets);
 
         const extraRemovals = await this.dbPlugin.getStrict(...removeById);
 
@@ -300,14 +104,6 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
             remove: [...remove, ...extraRemovals].map(w => {
 
                 let result = { ...w, _id: w._id, _rev: w._rev, DocumentType: w.DocumentType, _deleted: true } as IIndexableEntity;
-
-                if ((w as IIndexableEntity)[SplitDocumentPathPropertyName] != null) {
-                    result = { ...result, [SplitDocumentPathPropertyName]: (w as IIndexableEntity)[SplitDocumentPathPropertyName] }
-                }
-
-                if ((w as IIndexableEntity)[SplitDocumentDocumentPropertyName] != null) {
-                    result = { ...result, [SplitDocumentDocumentPropertyName]: (w as IIndexableEntity)[SplitDocumentDocumentPropertyName] }
-                }
 
                 return result as TEntityBase
             }),
@@ -359,7 +155,9 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
             const modifications = [...remove, ...add, ...updated];
 
             // remove pristine entity before we send to bulk docs
-            this._makePristine(...modifications);
+            this._changeAdapter.makePristine(...modifications);
+
+            // can we just skip over memory here?
 
             const modificationResult = await this.dbPlugin.bulkOperations({ adds: add, removes: remove, updates: updated });
 
@@ -375,19 +173,35 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
                     this.onAfterSetRev(indexableEntity);
 
                     // make pristine again because we set the _rev above
-                    this._makePristine(modification);
+                    this._changeAdapter.makePristine(modification);
                 }
             }
 
-            this._reinitialize(remove, add);
+            this._changeAdapter.reinitialize(remove, add);
 
             await this._onAfterSaveChanges(changes, tags);
 
             return modificationResult.successes_count;
         } catch (e) {
-            this._reinitialize();
+            this._changeAdapter.reinitialize();
+
+            // rehydrate on error so we can ensure the store matches
+            await this._rehydrate();
+
             throw e;
         }
+    }
+
+    private async _rehydrate() {
+        const dbsets: IStoreDbSet<TDocumentType, any>[] = [];
+        for (const dbset of this) {
+            if (dbset.types.dbsetType === "store") {
+                dbsets.push(dbset as IStoreDbSet<TDocumentType, any>);
+                continue;
+            }
+        }
+
+        await Promise.all(dbsets.map(w => w.hydrate()))
     }
 
     private async _onAfterSaveChanges(changes: { add: TEntityBase[]; remove: TEntityBase[]; updated: TEntityBase[]; }, tags: { [x: string]: unknown; }) {
@@ -442,7 +256,8 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
     }
 
     hasPendingChanges() {
-        const { add, remove, removeById, updated } = this._getPendingChanges();
+        const changes = this._changeAdapter.getTrackedData();
+        const { add, remove, removeById, updated } = this._changeAdapter.getPendingChanges(changes, this.dbSets);
         return [add.length, remove.length, removeById.length, updated.length].some(w => w > 0);
     }
 
@@ -459,31 +274,16 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
         await this.dbPlugin.destroy()
     }
 
-    static asUntracked<T extends IDbRecordBase>(...entities: T[]) {
-        return entities.map(w => ({ ...w } as T));
-    }
-
-    static isProxy(entities: IDbRecordBase) {
-        return (entities as IIndexableEntity)[DataContext.PROXY_MARKER] === true;
+    asUntracked(...entities: TEntityBase[]) {
+        return this._changeAdapter.asUntracked(...entities);
     }
 
     static isDate(value: any) {
         return Object.prototype.toString.call(value) === '[object Date]'
     }
 
-    static merge<T extends IDbRecordBase>(to: T, from: T, options?: { skip?: string[]; }) {
-        for (let property in from) {
-
-            if (options?.skip && options.skip.includes(property)) {
-                continue;
-            }
-
-            to[property] = from[property];
-        }
-    }
-
-    getDbSet<T extends string, E extends IDbRecord<T>, EE extends string = never>(documentType: T): IDbSet<T, E, EE> | undefined {
-        return this.dbSets[documentType] as IDbSet<T, E, EE>
+    getDbSet(documentType: TDocumentType) {
+        return this.dbSets[documentType];
     }
 
     [Symbol.iterator]() {

@@ -22,9 +22,9 @@ const dataContextWithParamsCreator = (type: string, name?: string) => new class 
 }
 
 const context = dataContextWithParamsCreator("");
-export const PouchDbDataContextWithDefaults = context;
+export const ExternalDbDataContextWithDefaults = context;
 
-export class PouchDbDataContext extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>> {
+export class ExternalDataContext extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>> {
 
     constructor(name: string) {
         super({ dbName: name }, PouchDbPlugin);
@@ -186,7 +186,7 @@ export class DbContextFactory {
         return dataContextWithParamsCreator(type, name)
     }
 
-    createContext<T extends typeof PouchDbDataContext>(Context: T, dbname?: string, type?: string) {
+    createContext<T extends typeof ExternalDataContext>(Context: T, dbname?: string, type?: string) {
         const name = dbname ?? `${uuidv4()}-db`;
         const result = new Context(name);
         this._dbs[name] = result;

@@ -1,4 +1,4 @@
-import { DbContextFactory, PouchDbDataContext } from "./shared/context";
+import { DbContextFactory, ExternalDataContext } from "./shared/context";
 
 describe('DbSet Link Tests', () => {
 
@@ -11,7 +11,7 @@ describe('DbSet Link Tests', () => {
     it('should attach one entity', async () => {
 
         const dbname = contextFactory.getRandomDbName()
-        const context = contextFactory.createContext(PouchDbDataContext, dbname);
+        const context = contextFactory.createContext(ExternalDataContext, dbname);
         await context.contacts.add({
             firstName: "James",
             lastName: "DeMeuse",
@@ -36,7 +36,7 @@ describe('DbSet Link Tests', () => {
 
         contact.firstName = "James Changed";
 
-        const secondContext = contextFactory.createContext(PouchDbDataContext, dbname);
+        const secondContext = contextFactory.createContext(ExternalDataContext, dbname);
 
         // attaching re-enables entity tracking for properties changed
         const [linkedContact] = await secondContext.contacts.link(contact);
@@ -55,7 +55,7 @@ describe('DbSet Link Tests', () => {
     it('should attach one entity and have no changes', async () => {
 
         const dbname = contextFactory.getRandomDbName()
-        const context = contextFactory.createContext(PouchDbDataContext, dbname);
+        const context = contextFactory.createContext(ExternalDataContext, dbname);
         await context.contacts.add({
             firstName: "James",
             lastName: "DeMeuse",
@@ -72,7 +72,7 @@ describe('DbSet Link Tests', () => {
         expect(context.hasPendingChanges()).toBe(false);
         await context.saveChanges();
 
-        const secondContext = contextFactory.createContext(PouchDbDataContext, dbname);
+        const secondContext = contextFactory.createContext(ExternalDataContext, dbname);
 
         await secondContext.contacts.link(contact);
 
@@ -83,7 +83,7 @@ describe('DbSet Link Tests', () => {
     it('should attach one entity and mark as changed even if we change the entity before attaching', async () => {
 
         const dbname = contextFactory.getRandomDbName()
-        const context = contextFactory.createContext(PouchDbDataContext, dbname);
+        const context = contextFactory.createContext(ExternalDataContext, dbname);
         await context.contacts.add({
             firstName: "James",
             lastName: "DeMeuse",
@@ -108,7 +108,7 @@ describe('DbSet Link Tests', () => {
 
         contact.firstName = "James Changed";
 
-        const secondContext = contextFactory.createContext(PouchDbDataContext, dbname);
+        const secondContext = contextFactory.createContext(ExternalDataContext, dbname);
 
         // attaching re-enables entity tracking for properties changed
         await secondContext.contacts.link(contact);
@@ -125,7 +125,7 @@ describe('DbSet Link Tests', () => {
     it('should attach many entities', async () => {
 
         const dbname = contextFactory.getRandomDbName()
-        const context = contextFactory.createContext(PouchDbDataContext, dbname);
+        const context = contextFactory.createContext(ExternalDataContext, dbname);
         await context.contacts.add({
             firstName: "James",
             lastName: "DeMeuse",
@@ -140,7 +140,7 @@ describe('DbSet Link Tests', () => {
 
         await context.saveChanges();
 
-        const otherContext = contextFactory.createContext(PouchDbDataContext, dbname);
+        const otherContext = contextFactory.createContext(ExternalDataContext, dbname);
         const [one, two] = await otherContext.contacts.all();
 
         otherContext.contacts.unlink(one, two);
@@ -159,7 +159,7 @@ describe('DbSet Link Tests', () => {
         one.firstName = "James Changed";
         two.firstName = "John Changed";
 
-        const secondContext = contextFactory.createContext(PouchDbDataContext, dbname);
+        const secondContext = contextFactory.createContext(ExternalDataContext, dbname);
 
         // attaching re-enables entity tracking for properties changed
         const [linkedOne, linkedTwo] = await secondContext.contacts.link(one, two);
@@ -178,7 +178,7 @@ describe('DbSet Link Tests', () => {
     it('should set _rev on linked entity', async () => {
 
         const dbname = contextFactory.getRandomDbName()
-        const context = contextFactory.createContext(PouchDbDataContext, dbname);
+        const context = contextFactory.createContext(ExternalDataContext, dbname);
         await context.contacts.add({
             firstName: "James",
             lastName: "DeMeuse",
@@ -209,7 +209,7 @@ describe('DbSet Link Tests', () => {
 
         await context.saveChanges();
 
-        const secondContext = contextFactory.createContext(PouchDbDataContext, dbname);
+        const secondContext = contextFactory.createContext(ExternalDataContext, dbname);
 
         expect(contact._rev).not.toBe(updated._rev);
 

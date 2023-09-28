@@ -1,8 +1,20 @@
+import { ChangeTrackingAdapterBase } from "../adapters/change-tracking/ChangeTrackingAdapterBase";
 import { DeepPartial, DbSetPickDefaultActionRequired, EntitySelector } from "./common-types";
 import { ITrackedData, IDataContext } from "./context-types";
 import { DbSetKeyType, PropertyMap } from "./dbset-builder-types";
 import { IDbRecord, OmittedEntity, IDbRecordBase, EntityIdKeys } from "./entity-types";
 import { IDbPlugin } from "./plugin-types";
+
+export type IDbSetTypes<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExtraExclusions extends string = never> = {
+    modify: OmittedEntity<TEntity, TExtraExclusions>;
+    result: TEntity;
+    documentType: TEntity["DocumentType"];
+    map: {
+        [DocumentType in TEntity["DocumentType"]]: TEntity;
+    };
+    dbsetType: DbSetType;
+}
+
 
 export interface IDbSetEnumerable<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> extends IDbSetBase<TDocumentType> {
     /**
@@ -37,8 +49,16 @@ export interface IStoreDbSet<
     TEntity extends IDbRecord<TDocumentType>,
     TExtraExclusions extends string = never,
 > extends IDbSet<TDocumentType, TEntity, TExtraExclusions> {
+    /**
+     * Load existing data into the memory store
+     * @returns {Promise<number>}
+     */
     hydrate(): Promise<number>;
-    get store(): TEntity[];
+
+    /**
+     * Local data from the database
+     */
+    get store(): DbSetStores<TDocumentType, TEntity>;
 }
 
 export interface IDbSet<
@@ -47,13 +67,7 @@ export interface IDbSet<
     TExtraExclusions extends string = never,
 > extends IDbSetEnumerable<TDocumentType, TEntity> {
 
-    get types(): {
-        modify: OmittedEntity<TEntity, TExtraExclusions>,
-        result: TEntity,
-        documentType: TEntity["DocumentType"],
-        map: { [DocumentType in TEntity["DocumentType"]]: TEntity },
-        dbsetType: DbSetType;
-    };
+    get types(): IDbSetTypes<TDocumentType, TEntity, TExtraExclusions>;
 
     /**
      * Add a tag to the transaction (one or more entites from add/remove/upsert) and make available for onAfterSaveChanges or onBeforeSaveChanges.
@@ -157,16 +171,9 @@ export interface IDbSetBase<TDocumentType extends string> {
 }
 
 export interface IDbSetApi<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> {
-    plugin: IDbPlugin<TDocumentType, TEntityBase>;
-    getTrackedData: () => ITrackedData<TDocumentType, TEntityBase>;
-    send: (data: TEntityBase[]) => void;
-    detach: (data: TEntityBase[]) => TEntityBase[];
-    makeTrackable<T extends Object>(entity: T, defaults: DeepPartial<OmittedEntity<T>>, readonly: boolean, maps: PropertyMap<any, any, any>[]): T;
-    makePristine(...entities: TEntityBase[]): void;
-    map<T extends Object>(entity: T, maps: PropertyMap<any, any, any>[], defaults?: DeepPartial<OmittedEntity<T, never>>): T
+    dbPlugin: IDbPlugin<TDocumentType, TEntityBase>;
+    changeTrackingAdapter: ChangeTrackingAdapterBase<TDocumentType, TEntityBase>;
     tag(id: string, value: unknown): void;
-    readonly DIRTY_ENTITY_MARKER: string;
-    readonly PRISTINE_ENTITY_KEY: string;
     registerOnBeforeSaveChanges: (documentType: TDocumentType, onBeforeSaveChanges: (getChanges: () => { adds: EntityAndTag[], removes: EntityAndTag[], updates: EntityAndTag[] }) => Promise<void>) => void;
     registerOnAfterSaveChanges: (documentType: TDocumentType, onAfterSaveChanges: (getChanges: () => { adds: EntityAndTag[], removes: EntityAndTag[], updates: EntityAndTag[] }) => Promise<void>) => void;
 }
@@ -184,7 +191,7 @@ export interface IStoreDbSetProps<TDocumentType extends string, TEntity extends 
     onChange: DbSetOnChangeEvent<TDocumentType, TEntity> | null;
 }
 
-export type DbSetChangeType = "hydrate" | "change"
+export type DbSetChangeType = "hydrate" | "change" | "rehydrate";
 export type DbSetOnChangeEvent<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = (documentType: TDocumentType, type: DbSetChangeType, changes: { adds: TEntity[], removes: TEntity[], updates: TEntity[], all: TEntity[] }) => void
 
 export interface IDbSetProps<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> {
@@ -199,12 +206,12 @@ export interface IDbSetProps<TDocumentType extends string, TEntity extends IDbRe
 }
 
 export type DbSetType = "default" | "store";
-
-export type DbSetEventCallback<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = (entity: TEntity) => void;
-export type DbSetIdOnlyEventCallback = (entity: string) => void;
-
-export type DbSetEventCallbackAsync<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = (entities: TEntity[]) => Promise<void>;
-export type DbSetIdOnlyEventCallbackAsync = (entities: string[]) => Promise<void>;
-
-export type IncludeType = "all" | string[];
 export type EntityAndTag<T extends IDbRecordBase = IDbRecordBase> = { entity: T, tag?: unknown }
+
+export type DbSetStores<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> = {
+    filter: (selector: EntitySelector<TDocumentType, TEntityBase>) => TEntityBase[],
+    find: (selector: EntitySelector<TDocumentType, TEntityBase>) => TEntityBase | undefined,
+    all: () => TEntityBase[]
+}
+
+export type DbSetMap = { [key: string]: IDbSet<string, any> }

@@ -1,6 +1,5 @@
-import { DataContext } from '../context/DataContext';
 import { IDbSetModificationAdapter } from '../types/adapter-types';
-import { DbSetType, EntityAndTag, IDbSetProps } from '../types/dbset-types';
+import { DbSetType, IDbSetProps } from '../types/dbset-types';
 import { IDbRecord, OmittedEntity, IIndexableEntity } from '../types/entity-types';
 import { DbSetBaseAdapter } from './DbSetBaseAdapter';
 
@@ -27,7 +26,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
     protected processAdditionAndMakeTrackable(entity: OmittedEntity<TEntity, TExtraExclusions>) {
         const addItem = this.processAddition(entity);
 
-        return this.api.makeTrackable(addItem, this.defaults.add, this.isReadonly, this.map) as TEntity;
+        return this.api.changeTrackingAdapter.enableChangeTracking(addItem as TEntity, this.defaults.add, this.isReadonly, this.map);
     }
 
     tag(value: unknown) {
@@ -39,7 +38,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
     }
 
     private async _add(...entities: OmittedEntity<TEntity, TExtraExclusions>[]) {
-        const data = this.api.getTrackedData();
+        const data = this.api.changeTrackingAdapter.getTrackedData();
         const { add } = data;
 
         const result = entities.map(entity => {
@@ -49,7 +48,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
                 throw new Error('Cannot add entity that is already in the database, please modify entites by reference or attach an existing entity')
             }
 
-            const mappedEntity = this.api.map(entity, this.map, this.defaults.add);
+            const mappedEntity = this.api.changeTrackingAdapter.mapAndSetDefaults(entity, this.map, this.defaults.add);
             const trackableEntity = this.processAdditionAndMakeTrackable(mappedEntity);
             
             this._tryAddMetaData(trackableEntity._id);
@@ -82,7 +81,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
     }
 
     async upsert(...entities: (OmittedEntity<TEntity, TExtraExclusions> | Omit<TEntity, "DocumentType">)[]) {
-        // build the id's
+ 
         const all = await this.getAllData();
         const allDictionary: { [key: string]: TEntity } = all.reduce((a, v) => ({ ...a, [v._id]: v }), {})
         const result: TEntity[] = [];
@@ -92,11 +91,11 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
             const found = allDictionary[instance._id]
 
             if (found) {
-                const mergedAndTrackable = this.api.makeTrackable(found, this.defaults.add, this.isReadonly, this.map) as TEntity;
+                const mergedAndTrackable = this.api.changeTrackingAdapter.enableChangeTracking(found, this.defaults.add, this.isReadonly, this.map);
 
-                DataContext.merge(mergedAndTrackable, entity, { skip: [this.api.PRISTINE_ENTITY_KEY] });
+                this.api.changeTrackingAdapter.merge(entity, mergedAndTrackable)
 
-                this.api.send([mergedAndTrackable]);
+                this.api.changeTrackingAdapter.attach([mergedAndTrackable]);
 
                 this._tryAddMetaData(mergedAndTrackable._id);
 
@@ -142,7 +141,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
     }
 
     private async _remove(entity: TEntity) {
-        const data = this.api.getTrackedData();
+        const data = this.api.changeTrackingAdapter.getTrackedData();
         const { remove } = data;
 
         const ids = remove.map(w => w._id);
@@ -157,7 +156,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
     }
 
     protected async _removeById(id: string) {
-        const data = this.api.getTrackedData();
+        const data = this.api.changeTrackingAdapter.getTrackedData();
         const { removeById } = data;
 
         if (removeById.includes(id)) {

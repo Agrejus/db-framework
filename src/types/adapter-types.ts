@@ -1,6 +1,5 @@
 import { IDbRecord, IDbRecordBase, OmittedEntity } from './entity-types';
 import { IDbSetInfo } from './dbset-types';
-import { IDbPlugin } from './plugin-types';
 
 export interface IDbSetFetchAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExtraExclusions extends string = never> {
     filter(selector: (entity: TEntity, index?: number, array?: TEntity[]) => boolean): Promise<TEntity[]>;

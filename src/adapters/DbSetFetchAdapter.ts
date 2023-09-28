@@ -17,7 +17,7 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
 
         await this.onAfterDataFetched(result);
 
-        this.api.send(result)
+        this.api.changeTrackingAdapter.attach(result)
 
         return result;
     }
@@ -27,13 +27,13 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
     }
 
     async get(...ids: string[]) {
-        const entities = await this.api.plugin.getStrict(...ids);
-        const result = entities.map(w => this.api.makeTrackable(w, this.defaults.retrieve, this.isReadonly, this.map) as TEntity);
+        const entities = await this.api.dbPlugin.getStrict(...ids);
+        const result = entities.map(w => this.api.changeTrackingAdapter.enableChangeTracking(w, this.defaults.retrieve, this.isReadonly, this.map));
         const filteredResult = this.filterResult(result)
         await this.onAfterDataFetched(filteredResult);
 
         if (filteredResult.length > 0) {
-            this.api.send(filteredResult)
+            this.api.changeTrackingAdapter.attach(filteredResult)
         }
 
         return filteredResult;
@@ -48,7 +48,7 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
 
             await this.onAfterDataFetched([result]);
 
-            this.api.send([result])
+            this.api.changeTrackingAdapter.attach([result])
         }
 
         return result;
@@ -62,7 +62,7 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
 
             await this.onAfterDataFetched([result]);
 
-            this.api.send([result])
+            this.api.changeTrackingAdapter.attach([result])
         }
 
         return result as TEntity | undefined;

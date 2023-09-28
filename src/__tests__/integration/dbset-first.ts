@@ -1,5 +1,5 @@
 import { shouldFilterEntitiesWithDefaults, shouldFilterEntitiesWithDefaultsAndNotMatchOnSecondQuery } from "./shared/common-tests";
-import { DbContextFactory, PouchDbDataContext, BooksWithOneDefaultContext } from "./shared/context";
+import { DbContextFactory, ExternalDataContext, BooksWithOneDefaultContext } from "./shared/context";
 import { DocumentTypes } from "./shared/types";
 
 describe('DbSet First Tests', () => {
@@ -11,7 +11,7 @@ describe('DbSet First Tests', () => {
     })
 
     it('should get first entity', async () => {
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         await context.contacts.add({
             firstName: "James",
             lastName: "DeMeuse",
@@ -35,7 +35,7 @@ describe('DbSet First Tests', () => {
     });
 
     it('dbset should set defaults after fetch', async () => {
-        const [missingContext, context] = contextFactory.createDbContexts(name => [new BooksWithOneDefaultContext(name), new PouchDbDataContext(name)]);
+        const [missingContext, context] = contextFactory.createDbContexts(name => [new BooksWithOneDefaultContext(name), new ExternalDataContext(name)]);
         const date = new Date();
         await missingContext.booksWithDefaults.add({
             author: "james",
@@ -56,7 +56,7 @@ describe('DbSet First Tests', () => {
     });
 
     it('dbset should set defaults after fetch - v2', async () => {
-        const [missingContext, context] = contextFactory.createDbContexts(name => [new BooksWithOneDefaultContext(name), new PouchDbDataContext(name)]);
+        const [missingContext, context] = contextFactory.createDbContexts(name => [new BooksWithOneDefaultContext(name), new ExternalDataContext(name)]);
         const date = new Date();
         await missingContext.booksWithDefaultsV2.add({
             author: "james",

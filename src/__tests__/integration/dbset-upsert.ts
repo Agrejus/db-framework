@@ -1,5 +1,6 @@
+import { ProxyChangeTrackingAdapter } from "../../adapters/change-tracking/ProxyChangeTrackingAdapter";
 import { DataContext } from "../../context/DataContext";
-import { DbContextFactory, PouchDbDataContext } from "./shared/context";
+import { DbContextFactory, ExternalDataContext } from "./shared/context";
 
 describe('DbSet Upsert Tests', () => {
 
@@ -12,7 +13,7 @@ describe('DbSet Upsert Tests', () => {
     it('should should upsert one entity', async () => {
 
         const dbname = contextFactory.getRandomDbName()
-        const context = contextFactory.createContext(PouchDbDataContext, dbname);
+        const context = contextFactory.createContext(ExternalDataContext, dbname);
 
         const all = await context.contacts.all();
 
@@ -48,15 +49,15 @@ describe('DbSet Upsert Tests', () => {
 
         expect(foundTwo).toEqual(two);
 
-        expect(DataContext.isProxy(one)).toBe(true);
-        expect(DataContext.isProxy(two)).toBe(true)
+        expect(ProxyChangeTrackingAdapter.isProxy(one)).toBe(true);
+        expect(ProxyChangeTrackingAdapter.isProxy(two)).toBe(true)
     });
 
 
     it('should should upsert one entity using spread not the instance with optional property', async () => {
 
         const dbname = contextFactory.getRandomDbName()
-        const context = contextFactory.createContext(PouchDbDataContext, dbname);
+        const context = contextFactory.createContext(ExternalDataContext, dbname);
 
         const all = await context.books.all();
 
@@ -83,7 +84,7 @@ describe('DbSet Upsert Tests', () => {
     it('should should upsert one entity using spread not the instance with optional property and show no changes', async () => {
 
         const dbname = contextFactory.getRandomDbName()
-        const context = contextFactory.createContext(PouchDbDataContext, dbname);
+        const context = contextFactory.createContext(ExternalDataContext, dbname);
 
         const all = await context.computers.all();
 
@@ -110,7 +111,7 @@ describe('DbSet Upsert Tests', () => {
     it('should should upsert one entity using spread not the instance with optional date and show no changes', async () => {
 
         const dbname = contextFactory.getRandomDbName()
-        const context = contextFactory.createContext(PouchDbDataContext, dbname);
+        const context = contextFactory.createContext(ExternalDataContext, dbname);
 
         const all = await context.books.all();
 
@@ -139,7 +140,7 @@ describe('DbSet Upsert Tests', () => {
 
         try {
             const dbname = contextFactory.getRandomDbName()
-            const context = contextFactory.createContext(PouchDbDataContext, dbname);
+            const context = contextFactory.createContext(ExternalDataContext, dbname);
 
             const all = await context.notesWithMapping.all();
 

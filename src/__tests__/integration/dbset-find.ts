@@ -1,5 +1,5 @@
 import { shouldFilterEntitiesWithDefaults, shouldFilterEntitiesWithDefaultsAndNotMatchOnSecondQuery } from "./shared/common-tests";
-import { DbContextFactory, PouchDbDataContext } from "./shared/context";
+import { DbContextFactory, ExternalDataContext } from "./shared/context";
 
 describe('DbSet Find Tests', () => {
 
@@ -10,7 +10,7 @@ describe('DbSet Find Tests', () => {
     })
 
     it('should find correct entity', async () => {
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         await context.contacts.add({
             firstName: "James",
             lastName: "DeMeuse",
@@ -37,7 +37,7 @@ describe('DbSet Find Tests', () => {
     });
 
     it('should find no entity', async () => {
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         await context.contacts.add({
             firstName: "James",
             lastName: "DeMeuse",

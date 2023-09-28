@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker";
-import { DbContextFactory, PouchDbDataContext } from "./shared/context";
+import { DbContextFactory, ExternalDataContext } from "./shared/context";
 
 describe('DbSet Match Tests', () => {
 
@@ -10,7 +10,7 @@ describe('DbSet Match Tests', () => {
     })
 
     it('should match entity', async () => {
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         const [one] = await context.contacts.add({
             firstName: "James",
             lastName: "DeMeuse",
@@ -31,7 +31,7 @@ describe('DbSet Match Tests', () => {
     });
 
     it('should not match entity', async () => {
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         const [_, one] = await context.contacts.add({
             firstName: "James",
             lastName: "DeMeuse",
@@ -52,7 +52,7 @@ describe('DbSet Match Tests', () => {
     });
 
     it('should match correct entities from base documents', async () => {
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
 
 
         for (let i = 0; i < 20; i++) {

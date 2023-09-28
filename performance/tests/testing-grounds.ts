@@ -42,7 +42,7 @@ interface ICar extends IDbRecord<DocumentTypes.Cars> {
     manufactureDate: string;
 }
 
-class PouchDbDataContext extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>> {
+class ExternalDbDataContext extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>> {
 
     constructor() {
         super({ dbName: "Test" }, PouchDbPlugin);
@@ -54,6 +54,8 @@ class PouchDbDataContext extends DataContext<DocumentTypes, IDbRecord<DocumentTy
 
 
     onChange(documentType: DocumentTypes, type: any, data: IDbRecord<DocumentTypes>[]) {
+        // all 
+        // what if we have the store dbset automatically implement onChange?
         console.log('onChange', documentType, data, type)
     }
 
@@ -73,7 +75,7 @@ class PouchDbDataContext extends DataContext<DocumentTypes, IDbRecord<DocumentTy
 export const run = async () => {
     try {
         debugger;
-        const context = new PouchDbDataContext();
+        const context = new ExternalDbDataContext();
 
         await context.books.hydrate();
         await context.cars.hydrate();

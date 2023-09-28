@@ -1,5 +1,5 @@
 import { shouldFilterEntitiesWithDefaults, shouldFilterEntitiesWithDefaultsAndNotMatchOnSecondQuery } from "./shared/common-tests";
-import { DbContextFactory, PouchDbDataContext } from "./shared/context";
+import { DbContextFactory, ExternalDataContext } from "./shared/context";
 
 describe('DbSet Get Tests', () => {
 
@@ -10,7 +10,7 @@ describe('DbSet Get Tests', () => {
     })
 
     it('should get correct number of entities from get', async () => {
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         const [one, two] = await context.contacts.add({
             firstName: "James",
             lastName: "DeMeuse",
@@ -31,7 +31,7 @@ describe('DbSet Get Tests', () => {
     });
 
     it('should throw when id is not found on get', async () => {
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         const [one, two] = await context.contacts.add({
             firstName: "James",
             lastName: "DeMeuse",

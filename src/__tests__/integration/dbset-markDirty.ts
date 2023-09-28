@@ -1,4 +1,4 @@
-import { DbContextFactory, PouchDbDataContext } from "./shared/context";
+import { DbContextFactory, ExternalDataContext } from "./shared/context";
 
 describe('DbSet markDirty Tests', () => {
 
@@ -11,7 +11,7 @@ describe('DbSet markDirty Tests', () => {
     it('should mark entity as dirty and save', async () => {
 
         const dbname = contextFactory.getRandomDbName()
-        const context = contextFactory.createContext(PouchDbDataContext, dbname);
+        const context = contextFactory.createContext(ExternalDataContext, dbname);
 
         const all = await context.notes.all();
 

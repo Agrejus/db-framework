@@ -12,7 +12,7 @@ export class DefaultDbSetBuilder<
 > {
     protected _onCreate: (dbset: IDbSetBase<string>) => void;
     protected _params: TParams;
-    protected InstanceCreator: new (props: IDbSetProps<TDocumentType, TEntity>) => TResult
+    protected InstanceCreator: new (props: IDbSetProps<TDocumentType, TEntity>) => TResult;
 
     protected _defaultExtend: (i: DbSetExtender<TDocumentType, TEntity, TExtraExclusions>, args: IDbSetProps<TDocumentType, TEntity>) => TResult = (Instance, a) => new Instance(a) as any;
 
@@ -20,6 +20,11 @@ export class DefaultDbSetBuilder<
         this.InstanceCreator = InstanceCreator;
         this._params = params;
         this._onCreate = onCreate;
+    }
+
+    useMemory() {
+        this._params.useMemory = true;
+        return new DefaultDbSetBuilder<TDocumentType, TEntity, TExtraExclusions, TResult, TParams>(this._onCreate, this._params, this.InstanceCreator);
     }
 
     /**
@@ -30,6 +35,7 @@ export class DefaultDbSetBuilder<
         this._params.readonly = true;
         return new DefaultDbSetBuilder<TDocumentType, Readonly<TEntity>, TExtraExclusions, IDbSet<TDocumentType, Readonly<TEntity>, TExtraExclusions>, TParams>(this._onCreate, this._params, this.InstanceCreator);
     }
+
     /**
      * Fluent API for building the documents key.  Key will be built in the order
      * keys are added

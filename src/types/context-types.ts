@@ -53,6 +53,13 @@ export interface ITrackedData<TDocumentType extends string, TEntityBase extends 
     removeById: string[]
 }
 
+export interface ITrackedChanges<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> {
+    add: TEntityBase[];
+    remove: TEntityBase[];
+    removeById: string[];
+    updated: TEntityBase[];
+}
+
 export interface IPrivateContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> extends IDataContext<TDocumentType, TEntityBase> {
     _getApi: () => IDbSetApi<TDocumentType, TEntityBase>;
 }

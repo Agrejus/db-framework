@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker";
-import { DbContextFactory, PouchDbDataContext } from "./shared/context";
+import { DbContextFactory, ExternalDataContext } from "./shared/context";
 
 describe('DbSet Unlink Tests', () => {
 
@@ -11,7 +11,7 @@ describe('DbSet Unlink Tests', () => {
 
     it('should detach entities from context reference after adding', async () => {
 
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         const [contact] = await context.contacts.add({
             firstName: "James",
             lastName: "DeMeuse",
@@ -41,7 +41,7 @@ describe('DbSet Unlink Tests', () => {
 
     it('should detach entities from context reference after adding and getting from find', async () => {
 
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         await context.contacts.add({
             firstName: "James",
             lastName: "DeMeuse",
@@ -79,7 +79,7 @@ describe('DbSet Unlink Tests', () => {
 
     it('should detach entities from context reference after adding and getting from first', async () => {
 
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         await context.contacts.add({
             firstName: "James",
             lastName: "DeMeuse",
@@ -105,7 +105,7 @@ describe('DbSet Unlink Tests', () => {
 
     it('should detach entities from context reference after adding and getting from filter', async () => {
 
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
         await context.contacts.add({
             firstName: "James",
             lastName: "DeMeuse",
@@ -131,7 +131,7 @@ describe('DbSet Unlink Tests', () => {
 
     it('should detach one entity from context reference after retrieving from list', async () => {
 
-        const context = contextFactory.createContext(PouchDbDataContext);
+        const context = contextFactory.createContext(ExternalDataContext);
 
         for (let i = 0; i < 20; i++) {
             await context.contacts.add({
