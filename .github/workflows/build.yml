@@ -28,6 +28,9 @@ jobs:
         with:
           node-version: 14
           
+      - name: Install
+        run: npm install
+
       # Runs a single command using the runners shell
       - name: Build
         run: npm run build:ci
