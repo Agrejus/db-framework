@@ -75,7 +75,6 @@ describe('data context', () => {
     })
 
     it('should save changes when entity is added and a non auto generated id', async () => {
-        debugger;
         const context = dbFactory(ExternalDataContext);
         const [contact] = await context.contacts.add({
             firstName: "James",
@@ -298,6 +297,7 @@ describe('data context', () => {
         contact.firstName = "Changed";
 
         expect(context.hasPendingChanges()).toBe(true);
+
         await context.saveChanges();
         expect(context.hasPendingChanges()).toBe(false);
 

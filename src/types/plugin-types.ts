@@ -31,4 +31,4 @@ export type IDbPluginOptions = {
     dbName: string;
 }
 
-export type DbPluginInstanceCreator<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> = new (options: IDbPluginOptions) => IDbPlugin<TDocumentType, TEntityBase>;
+export type DbPluginInstanceCreator<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TDbPlugin extends IDbPlugin<TDocumentType, TEntityBase>> = new (options: IDbPluginOptions) => TDbPlugin;

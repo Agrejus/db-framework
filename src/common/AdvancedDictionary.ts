@@ -1,21 +1,22 @@
-import { IIndexableEntity } from '../types/entity-types';
+import { IDbRecord, IIndexableEntity } from '../types/entity-types';
+import { IAttachmentDictionary } from '../types/change-tracking-types';
 
-export class AdvancedDictionary<T> {
+export class AdvancedDictionary<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> implements IAttachmentDictionary<TDocumentType, TEntity> {
 
-    private _data: IIndexableEntity<T[]> = {};
+    private _data: IIndexableEntity<TEntity[]> = {};
     private _key: string;
-    private _enumeration: T[] = [];
+    private _enumeration: TEntity[] = [];
     private _length: number = 0;
 
     get length() {
         return this._length;
     }
 
-    constructor(key: keyof T) {
+    constructor(key: keyof TEntity) {
         this._key = key as string
     }
 
-    push(...items: T[]) {
+    push(...items: TEntity[]) {
         for (let i = 0; i < items.length; i++) {
             const item: IIndexableEntity = items[i];
             const key = item[this._key];
@@ -24,15 +25,15 @@ export class AdvancedDictionary<T> {
                 this._data[key] = [];
             }
 
-            this._data[key].push(item as T);
+            this._data[key].push(item as TEntity);
         }
 
         this._length += items.length;
         this._enumeration = [];
     }
 
-    get(...entities: T[]) {
-        const result: T[] = [];
+    get(...entities: TEntity[]) {
+        const result: TEntity[] = [];
 
         for (let i = 0; i < entities.length; i++) {
             const entity: IIndexableEntity = entities[i];
@@ -47,7 +48,7 @@ export class AdvancedDictionary<T> {
         return result;
     }
 
-    remove(...entities: T[]) {
+    remove(...entities: TEntity[]) {
         for (let i = 0; i < entities.length; i++) {
             const entity: IIndexableEntity = entities[i];
             const key = entity[this._key];
@@ -57,7 +58,7 @@ export class AdvancedDictionary<T> {
         this._enumeration = [];
     }
 
-    filter(predicate: (value: T, index: number, array: T[]) => boolean): T[] {
+    filter(predicate: (value: TEntity, index: number, array: TEntity[]) => boolean): TEntity[] {
 
         if (this._enumeration.length === 0) {
             for (let key in this._data) {

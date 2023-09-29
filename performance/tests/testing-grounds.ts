@@ -1,6 +1,8 @@
+import { DbContextFactory, ExternalDataContext } from "../../src/__tests__/integration/shared/context";
 import { DataContext } from "../../src/context/DataContext";
 import { IDbRecord } from "../../src/types/entity-types";
 import { PouchDbPlugin } from "@agrejus/db-framework-plugin-pouchdb";
+import { IDbPluginOptions } from "../../src/types/plugin-types";
 
 enum DocumentTypes {
     Notes = "Notes",
@@ -42,10 +44,10 @@ interface ICar extends IDbRecord<DocumentTypes.Cars> {
     manufactureDate: string;
 }
 
-class ExternalDbDataContext extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>> {
+class ExternalDbDataContext extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>, IDbPluginOptions, PouchDbPlugin<DocumentTypes, IDbRecord<DocumentTypes>, IDbPluginOptions>> {
 
     constructor() {
-        super({ dbName: "Test" }, PouchDbPlugin);
+        super({ dbName: "Test"}, PouchDbPlugin);
     }
 
     types = {
@@ -72,8 +74,54 @@ class ExternalDbDataContext extends DataContext<DocumentTypes, IDbRecord<Documen
         .create();
 }
 
+const runTest = async () => {
+    const contextFactory = new DbContextFactory();
+    const dbname = contextFactory.getRandomDbName();
+    const context = contextFactory.createContext(ExternalDataContext, dbname);
+
+    const all = await context.notes.all();
+
+    const [one] = await context.notes.upsert({
+        contents: "some contents",
+        createdDate: new Date(),
+        userId: "some user"
+    });
+
+    await context.saveChanges();
+
+    const [two] = await context.notes.upsert({
+        contents: "some contents",
+        createdDate: new Date(),
+        userId: "some user"
+    });
+
+    await context.saveChanges();
+
+    const allAfterAdd = await context.notes.all();
+
+    const foundOne = await context.notes.find(w => w._id === one._id);
+    debugger;
+    const [upsertedOne, upsertedTwo] = await context.notes.upsert({
+        _id: one._id,
+        contents: "changed contents",
+        createdDate: new Date(),
+        userId: "changed user"
+    }, {
+        contents: "changed contents 2",
+        createdDate: new Date(),
+        userId: "changed user 2"
+    });
+    debugger;
+    await context.saveChanges();
+
+    const foundUpsertOne = await context.notes.find(w => w._id === one._id);
+    debugger;
+    console.log({ ...upsertedOne, createdDate: upsertedOne.createdDate.toISOString() }, foundUpsertOne);
+}
+
 export const run = async () => {
     try {
+        await runTest();
         debugger;
         const context = new ExternalDbDataContext();
 
@@ -98,12 +146,12 @@ export const run = async () => {
             status: "pending",
             syncStatus: "approved"
         },
-        {
-            author: "James1",
-            rejectedCount: 2,
-            status: "pending",
-            syncStatus: "approved"
-        });
+            {
+                author: "James1",
+                rejectedCount: 2,
+                status: "pending",
+                syncStatus: "approved"
+            });
         debugger;
         await context.saveChanges();
 

@@ -409,74 +409,68 @@ describe('DbSet Add Tests', () => {
 
     it('should insert and add with auto generated id', async () => {
 
-        try {
-            const dbname = contextFactory.getRandomDbName();
-            const context = contextFactory.createContext(ExternalDataContext, dbname);
+        const dbname = contextFactory.getRandomDbName();
+        const context = contextFactory.createContext(ExternalDataContext, dbname);
 
-            const all = await context.notes.all();
+        const all = await context.notes.all();
 
-            expect(all.length).toEqual(0);
+        expect(all.length).toEqual(0);
 
-            const [one] = await context.notes.upsert({
-                contents: "some contents",
-                createdDate: new Date(),
-                userId: "some user"
-            });
+        const [one] = await context.notes.upsert({
+            contents: "some contents",
+            createdDate: new Date(),
+            userId: "some user"
+        });
 
-            expect(context.hasPendingChanges()).toEqual(true);
-            await context.saveChanges();
-            expect(context.hasPendingChanges()).toEqual(false);
+        expect(context.hasPendingChanges()).toEqual(true);
+        await context.saveChanges();
+        expect(context.hasPendingChanges()).toEqual(false);
 
-            const [two] = await context.notes.upsert({
-                contents: "some contents",
-                createdDate: new Date(),
-                userId: "some user"
-            });
+        const [two] = await context.notes.upsert({
+            contents: "some contents",
+            createdDate: new Date(),
+            userId: "some user"
+        });
 
-            expect(context.hasPendingChanges()).toEqual(true);
-            await context.saveChanges();
-            expect(context.hasPendingChanges()).toEqual(false);
+        expect(context.hasPendingChanges()).toEqual(true);
+        await context.saveChanges();
+        expect(context.hasPendingChanges()).toEqual(false);
 
-            const allAfterAdd = await context.notes.all();
-            expect(allAfterAdd.length).toEqual(2);
+        const allAfterAdd = await context.notes.all();
+        expect(allAfterAdd.length).toEqual(2);
 
-            const foundOne = await context.notes.find(w => w._id === one._id);
+        const foundOne = await context.notes.find(w => w._id === one._id);
 
-            expect(foundOne).toBeDefined();
+        expect(foundOne).toBeDefined();
 
-            const [upsertedOne, upsertedTwo] = await context.notes.upsert({
-                _id: one._id,
-                contents: "changed contents",
-                createdDate: new Date(),
-                userId: "changed user"
-            }, {
-                contents: "changed contents 2",
-                createdDate: new Date(),
-                userId: "changed user 2"
-            });
+        const [upsertedOne, upsertedTwo] = await context.notes.upsert({
+            _id: one._id,
+            contents: "changed contents",
+            createdDate: new Date(),
+            userId: "changed user"
+        }, {
+            contents: "changed contents 2",
+            createdDate: new Date(),
+            userId: "changed user 2"
+        });
 
+        expect(upsertedOne._id).toEqual(one._id);
+        expect(context.hasPendingChanges()).toEqual(true);
+        await context.saveChanges();
+        expect(context.hasPendingChanges()).toEqual(false);
 
-            expect(upsertedOne._id).toEqual(one._id);
-            expect(context.hasPendingChanges()).toEqual(true);
-            await context.saveChanges();
-            expect(context.hasPendingChanges()).toEqual(false);
+        const foundUpsertOne = await context.notes.find(w => w._id === one._id);
 
-            const foundUpsertOne = await context.notes.find(w => w._id === one._id);
+        expect({ ...upsertedOne, createdDate: upsertedOne.createdDate.toISOString() }).toEqual({ ...foundUpsertOne });
+        expect(foundUpsertOne?.contents).toEqual("changed contents");
+        expect(foundUpsertOne?.userId).toEqual("changed user");
 
-            expect({ ...upsertedOne, createdDate: upsertedOne.createdDate.toISOString() }).toEqual({ ...foundUpsertOne });
-            expect(foundUpsertOne?.contents).toEqual("changed contents");
-            expect(foundUpsertOne?.userId).toEqual("changed user");
+        const foundUpsertTwo = await context.notes.find(w => w._id === upsertedTwo._id);
+        expect(foundUpsertTwo?.contents).toEqual("changed contents 2");
+        expect(foundUpsertTwo?.userId).toEqual("changed user 2");
 
-            const foundUpsertTwo = await context.notes.find(w => w._id === upsertedTwo._id);
-            expect(foundUpsertTwo?.contents).toEqual("changed contents 2");
-            expect(foundUpsertTwo?.userId).toEqual("changed user 2");
-
-            const final = await context.notes.all();
-            expect(final.length).toEqual(3);
-
-        } catch (e) {
-            expect(e).not.toBeDefined()
-        }
+        const final = await context.notes.all();
+        expect(final.length).toEqual(3);
     });
 
     it('should append meta data to one entity', (done) => {

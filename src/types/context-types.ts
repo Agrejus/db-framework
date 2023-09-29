@@ -1,4 +1,4 @@
-import { AdvancedDictionary } from '../common/AdvancedDictionary';
+import { IAttachmentDictionary } from './change-tracking-types';
 import { IPreviewChanges } from './common-types';
 import { EntityAndTag, IDbSetApi } from './dbset-types';
 import { IDbRecord, IDbRecordBase } from './entity-types';
@@ -49,7 +49,7 @@ export interface IDataContext<TDocumentType extends string, TEntityBase extends 
 export interface ITrackedData<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> {
     add: TEntityBase[];
     remove: TEntityBase[];
-    attach: AdvancedDictionary<TEntityBase>;
+    attach: IAttachmentDictionary<TDocumentType, TEntityBase>;
     removeById: string[]
 }
 
@@ -63,3 +63,5 @@ export interface ITrackedChanges<TDocumentType extends string, TEntityBase exten
 export interface IPrivateContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> extends IDataContext<TDocumentType, TEntityBase> {
     _getApi: () => IDbSetApi<TDocumentType, TEntityBase>;
 }
+
+export type ContextOptions = { changeTrackingType: "context" | "entity"}

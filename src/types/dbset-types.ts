@@ -1,6 +1,6 @@
 import { ChangeTrackingAdapterBase } from "../adapters/change-tracking/ChangeTrackingAdapterBase";
-import { DeepPartial, DbSetPickDefaultActionRequired, EntitySelector } from "./common-types";
-import { ITrackedData, IDataContext } from "./context-types";
+import { DbSetPickDefaultActionRequired, EntitySelector } from "./common-types";
+import { IDataContext } from "./context-types";
 import { DbSetKeyType, PropertyMap } from "./dbset-builder-types";
 import { IDbRecord, OmittedEntity, IDbRecordBase, EntityIdKeys } from "./entity-types";
 import { IDbPlugin } from "./plugin-types";
@@ -9,9 +9,7 @@ export type IDbSetTypes<TDocumentType extends string, TEntity extends IDbRecord<
     modify: OmittedEntity<TEntity, TExtraExclusions>;
     result: TEntity;
     documentType: TEntity["DocumentType"];
-    map: {
-        [DocumentType in TEntity["DocumentType"]]: TEntity;
-    };
+    map: { [DocumentType in TEntity["DocumentType"]]: TEntity; };
     dbsetType: DbSetType;
 }
 

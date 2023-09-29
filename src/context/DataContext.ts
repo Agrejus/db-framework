@@ -1,25 +1,33 @@
 import { IPreviewChanges } from "../types/common-types";
-import { IDataContext, OnChangeEvent } from "../types/context-types";
+import { ContextOptions, IDataContext, OnChangeEvent } from "../types/context-types";
 import { DbSetMap, EntityAndTag, IDbSet, IDbSetApi, IStoreDbSet } from "../types/dbset-types";
-import { IDbRecordBase, IIndexableEntity, IDbRecord } from "../types/entity-types";
+import { IIndexableEntity, IDbRecord } from "../types/entity-types";
 import { DbSetInitializer } from './dbset/builders/DbSetInitializer';
 import { DbPluginInstanceCreator, IDbPlugin, IDbPluginOptions } from '../types/plugin-types';
 import { ChangeTrackingAdapterBase } from '../adapters/change-tracking/ChangeTrackingAdapterBase';
-import { HashChangeTrackingAdapter } from '../adapters/change-tracking/HashChangeTrackingAdapter';
+import { EntityChangeTrackingAdapter } from '../adapters/change-tracking/EntityChangeTrackingAdapter';
+import { ContextChangeTrackingAdapter } from '../adapters/change-tracking/ContextChangeTrackingAdapter';
 
-export abstract class DataContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TPluginOptions extends IDbPluginOptions = IDbPluginOptions> implements IDataContext<TDocumentType, TEntityBase> {
+export abstract class DataContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TPluginOptions extends IDbPluginOptions = IDbPluginOptions, TDbPlugin extends IDbPlugin<TDocumentType, TEntityBase> = IDbPlugin<TDocumentType, TEntityBase>> implements IDataContext<TDocumentType, TEntityBase> {
 
     private _tags: { [id: string]: unknown } = {}
 
-    protected readonly dbPlugin: IDbPlugin<TDocumentType, TEntityBase>;
+    protected readonly dbPlugin: TDbPlugin;
     protected dbSets: DbSetMap = {} as DbSetMap;
     private _onBeforeSaveChangesEvents: { [key in TDocumentType]: OnChangeEvent } = {} as any;
     private _onAfterSaveChangesEvents: { [key in TDocumentType]: OnChangeEvent } = {} as any;
     private _memoryDbSets: { [key in TDocumentType]: boolean } = {} as any;
-    private _changeAdapter: ChangeTrackingAdapterBase<TDocumentType, TEntityBase> = new HashChangeTrackingAdapter();
+    private readonly _changeAdapter: ChangeTrackingAdapterBase<TDocumentType, TEntityBase>;
 
-    constructor(options: TPluginOptions, Plugin: DbPluginInstanceCreator<TDocumentType, TEntityBase>) {
+    constructor(options: TPluginOptions, Plugin: DbPluginInstanceCreator<TDocumentType, TEntityBase, TDbPlugin>, contextOptions: ContextOptions = { changeTrackingType: "entity" }) {
         this.dbPlugin = new Plugin(options);
+
+        if (contextOptions.changeTrackingType === "entity") {
+            this._changeAdapter = new EntityChangeTrackingAdapter();
+            return;
+        }
+
+        this._changeAdapter = new ContextChangeTrackingAdapter();
     }
 
     async getAllDocs() {

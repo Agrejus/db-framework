@@ -1,4 +1,4 @@
-import { AdvancedDictionary } from "../../common/AdvancedDictionary";
+import { IAttachmentDictionary } from "../../types/change-tracking-types";
 import { DeepPartial } from "../../types/common-types";
 import { ITrackedChanges, ITrackedData } from "../../types/context-types";
 import { PropertyMap } from "../../types/dbset-builder-types";
@@ -9,8 +9,9 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
 
     protected removals: TEntity[] = [];
     protected additions: TEntity[] = [];
-    protected attachments: AdvancedDictionary<TEntity> = new AdvancedDictionary<TEntity>("_id");
     protected removeById: string[] = [];
+
+    protected abstract attachments: IAttachmentDictionary<TDocumentType, TEntity>;
 
     abstract enableChangeTracking(entity: TEntity, defaults: DeepPartial<OmittedEntity<TEntity>>, readonly: boolean, maps: PropertyMap<TDocumentType, TEntity, any>[]): TEntity;
     abstract getPendingChanges(changes: ITrackedData<TDocumentType, TEntity>, dbsets: DbSetMap): ITrackedChanges<TDocumentType, TEntity>;

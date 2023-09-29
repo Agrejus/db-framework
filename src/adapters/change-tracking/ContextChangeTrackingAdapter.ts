@@ -1,3 +1,4 @@
+import { AdvancedDictionary } from "../../common/AdvancedDictionary";
 import { DeepPartial, DeepOmit } from "../../types/common-types";
 import { ITrackedData, ITrackedChanges } from "../../types/context-types";
 import { PropertyMap } from "../../types/dbset-builder-types";
@@ -6,9 +7,13 @@ import { IDbRecord } from "../../types/entity-types";
 import { ChangeTrackingAdapterBase } from "./ChangeTrackingAdapterBase";
 import hash from 'object-hash';
 
-export class HashChangeTrackingAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> extends ChangeTrackingAdapterBase<TDocumentType, TEntity> {
+/**
+ * Uses hashing to track changes at the context level.  Useful for applications that have trouble with proxy objects
+ */
+export class ContextChangeTrackingAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> extends ChangeTrackingAdapterBase<TDocumentType, TEntity> {
 
     protected originalAttachmentHashes: { [key: string]: string } = {};
+    protected override attachments = new AdvancedDictionary<TDocumentType, TEntity>("_id");
 
     asUntracked(...entities: TEntity[]) {
         return entities;
@@ -20,7 +25,7 @@ export class HashChangeTrackingAdapter<TDocumentType extends string, TEntity ext
             return false
         }
 
-        const hashCode = hash(entity, { algorithm: "md5" });
+        const hashCode = this._generateHashCode(entity);
 
         return this.originalAttachmentHashes[entity._id] != hashCode;
     }
@@ -35,25 +40,28 @@ export class HashChangeTrackingAdapter<TDocumentType extends string, TEntity ext
 
         const adds = add ?? [];
 
-        for(const item of adds) {
-            const hashCode = hash(item, { algorithm: "md5" });
+        for (const item of adds) {
+            const hashCode = this._generateHashCode(item);
             this.originalAttachmentHashes[item._id] = hashCode;
         }
     }
 
     override attach(data: TEntity[]): void {
+
         super.attach(data);
 
-        for(const item of data) {
-            const hashCode = hash(item, { algorithm: "md5" });
+        for (const item of data) {
+            const hashCode = this._generateHashCode(item);
             this.originalAttachmentHashes[item._id] = hashCode;
         }
     }
 
     getPendingChanges(changes: ITrackedData<TDocumentType, TEntity>, dbsets: DbSetMap): ITrackedChanges<TDocumentType, TEntity> {
+
         const { add, remove, removeById, attach } = changes;
 
-        const updated = attach.filter(w => this.isDirty(w) === true).map(w => this.mapInstance(w, dbsets[w.DocumentType].info().Map));
+        const deduplicatedUpdates = attach.filter(w => this.isDirty(w) === true).map(w => this.mapInstance(w, dbsets[w.DocumentType].info().Map)).reduce((a, v) => ({...a, [v._id]: v}), {} as { [key: string]: TEntity });
+        const updated = Object.values<TEntity>(deduplicatedUpdates);
 
         return {
             add,
@@ -74,6 +82,9 @@ export class HashChangeTrackingAdapter<TDocumentType extends string, TEntity ext
     merge(from: TEntity, to: TEntity) {
         const options: { skip: string[] } = { skip: [] };
 
+        const hashCode = this._generateHashCode(to);
+        this.originalAttachmentHashes[to._id] = hashCode;
+
         for (let property in from) {
 
             if (options?.skip && options.skip.includes(property)) {
@@ -86,9 +97,13 @@ export class HashChangeTrackingAdapter<TDocumentType extends string, TEntity ext
         return to;
     }
 
+    private _generateHashCode(entity: TEntity) {
+        return hash(entity, { algorithm: "md5" });
+    }
+
     async markDirty(...entities: TEntity[]) {
 
-        for(const item of entities) {
+        for (const item of entities) {
             this.originalAttachmentHashes[item._id] = "-1";
         }
 

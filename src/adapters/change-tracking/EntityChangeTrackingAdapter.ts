@@ -1,3 +1,4 @@
+import { AdvancedDictionary } from "../../common/AdvancedDictionary";
 import { DeepPartial, DeepOmit } from "../../types/common-types";
 import { ITrackedData, ITrackedChanges } from "../../types/context-types";
 import { PropertyMap } from "../../types/dbset-builder-types";
@@ -5,14 +6,19 @@ import { DbSetMap } from "../../types/dbset-types";
 import { IDbRecord, IIndexableEntity } from "../../types/entity-types";
 import { ChangeTrackingAdapterBase } from "./ChangeTrackingAdapterBase";
 
-export class ProxyChangeTrackingAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> extends ChangeTrackingAdapterBase<TDocumentType, TEntity> {
+/**
+ * Uses proxy objects to track changes at the entity level.  Useful for fine grained change tracking regardless of the context
+ */
+export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> extends ChangeTrackingAdapterBase<TDocumentType, TEntity> {
 
     static readonly DIRTY_ENTITY_MARKER: string = "__isDirty";
     static readonly PRISTINE_ENTITY_KEY: string = "__pristine_entity__";
     static readonly PROXY_MARKER: string = "__isProxy";
 
+    protected override attachments = new AdvancedDictionary<TDocumentType, TEntity>("_id");
+
     static isProxy<T extends Object>(entities: T) {
-        return (entities as IIndexableEntity)[ProxyChangeTrackingAdapter.PROXY_MARKER] === true;
+        return (entities as IIndexableEntity)[EntityChangeTrackingAdapter.PROXY_MARKER] === true;
     }
 
     asUntracked(...entities: TEntity[]) {
@@ -22,14 +28,14 @@ export class ProxyChangeTrackingAdapter<TDocumentType extends string, TEntity ex
     isDirty(entity: TEntity) {
 
         const indexableEntity = entity as IIndexableEntity;
-        if (indexableEntity[ProxyChangeTrackingAdapter.PRISTINE_ENTITY_KEY] === undefined) {
+        if (indexableEntity[EntityChangeTrackingAdapter.PRISTINE_ENTITY_KEY] === undefined) {
             return false;
         }
 
-        const pristineKeys = Object.keys(indexableEntity[ProxyChangeTrackingAdapter.PRISTINE_ENTITY_KEY]);
+        const pristineKeys = Object.keys(indexableEntity[EntityChangeTrackingAdapter.PRISTINE_ENTITY_KEY]);
 
         for (let pristineKey of pristineKeys) {
-            if (indexableEntity[ProxyChangeTrackingAdapter.PRISTINE_ENTITY_KEY][pristineKey] != indexableEntity[pristineKey]) {
+            if (indexableEntity[EntityChangeTrackingAdapter.PRISTINE_ENTITY_KEY][pristineKey] != indexableEntity[pristineKey]) {
                 return true
             }
         }
@@ -42,7 +48,7 @@ export class ProxyChangeTrackingAdapter<TDocumentType extends string, TEntity ex
             const indexableEntity = entities[i] as IIndexableEntity;
 
             // make pristine again
-            delete indexableEntity[ProxyChangeTrackingAdapter.PRISTINE_ENTITY_KEY];
+            delete indexableEntity[EntityChangeTrackingAdapter.PRISTINE_ENTITY_KEY];
         }
     }
 
@@ -66,25 +72,25 @@ export class ProxyChangeTrackingAdapter<TDocumentType extends string, TEntity ex
                 const indexableEntity: IIndexableEntity = entity as any;
                 const key = String(property);
 
-                if (property === ProxyChangeTrackingAdapter.DIRTY_ENTITY_MARKER) {
+                if (property === EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER) {
 
-                    if (indexableEntity[ProxyChangeTrackingAdapter.PRISTINE_ENTITY_KEY] === undefined) {
-                        indexableEntity[ProxyChangeTrackingAdapter.PRISTINE_ENTITY_KEY] = {};
+                    if (indexableEntity[EntityChangeTrackingAdapter.PRISTINE_ENTITY_KEY] === undefined) {
+                        indexableEntity[EntityChangeTrackingAdapter.PRISTINE_ENTITY_KEY] = {};
                     }
 
-                    indexableEntity[ProxyChangeTrackingAdapter.PRISTINE_ENTITY_KEY][ProxyChangeTrackingAdapter.DIRTY_ENTITY_MARKER] = true;
+                    indexableEntity[EntityChangeTrackingAdapter.PRISTINE_ENTITY_KEY][EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER] = true;
                     return true;
                 }
 
-                if (property !== ProxyChangeTrackingAdapter.PRISTINE_ENTITY_KEY && indexableEntity._id != null) {
+                if (property !== EntityChangeTrackingAdapter.PRISTINE_ENTITY_KEY && indexableEntity._id != null) {
                     const oldValue = indexableEntity[key];
 
-                    if (indexableEntity[ProxyChangeTrackingAdapter.PRISTINE_ENTITY_KEY] === undefined) {
-                        indexableEntity[ProxyChangeTrackingAdapter.PRISTINE_ENTITY_KEY] = {};
+                    if (indexableEntity[EntityChangeTrackingAdapter.PRISTINE_ENTITY_KEY] === undefined) {
+                        indexableEntity[EntityChangeTrackingAdapter.PRISTINE_ENTITY_KEY] = {};
                     }
 
-                    if (indexableEntity[ProxyChangeTrackingAdapter.PRISTINE_ENTITY_KEY][key] === undefined) {
-                        indexableEntity[ProxyChangeTrackingAdapter.PRISTINE_ENTITY_KEY][key] = oldValue;
+                    if (indexableEntity[EntityChangeTrackingAdapter.PRISTINE_ENTITY_KEY][key] === undefined) {
+                        indexableEntity[EntityChangeTrackingAdapter.PRISTINE_ENTITY_KEY][key] = oldValue;
                     }
                 }
 
@@ -94,7 +100,7 @@ export class ProxyChangeTrackingAdapter<TDocumentType extends string, TEntity ex
             },
             get: (target, property, receiver) => {
 
-                if (property === ProxyChangeTrackingAdapter.PROXY_MARKER) {
+                if (property === EntityChangeTrackingAdapter.PROXY_MARKER) {
                     return true;
                 }
 
@@ -109,7 +115,7 @@ export class ProxyChangeTrackingAdapter<TDocumentType extends string, TEntity ex
     }
 
     merge(from: TEntity, to: TEntity) {
-        const options = { skip: [ProxyChangeTrackingAdapter.PRISTINE_ENTITY_KEY] };
+        const options = { skip: [EntityChangeTrackingAdapter.PRISTINE_ENTITY_KEY] };
 
         for (let property in from) {
 
@@ -125,12 +131,12 @@ export class ProxyChangeTrackingAdapter<TDocumentType extends string, TEntity ex
 
     async markDirty(...entities: TEntity[]) {
 
-        if (entities.some(w => ProxyChangeTrackingAdapter.isProxy(w) === false)) {
+        if (entities.some(w => EntityChangeTrackingAdapter.isProxy(w) === false)) {
             throw new Error(`Entities must be linked to context in order to mark as dirty`)
         }
 
         return entities.map(w => {
-            (w as IIndexableEntity)[ProxyChangeTrackingAdapter.DIRTY_ENTITY_MARKER] = true;
+            (w as IIndexableEntity)[EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER] = true;
             return w;
         });
     }

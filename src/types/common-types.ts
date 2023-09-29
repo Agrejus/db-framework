@@ -24,13 +24,6 @@ export type DbSetPickDefaultActionRequired<TDocumentType extends string, TEntity
 
 export type EntitySelector<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = (entity: TEntity, index?: number, array?: TEntity[]) => boolean
 
-export interface IBulkDocsResponse {
-    ok: boolean;
-    id: string;
-    rev: string;
-    error?: string;
-}
-
 export type DeepReadOnly<T> = { readonly [key in keyof T]: DeepReadOnly<T[key]> };
 
 export interface IPreviewChanges<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> {

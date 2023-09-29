@@ -1,4 +1,4 @@
-import { ProxyChangeTrackingAdapter } from "../../adapters/change-tracking/ProxyChangeTrackingAdapter";
+import { EntityChangeTrackingAdapter } from "../../adapters/change-tracking/EntityChangeTrackingAdapter";
 import { DataContext } from "../../context/DataContext";
 import { DbContextFactory, ExternalDataContext } from "./shared/context";
 
@@ -86,8 +86,8 @@ describe('DbSet Update Tests', () => {
         expect(foundAll.find(w => w._id === two._id)).toEqual(two);
         expect(foundAll.find(w => w._id === three._id)).toEqual(three);
 
-        expect(ProxyChangeTrackingAdapter.isProxy(one)).toBe(true);
-        expect(ProxyChangeTrackingAdapter.isProxy(two)).toBe(true);
-        expect(ProxyChangeTrackingAdapter.isProxy(three)).toBe(true);
+        expect(EntityChangeTrackingAdapter.isProxy(one)).toBe(true);
+        expect(EntityChangeTrackingAdapter.isProxy(two)).toBe(true);
+        expect(EntityChangeTrackingAdapter.isProxy(three)).toBe(true);
     });
 });
