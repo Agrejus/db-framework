@@ -34,3 +34,8 @@ jobs:
       # Runs a single command using the runners shell
       - name: Build
         run: npm run build:ci
+
+      - uses: JS-DevTools/npm-publish@v1
+        name: Publish
+        with:
+          token: ${{ secrets.NPM_TOKEN }}
