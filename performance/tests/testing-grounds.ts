@@ -47,7 +47,7 @@ interface ICar extends IDbRecord<DocumentTypes.Cars> {
 class ExternalDbDataContext extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>, IDbPluginOptions, PouchDbPlugin<DocumentTypes, IDbRecord<DocumentTypes>, IDbPluginOptions>> {
 
     constructor() {
-        super({ dbName: "Test"}, PouchDbPlugin);
+        super({ dbName: "Test"}, PouchDbPlugin, { changeTrackingType: "context" });
     }
 
     types = {
@@ -75,54 +75,35 @@ class ExternalDbDataContext extends DataContext<DocumentTypes, IDbRecord<Documen
 }
 
 const runTest = async () => {
-    const contextFactory = new DbContextFactory();
-    const dbname = contextFactory.getRandomDbName();
-    const context = contextFactory.createContext(ExternalDataContext, dbname);
+    const context = new ExternalDataContext("Test-db", { changeTrackingType: "context" })
 
-    const all = await context.notes.all();
-
-    const [one] = await context.notes.upsert({
-        contents: "some contents",
-        createdDate: new Date(),
-        userId: "some user"
+    const [book] = await context.books.add({ 
+        author: "James",
+        publishDate: new Date()
     });
 
     await context.saveChanges();
 
-    const [two] = await context.notes.upsert({
-        contents: "some contents",
-        createdDate: new Date(),
-        userId: "some user"
-    });
+    const found = await context.books.find(w => w._id === book._id);
 
+    if (found == null) {
+        expect(1).toBe(2);
+        return;
+    }
+
+    found.status = "rejected";
     await context.saveChanges();
 
-    const allAfterAdd = await context.notes.all();
-
-    const foundOne = await context.notes.find(w => w._id === one._id);
-    debugger;
-    const [upsertedOne, upsertedTwo] = await context.notes.upsert({
-        _id: one._id,
-        contents: "changed contents",
-        createdDate: new Date(),
-        userId: "changed user"
-    }, {
-        contents: "changed contents 2",
-        createdDate: new Date(),
-        userId: "changed user 2"
-    });
-    debugger;
+    found.status = "approved";
     await context.saveChanges();
 
-    const foundUpsertOne = await context.notes.find(w => w._id === one._id);
     debugger;
-    console.log({ ...upsertedOne, createdDate: upsertedOne.createdDate.toISOString() }, foundUpsertOne);
 }
 
 export const run = async () => {
     try {
         await runTest();
-        debugger;
+
         const context = new ExternalDbDataContext();
 
         await context.books.hydrate();

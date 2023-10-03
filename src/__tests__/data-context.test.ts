@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { DataContext } from '../context/DataContext';
 import { IDbRecord } from '../types/entity-types';
 import { PouchDbPlugin } from '@agrejus/db-framework-plugin-pouchdb';
+import { ContextOptions } from '../types/context-types';
 
 describe('data context', () => {
 
@@ -45,8 +46,8 @@ describe('data context', () => {
 
     class ExternalDataContext extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>> {
 
-        constructor(name: string) {
-            super({ dbName: name }, PouchDbPlugin);
+        constructor(name: string, contextOptions: ContextOptions = { changeTrackingType: "entity" }) {
+            super({ dbName: name }, PouchDbPlugin, contextOptions);
         }
 
         async empty() {
@@ -718,19 +719,39 @@ describe('data context', () => {
         expect((context.dbsetTest as any)._params.idKeys).toEqual(["contents", "userId"]);
     });
 
-    it('should create dbset using fluent dbset builder', async () => {
+    it('should save correctly with context tracking', async () => {
 
         class FluentContext extends ExternalDataContext {
 
             constructor(name: string) {
-                super(name);
+                super(name, { changeTrackingType: "context" });
             }
 
-            dbsetTest = this.dbset().default<INote>(DocumentTypes.NotesTest).create();
+            books2 = this.dbset().default<IBook>(DocumentTypes.ExtendedBooks).create();
         }
 
         const context = dbFactory(FluentContext) as FluentContext
 
-        expect(context.dbsetTest.add).toBeDefined();
+        const [book] = await context.books2.add({ 
+            author: "James",
+            rejectedCount: 1,
+            publishDate: new Date(),
+            status: "pending"
+        });
+
+        await context.saveChanges();
+
+        const found = await context.books2.find(w => w._id === book._id);
+
+        if (found == null) {
+            expect(1).toBe(2);
+            return;
+        }
+
+        found.status = "rejected";
+        await context.saveChanges();
+
+        found.status = "approved";
+        await context.saveChanges();
     });
 });

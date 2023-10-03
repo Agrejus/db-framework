@@ -22,11 +22,6 @@ export class StoreDbSetBuilder<
         this._onCreate = onCreate;
     }
 
-    useMemory() {
-        this._params.useMemory = true;
-        return new StoreDbSetBuilder<TDocumentType, TEntity, TExtraExclusions, TResult, TParams>(this._onCreate, this._params, this.InstanceCreator);
-    }
-
     onChange(callback: DbSetOnChangeEvent<TDocumentType, TEntity>) {
         this._params.onChange = callback;
         return new StoreDbSetBuilder<TDocumentType, TEntity, TExtraExclusions, TResult, TParams>(this._onCreate, this._params, this.InstanceCreator);

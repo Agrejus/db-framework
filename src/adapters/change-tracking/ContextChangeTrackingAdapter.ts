@@ -34,8 +34,8 @@ export class ContextChangeTrackingAdapter<TDocumentType extends string, TEntity 
         // no op
     }
 
-    override reinitialize(removals?: TEntity[], add?: TEntity[]): void {
-        super.reinitialize(removals, add);
+    override reinitialize(removals?: TEntity[], add?: TEntity[], updates: TEntity[] = []): void {
+        super.reinitialize(removals, add, updates);
         this.originalAttachmentHashes = {};
 
         const adds = add ?? [];
@@ -44,6 +44,25 @@ export class ContextChangeTrackingAdapter<TDocumentType extends string, TEntity 
             const hashCode = this._generateHashCode(item);
             this.originalAttachmentHashes[item._id] = hashCode;
         }
+
+        for (const item of updates) {
+            const hashCode = this._generateHashCode(item);
+            this.originalAttachmentHashes[item._id] = hashCode;
+            this.attachments.push(item);
+        }
+
+        // reconcile attachments so they all match
+        this.attachments.forEach((key, items) => {
+            if (items.length <= 1) {
+                return;
+            }
+
+            const last = items[items.length - 1];
+
+            for(let i = 0; i < items.length - 1; i++) {
+                this._mergeObjects(last, items[i])
+            }
+        })
     }
 
     override attach(data: TEntity[]): void {
@@ -79,22 +98,21 @@ export class ContextChangeTrackingAdapter<TDocumentType extends string, TEntity 
         return result;
     }
 
-    merge(from: TEntity, to: TEntity) {
-        const options: { skip: string[] } = { skip: [] };
-
-        const hashCode = this._generateHashCode(to);
-        this.originalAttachmentHashes[to._id] = hashCode;
+    private _mergeObjects(from: TEntity, to: TEntity) {
 
         for (let property in from) {
-
-            if (options?.skip && options.skip.includes(property)) {
-                continue;
-            }
-
             to[property] = from[property];
         }
 
         return to;
+    }
+
+    merge(from: TEntity, to: TEntity) {
+
+        const hashCode = this._generateHashCode(to);
+        this.originalAttachmentHashes[to._id] = hashCode;
+
+        return this._mergeObjects(from, to)
     }
 
     private _generateHashCode(entity: TEntity) {

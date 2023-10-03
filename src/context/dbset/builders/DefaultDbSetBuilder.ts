@@ -22,11 +22,6 @@ export class DefaultDbSetBuilder<
         this._onCreate = onCreate;
     }
 
-    useMemory() {
-        this._params.useMemory = true;
-        return new DefaultDbSetBuilder<TDocumentType, TEntity, TExtraExclusions, TResult, TParams>(this._onCreate, this._params, this.InstanceCreator);
-    }
-
     /**
      * Makes all entities returned from the underlying database readonly.  Entities cannot be updated, only adding or removing is available.
      * @returns DbSetBuilder

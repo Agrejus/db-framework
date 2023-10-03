@@ -30,8 +30,7 @@ export class DbSetInitializer<TDocumentType extends string, TEntityBase extends 
             idKeys: [],
             keyType: "auto",
             map: [],
-            filterSelector: null,
-            useMemory: false
+            filterSelector: null
         }, DbSet);
     }
 
@@ -47,8 +46,7 @@ export class DbSetInitializer<TDocumentType extends string, TEntityBase extends 
             keyType: "auto",
             map: [],
             filterSelector: null,
-            onChange: () => void(0),
-            useMemory: false
+            onChange: () => void(0)
         }, StoreDbSet);
     }
 }

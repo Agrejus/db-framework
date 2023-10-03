@@ -16,7 +16,6 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
     protected dbSets: DbSetMap = {} as DbSetMap;
     private _onBeforeSaveChangesEvents: { [key in TDocumentType]: OnChangeEvent } = {} as any;
     private _onAfterSaveChangesEvents: { [key in TDocumentType]: OnChangeEvent } = {} as any;
-    private _memoryDbSets: { [key in TDocumentType]: boolean } = {} as any;
     private readonly _changeAdapter: ChangeTrackingAdapterBase<TDocumentType, TEntityBase>;
 
     constructor(options: TPluginOptions, Plugin: DbPluginInstanceCreator<TDocumentType, TEntityBase, TDbPlugin>, contextOptions: ContextOptions = { changeTrackingType: "entity" }) {
@@ -185,7 +184,7 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
                 }
             }
 
-            this._changeAdapter.reinitialize(remove, add);
+            this._changeAdapter.reinitialize(remove, add, updated);
 
             await this._onAfterSaveChanges(changes, tags);
 
