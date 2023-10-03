@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { DefaultDbSetBuilder } from "../../../context/dbset/builders/DefaultDbSetBuilder";
 import { PouchDbPlugin } from "@agrejus/db-framework-plugin-pouchdb";
 import { IDbSetBuilderParams } from "../../../types/dbset-builder-types";
+import { ContextOptions } from "../../../types/context-types";
 
 const dataContextWithParamsCreator = (type: string, name?: string) => new class extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>> {
    
@@ -26,8 +27,8 @@ export const ExternalDbDataContextWithDefaults = context;
 
 export class ExternalDataContext extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>> {
 
-    constructor(name: string) {
-        super({ dbName: name }, PouchDbPlugin);
+    constructor(name: string, contextOptions: ContextOptions = { changeTrackingType: "entity" }) {
+        super({ dbName: name }, PouchDbPlugin, contextOptions);
     }
 
     private _setupSyncDbSet<T extends ISyncDocument<DocumentTypes>>(documentType: DocumentTypes) {

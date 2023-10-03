@@ -21,7 +21,7 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
     abstract isDirty(entity: TEntity): boolean;
     abstract asUntracked(...entities: TEntity[]): TEntity[];
 
-    reinitialize(removals: TEntity[] = [], add: TEntity[] = []) {
+    reinitialize(removals: TEntity[] = [], add: TEntity[] = [], updates: TEntity[] = []) {
         this.additions = [];
         this.removals = [];
         this.removeById = [];

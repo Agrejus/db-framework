@@ -21,7 +21,6 @@ export interface IDbSetBuilderParams<TDocumentType extends string, TEntity exten
     keyType: DbSetKeyType;
     map: PropertyMap<TDocumentType, TEntity, any>[];
     filterSelector: EntitySelector<TDocumentType, TEntity>;
-    useMemory: boolean;
 }
 
 

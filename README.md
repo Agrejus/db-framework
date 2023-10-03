@@ -1,26 +1,107 @@
-# pouchdb-entity-fabric
-PouchDB abstraction layer modeled after .net's Entity Framework
+<p align="center">
+  <a href="" rel="noopener">
+ <img width=200px height=200px src="https://i.imgur.com/6wj0hh6.jpg" alt="Project logo"></a>
+</p>
+
+<h3 align="center">Db Framework</h3>
+
+<div align="center">
+
+  [![Status](https://img.shields.io/badge/status-active-success.svg)]() 
+  [![GitHub Issues](https://img.shields.io/github/issues/agrejus/db-framework.svg)](https://github.com/agrejus/db-framework/issues)
+  [![GitHub Pull Requests](https://img.shields.io/github/issues-pr/agrejus/db-framework.svg)](https://github.com/agrejus/db-framework/pulls)
+  [![License](https://img.shields.io/badge/license-MIT-blue.svg)](/LICENSE)
+
+</div>
+
+---
+
+<p align="center"> Database agnostic ORM for NodeJS and the web
+    <br> 
+</p>
+
+## 📝 Table of Contents
+- [About](#about)
+- [Getting Started](#getting_started)
+- [Deployment](#deployment)
+- [Usage](#usage)
+- [Built Using](#built_using)
+- [TODO](../TODO.md)
+- [Contributing](../CONTRIBUTING.md)
+- [Authors](#authors)
+- [Acknowledgments](#acknowledgement)
+
+<details className="test"><summary><b>Preview title</b></summary>
+
+- <details><summary><b>Preview title</b></summary>Test</details>
+
+</details>
+
+## 🧐 About <a name = "about"></a>
+Write about 1-2 paragraphs describing the purpose of your project.
+
+## 🏁 Getting Started <a name = "getting_started"></a>
+These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See [deployment](#deployment) for notes on how to deploy the project on a live system.
+
+### Prerequisites
+What things you need to install the software and how to install them.
 
 ```
-npm install pouchdb-entity-fabric
+Give examples
 ```
 
-PouchDB Entity Fabric is an abstraction layer that wraps [PouchDB](https://pouchdb.com/) and makes creating repeatable processes in PouchDB easier.  Often times using PouchDB, a repository layer needs to be created and adding new document types requires a new repository.  PouchDB Entity Fabric removes the need for these repository layers all together.  Let's get to the code:
+### Installing
+A step by step series of examples that tell you how to get a development env running.
 
-## Documentation
-https://github.com/Agrejus/pouchdb-entity-fabric/wiki
+Say what the step will be
 
-## Releases
-2.0.5
-- Changed call order of data reinitialization and onSaveChanges in case SaveChanges is called within onSaveChanges
-- Added documentType and map to types on a DbSet.  Can be used to get the document type that is mapped to the document
+```
+Give the example
+```
 
-2.1.0
-- Added ability to tag entities with meta data.  Tags can be retrieved in onSaveChanges and onBeforeSaveChanges to detect different scenarios.  
-    - Use Case: Developers want to know if an entity was removed by a user action or programatic action.  A Tag can be added before the `.remove()` call to indicate which part of code initiated the action
-- onBeforeSaveChanges and onAfterSaveChanges calls were altered to include tags
+And repeat
 
-2.1.1
-- Fixed onBeforeSaveChanges, meta -> tag
-- Allowed for add/remove of items inside of onBeforeSaveChanges.  Previously any add/remove would be thrown away
-- Allowed for tags to be added inside of onBeforeSaveChanges
+```
+until finished
+```
+
+End with an example of getting some data out of the system or using it for a little demo.
+
+## 🔧 Running the tests <a name = "tests"></a>
+Explain how to run the automated tests for this system.
+
+### Break down into end to end tests
+Explain what these tests test and why
+
+```
+Give an example
+```
+
+### And coding style tests
+Explain what these tests test and why
+
+```
+Give an example
+```
+
+## 🎈 Usage <a name="usage"></a>
+Add notes about how to use the system.
+
+## 🚀 Deployment <a name = "deployment"></a>
+Add additional notes about how to deploy this on a live system.
+
+## ⛏️ Built Using <a name = "built_using"></a>
+- [MongoDB](https://www.mongodb.com/) - Database
+- [Express](https://expressjs.com/) - Server Framework
+- [VueJs](https://vuejs.org/) - Web Framework
+- [NodeJs](https://nodejs.org/en/) - Server Environment
+
+## ✍️ Authors <a name = "authors"></a>
+- [@kylelobo](https://github.com/kylelobo) - Idea & Initial work
+
+See also the list of [contributors](https://github.com/kylelobo/The-Documentation-Compendium/contributors) who participated in this project.
+
+## 🎉 Acknowledgements <a name = "acknowledgement"></a>
+- Hat tip to anyone whose code was used
+- Inspiration
+- References

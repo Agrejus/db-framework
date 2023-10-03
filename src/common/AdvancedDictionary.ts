@@ -16,6 +16,12 @@ export class AdvancedDictionary<TDocumentType extends string, TEntity extends ID
         this._key = key as string
     }
 
+    forEach(callback: (key: string, items: TEntity[]) => void) {
+        for(const key in this._data) {
+            callback(key, this._data[key])
+        }
+    }
+
     push(...items: TEntity[]) {
         for (let i = 0; i < items.length; i++) {
             const item: IIndexableEntity = items[i];

@@ -6,5 +6,5 @@ export { DefaultDbSetBuilder } from './context/dbset/builders/DefaultDbSetBuilde
 export { IDataContext } from './types/context-types';
 export { IDbAdditionRecord, IDbRecord, IDbRecordBase, IIndexableEntity, OmittedEntity, EntityIdKeys } from './types/entity-types';
 export { IDbSet, IDbSetBase, EntityAndTag, IStoreDbSet, IStoreDbSetProps } from './types/dbset-types';
-export { IdKeys, DeepPartial } from './types/common-types';
+export { IdKeys, DeepPartial, DeepOmit, DeepKeyOf, DeepReadOnly } from './types/common-types';
 export { DbPluginInstanceCreator, IBulkOperation, IBulkOperationsResponse, IDbPlugin, IDbPluginOptions, IQueryParams } from './types/plugin-types';

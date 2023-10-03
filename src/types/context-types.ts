@@ -4,8 +4,6 @@ import { EntityAndTag, IDbSetApi } from './dbset-types';
 import { IDbRecord, IDbRecordBase } from './entity-types';
 
 export type OnChangeEvent = <T extends IDbRecordBase = IDbRecordBase>(getChanges: () => { adds: EntityAndTag<T>[], removes: EntityAndTag<T>[], updates: EntityAndTag<T>[] }) => Promise<void>
-export type DataContextEventCallback<TDocumentType> = ({ DocumentType }: { DocumentType: TDocumentType }) => void;
-export type DataContextEvent = 'entity-created' | 'entity-removed' | 'entity-updated';
 
 export interface IDataContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> {
 

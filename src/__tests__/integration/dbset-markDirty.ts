@@ -39,6 +39,6 @@ describe('DbSet markDirty Tests', () => {
         await context.saveChanges();
         expect(context.hasPendingChanges()).toBe(false);
 
-        expect(dirty._rev).not.toEqual(one._rev)
+        expect(dirty._rev === one._rev).toBe(true);
     });
 });
