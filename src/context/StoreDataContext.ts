@@ -12,7 +12,7 @@ export type OnChangeHandlerDictionary = {
 
 const onChangeHandlers: OnChangeHandlerDictionary = {};
 
-export abstract class StoreDataContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TPluginOptions extends IDbPluginOptions = IDbPluginOptions> extends DataContext<TDocumentType, TEntityBase, TPluginOptions> {
+export abstract class StoreDataContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase, TPluginOptions extends IDbPluginOptions = IDbPluginOptions> extends DataContext<TDocumentType, TEntityBase, TExclusions, TPluginOptions> {
 
     private _forEachStoreDbSet(callback: (dbset: IStoreDbSet<TDocumentType, TEntityBase>) => void | false) {
         for (const dbset of this) {

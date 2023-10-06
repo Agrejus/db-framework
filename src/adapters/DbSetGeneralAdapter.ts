@@ -1,12 +1,11 @@
 import { IDbSetGeneralAdapter } from '../types/adapter-types';
 import { IDbSetProps, IDbSetInfo, DbSetType } from '../types/dbset-types';
-import { IDbRecord, IDbRecordBase, IIndexableEntity } from '../types/entity-types';
-import { validateAttachedEntity } from '../validation/Validation';
+import { IDbRecord, IDbRecordBase } from '../types/entity-types';
 import { DbSetBaseAdapter } from './DbSetBaseAdapter';
 
-export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExtraExclusions extends string = never> extends DbSetBaseAdapter<TDocumentType, TEntity, TExtraExclusions> implements IDbSetGeneralAdapter<TDocumentType, TEntity, TExtraExclusions> {
+export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> extends DbSetBaseAdapter<TDocumentType, TEntity, TExclusions> implements IDbSetGeneralAdapter<TDocumentType, TEntity, TExclusions> {
 
-    constructor(props: IDbSetProps<TDocumentType, TEntity>, type: DbSetType) {
+    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType) {
         super(props, type);
     }
 
@@ -19,7 +18,7 @@ export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends I
     }
 
     info() {
-        const info: IDbSetInfo<TDocumentType, TEntity> = {
+        const info: IDbSetInfo<TDocumentType, TEntity, TExclusions> = {
             DocumentType: this.documentType,
             IdKeys: this.idKeys,
             Defaults: this.defaults,
@@ -37,14 +36,14 @@ export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends I
 
     unlink(...entities: TEntity[]) {
 
-        const validationFailures = entities.map(w => validateAttachedEntity<TDocumentType, TEntity>(w)).flat().filter(w => w.ok === false);
+        const response = this.api.dbPlugin.prepareDetachments(...entities);
 
-        if (validationFailures.length > 0) {
-            const errors = validationFailures.map(w => w.error).join('\r\n')
-            throw new Error(`Entities to be attached have errors.  Errors: \r\n${errors}`)
+        if (response.ok === false) {
+            const errors = response.errors.join('\r\n')
+            throw new Error(`Entities to be unlinked have errors.  Errors: \r\n${errors}`)
         }
 
-        this._detachItems(entities)
+        this._detachItems(response.docs)
     }
 
     async markDirty(...entities: TEntity[]) {
@@ -53,18 +52,14 @@ export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends I
 
     async link(...entities: TEntity[]) {
 
-        const validationFailures = entities.map(w => validateAttachedEntity<TDocumentType, TEntity>(w)).flat().filter(w => w.ok === false);
+        const response = await this.api.dbPlugin.prepareAttachments(...entities);
 
-        if (validationFailures.length > 0) {
-            const errors = validationFailures.map(w => w.error).join('\r\n')
-            throw new Error(`Entities to be attached have errors.  Errors: \r\n${errors}`)
+        if (response.ok === false) {
+            const errors = response.errors.join('\r\n')
+            throw new Error(`Entities to be linked have errors.  Errors: \r\n${errors}`)
         }
 
-        // Find the existing _rev just in case it's not in sync
-        const found = await this.api.dbPlugin.getStrict(...entities.map(w => w._id));
-        const foundDictionary = found.reduce((a, v) => ({ ...a, [v._id]: v._rev }), {} as IIndexableEntity);
-        const result = entities.map(w => this.api.changeTrackingAdapter.enableChangeTracking({ ...w, _rev: foundDictionary[w._id] }, this.defaults.add, this.isReadonly, this.map));
-
+        const result = response.docs.map(w => this.api.changeTrackingAdapter.enableChangeTracking(w, this.defaults.add, this.isReadonly, this.map));
         this.api.changeTrackingAdapter.attach(result);
 
         return result;

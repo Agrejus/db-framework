@@ -1,4 +1,4 @@
-import { DbContextFactory, ExternalDataContext } from "../../src/__tests__/integration/shared/context";
+import { ExternalDataContext } from "../../src/__tests__/integration/shared/context";
 import { DataContext } from "../../src/context/DataContext";
 import { IDbRecord } from "../../src/types/entity-types";
 import { PouchDbPlugin } from "@agrejus/db-framework-plugin-pouchdb";
@@ -12,23 +12,28 @@ enum DocumentTypes {
     Preference = "Preference"
 }
 
-interface IPreference extends IDbRecord<DocumentTypes> {
+interface IPouchDbRecord<TDocumentType extends string> extends IDbRecord<TDocumentType> {
+    readonly _id: string;
+    readonly _rev: string;
+}
+
+interface IPreference extends IPouchDbRecord<DocumentTypes> {
     isSomePropertyOn: boolean;
     isOtherPropertyOn: boolean;
 }
 
-interface IBaseEntity extends IDbRecord<DocumentTypes> {
+interface IBaseEntity extends IPouchDbRecord<DocumentTypes> {
     syncStatus: "pending" | "approved" | "rejected";
     syncRetryCount: 0;
 }
 
-interface INote extends IDbRecord<DocumentTypes> {
+interface INote extends IPouchDbRecord<DocumentTypes> {
     contents: string;
     createdDate: string;
     userId: string;
 }
 
-interface IBook extends IDbRecord<DocumentTypes.Books> {
+interface IBook extends IPouchDbRecord<DocumentTypes.Books> {
     author: string;
     publishDate?: string;
     rejectedCount: number;
@@ -37,14 +42,14 @@ interface IBook extends IDbRecord<DocumentTypes.Books> {
     test?: string
 }
 
-interface ICar extends IDbRecord<DocumentTypes.Cars> {
+interface ICar extends IPouchDbRecord<DocumentTypes.Cars> {
     make: string;
     model: string;
     year: number;
     manufactureDate: string;
 }
 
-class ExternalDbDataContext extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>, IDbPluginOptions, PouchDbPlugin<DocumentTypes, IDbRecord<DocumentTypes>, IDbPluginOptions>> {
+class ExternalDbDataContext extends DataContext<DocumentTypes, IPouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, IPouchDbRecord<DocumentTypes>, IDbPluginOptions>> {
 
     constructor() {
         super({ dbName: "Test"}, PouchDbPlugin, { changeTrackingType: "context" });

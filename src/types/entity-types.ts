@@ -1,13 +1,8 @@
 import { DeepOmit, IdKey } from "./common-types";
 
-export type OmittedEntity<TEntity, TExtraExclusions extends string = never> = DeepOmit<TEntity, "_id" | "_rev" | "DocumentType" | TExtraExclusions>;
+export type OmittedEntity<TEntity, TExclusions extends keyof TEntity = never> = DeepOmit<TEntity, "DocumentType" | TExclusions>;
 
 export type IDbRecord<TDocumentType extends string> = {
-    readonly _id: string;
-    readonly _rev: string;
-} & IDbAdditionRecord<TDocumentType>
-
-export type IDbAdditionRecord<TDocumentType extends string> = {
     readonly DocumentType: TDocumentType;
 }
 
@@ -19,5 +14,5 @@ export interface IIndexableEntity<T extends any = any> {
     [key: string]: T;
 }
 
-export type EntityIdKeys<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = EntityIdKey<TDocumentType, TEntity>[];
-export type EntityIdKey<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = IdKey<Omit<TEntity, "_id" | "_rev" | "DocumentType">>;
+export type EntityIdKeys<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> = EntityIdKey<TDocumentType, TEntity, TExclusions>[];
+export type EntityIdKey<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> = IdKey<Omit<TEntity, "DocumentType" | TExclusions>>;

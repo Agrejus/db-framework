@@ -58,8 +58,8 @@ export interface ITrackedChanges<TDocumentType extends string, TEntityBase exten
     updated: TEntityBase[];
 }
 
-export interface IPrivateContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> extends IDataContext<TDocumentType, TEntityBase> {
-    _getApi: () => IDbSetApi<TDocumentType, TEntityBase>;
+export interface IPrivateContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase> extends IDataContext<TDocumentType, TEntityBase> {
+    _getApi: () => IDbSetApi<TDocumentType, TEntityBase, TExclusions>;
 }
 
 export type ContextOptions = { changeTrackingType: "context" | "entity"}

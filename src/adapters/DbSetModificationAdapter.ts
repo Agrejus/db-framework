@@ -3,27 +3,29 @@ import { DbSetType, IDbSetProps } from '../types/dbset-types';
 import { IDbRecord, OmittedEntity, IIndexableEntity } from '../types/entity-types';
 import { DbSetBaseAdapter } from './DbSetBaseAdapter';
 
-export class DbSetModificationAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExtraExclusions extends string = never> extends DbSetBaseAdapter<TDocumentType, TEntity, TExtraExclusions> implements IDbSetModificationAdapter<TDocumentType, TEntity, TExtraExclusions> {
+export class DbSetModificationAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> extends DbSetBaseAdapter<TDocumentType, TEntity, TExclusions> implements IDbSetModificationAdapter<TDocumentType, TEntity, TExclusions> {
 
     private _tag: unknown | null = null; 
 
-    constructor(props: IDbSetProps<TDocumentType, TEntity>, type: DbSetType) {
+    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType) {
         super(props, type);
     }
 
-    protected processAddition(entity: OmittedEntity<TEntity, TExtraExclusions>) {
+    protected processAddition(entity: OmittedEntity<TEntity, TExclusions>) {
         const addItem: IDbRecord<TDocumentType> = entity as any;
         (addItem as any).DocumentType = this.documentType;
         const id = this.getKeyFromEntity(entity as any);
 
+        
+
         if (id != undefined) {
-            (addItem as any)._id = id;
+            (addItem as any)[this.api.dbPlugin.idPropertName] = id;
         }
 
         return addItem
     }
 
-    protected processAdditionAndMakeTrackable(entity: OmittedEntity<TEntity, TExtraExclusions>) {
+    protected processAdditionAndMakeTrackable(entity: OmittedEntity<TEntity, TExclusions>) {
         const addItem = this.processAddition(entity);
 
         return this.api.changeTrackingAdapter.enableChangeTracking(addItem as TEntity, this.defaults.add, this.isReadonly, this.map);
@@ -33,25 +35,24 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
         this._tag = value;
     }
 
-    instance(...entities: OmittedEntity<TEntity, TExtraExclusions>[]) {
+    instance(...entities: OmittedEntity<TEntity, TExclusions>[]) {
         return entities.map(entity => ({ ...this.processAdditionAndMakeTrackable(entity) }));
     }
 
-    private async _add(...entities: OmittedEntity<TEntity, TExtraExclusions>[]) {
+    private async _add(...entities: OmittedEntity<TEntity, TExclusions>[]) {
         const data = this.api.changeTrackingAdapter.getTrackedData();
         const { add } = data;
 
         const result = entities.map(entity => {
-            const indexableEntity: IIndexableEntity = entity as any;
 
-            if (indexableEntity["_rev"] !== undefined) {
+            if (this.api.dbPlugin.isOperationAllowed(entity as any, "add") === false) {
                 throw new Error('Cannot add entity that is already in the database, please modify entites by reference or attach an existing entity')
             }
 
             const mappedEntity = this.api.changeTrackingAdapter.mapAndSetDefaults(entity, this.map, this.defaults.add);
             const trackableEntity = this.processAdditionAndMakeTrackable(mappedEntity);
             
-            this._tryAddMetaData(trackableEntity._id);
+            this._tryAddMetaData(trackableEntity[this.api.dbPlugin.idPropertName]);
 
             add.push(trackableEntity);
 
@@ -61,7 +62,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
         return result
     }
 
-    async add(...entities: OmittedEntity<TEntity, TExtraExclusions>[]) {
+    async add(...entities: OmittedEntity<TEntity, TExclusions>[]) {
 
         const result = await this._add(...entities);
 
@@ -70,7 +71,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
         return result
     }
 
-    private _tryAddMetaData(id: string) {
+    private _tryAddMetaData(id: TEntity[keyof TEntity]) {
         if (this._tag != null) {
             this.api.tag(id, this._tag)
         }
@@ -80,15 +81,20 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
         this._tag = null;
     }
 
-    async upsert(...entities: (OmittedEntity<TEntity, TExtraExclusions> | Omit<TEntity, "DocumentType">)[]) {
+    async upsert(...entities: (OmittedEntity<TEntity, TExclusions> | Omit<TEntity, "DocumentType">)[]) {
  
         const all = await this.getAllData();
-        const allDictionary: { [key: string]: TEntity } = all.reduce((a, v) => ({ ...a, [v._id]: v }), {})
+        const allDictionary: { [key: string]: TEntity } = all.reduce((a, v) => {
+
+            const id = v[this.api.dbPlugin.idPropertName] as string;
+            return { ...a, [id]: v }
+        }, {})
         const result: TEntity[] = [];
 
         for (let entity of entities as any[]) {
-            const instance = entity._id != null ? entity as TEntity : { ...this.processAdditionAndMakeTrackable(entity) } as TEntity;
-            const found = allDictionary[instance._id]
+            const instance = entity[this.api.dbPlugin.idPropertName] != null ? entity as TEntity : { ...this.processAdditionAndMakeTrackable(entity) } as TEntity;
+            const id = instance[this.api.dbPlugin.idPropertName] as string;
+            const found = allDictionary[id]
 
             if (found) {
                 const mergedAndTrackable = this.api.changeTrackingAdapter.enableChangeTracking(found, this.defaults.add, this.isReadonly, this.map);
@@ -104,7 +110,8 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
                     throw e;
                 }
 
-                this._tryAddMetaData(mergedAndTrackable._id);
+                const mergedId = mergedAndTrackable[this.api.dbPlugin.idPropertName];
+                this._tryAddMetaData(mergedId);
 
                 result.push(mergedAndTrackable)
                 continue;
@@ -151,14 +158,14 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
         const data = this.api.changeTrackingAdapter.getTrackedData();
         const { remove } = data;
 
-        const ids = remove.map(w => w._id);
+        const ids = remove.map(w => w[this.api.dbPlugin.idPropertName]);
         const indexableEntity = entity as IIndexableEntity;
 
-        if (ids.includes(indexableEntity._id)) {
-            throw new Error(`Cannot remove entity with same id more than once.  _id: ${indexableEntity._id}`)
+        if (ids.includes(indexableEntity[this.api.dbPlugin.idPropertName as string])) {
+            throw new Error(`Cannot remove entity with same id more than once.  id: ${indexableEntity[this.api.dbPlugin.idPropertName as string]}`)
         }
 
-        this._tryAddMetaData(entity._id);
+        this._tryAddMetaData(entity[this.api.dbPlugin.idPropertName]);
         remove.push(entity as any);
     }
 
@@ -167,10 +174,10 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
         const { removeById } = data;
 
         if (removeById.includes(id)) {
-            throw new Error(`Cannot remove entity with same id more than once.  _id: ${id}`)
+            throw new Error(`Cannot remove entity with same id more than once.  id: ${id}`)
         }
 
-        this._tryAddMetaData(id);
+        this._tryAddMetaData(id as any);
         removeById.push(id);
     }
 }

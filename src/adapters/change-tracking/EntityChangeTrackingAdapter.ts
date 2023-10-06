@@ -9,13 +9,17 @@ import { ChangeTrackingAdapterBase } from "./ChangeTrackingAdapterBase";
 /**
  * Uses proxy objects to track changes at the entity level.  Useful for fine grained change tracking regardless of the context
  */
-export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> extends ChangeTrackingAdapterBase<TDocumentType, TEntity> {
+export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> extends ChangeTrackingAdapterBase<TDocumentType, TEntity, TExclusions> {
 
     static readonly DIRTY_ENTITY_MARKER: string = "__isDirty";
     static readonly PRISTINE_ENTITY_KEY: string = "__pristine_entity__";
     static readonly PROXY_MARKER: string = "__isProxy";
+    protected override attachments;
 
-    protected override attachments = new AdvancedDictionary<TDocumentType, TEntity>("_id");
+    constructor(idPropertyName: keyof TEntity) {
+        super(idPropertyName);
+        this.attachments = new AdvancedDictionary<TDocumentType, TEntity>(idPropertyName)
+    }
 
     static isProxy<T extends Object>(entities: T) {
         return (entities as IIndexableEntity)[EntityChangeTrackingAdapter.PROXY_MARKER] === true;
@@ -65,7 +69,7 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
         }
     }
 
-    enableChangeTracking(entity: TEntity, defaults: DeepPartial<DeepOmit<TEntity, "DocumentType" | "_id" | "_rev">>, readonly: boolean, maps: PropertyMap<TDocumentType, TEntity, any>[]): TEntity {
+    enableChangeTracking(entity: TEntity, defaults: DeepPartial<DeepOmit<TEntity, "DocumentType" | TExclusions>>, readonly: boolean, maps: PropertyMap<TDocumentType, TEntity, any>[]): TEntity {
         const proxyHandler: ProxyHandler<TEntity> = {
             set: (entity, property, value) => {
 
@@ -111,7 +115,7 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
         const instance = this.mapAndSetDefaults(entity, maps, defaults);
         const result = readonly ? Object.freeze(instance) : instance;
 
-        return new Proxy(result, proxyHandler) as TEntity
+        return new Proxy(result, proxyHandler as any) as TEntity
     }
 
     merge(from: TEntity, to: TEntity) {

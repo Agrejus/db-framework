@@ -5,7 +5,7 @@ import { PropertyMap } from "../../types/dbset-builder-types";
 import { DbSetMap } from "../../types/dbset-types";
 import { IDbRecord, IIndexableEntity, OmittedEntity } from "../../types/entity-types";
 
-export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> {
+export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> {
 
     protected removals: TEntity[] = [];
     protected additions: TEntity[] = [];
@@ -13,13 +13,19 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
 
     protected abstract attachments: IAttachmentDictionary<TDocumentType, TEntity>;
 
-    abstract enableChangeTracking(entity: TEntity, defaults: DeepPartial<OmittedEntity<TEntity>>, readonly: boolean, maps: PropertyMap<TDocumentType, TEntity, any>[]): TEntity;
+    abstract enableChangeTracking(entity: TEntity, defaults: DeepPartial<OmittedEntity<TEntity, TExclusions>>, readonly: boolean, maps: PropertyMap<TDocumentType, TEntity, any>[]): TEntity;
     abstract getPendingChanges(changes: ITrackedData<TDocumentType, TEntity>, dbsets: DbSetMap): ITrackedChanges<TDocumentType, TEntity>;
     abstract makePristine(...entities: TEntity[]): void;
     abstract merge(from: TEntity, to: TEntity): TEntity;
     abstract markDirty(...entities: TEntity[]): Promise<TEntity[]>;
     abstract isDirty(entity: TEntity): boolean;
     abstract asUntracked(...entities: TEntity[]): TEntity[];
+
+    protected readonly idPropertyName: keyof TEntity;
+
+    constructor(idPropertyName: keyof TEntity) {
+        this.idPropertyName = idPropertyName;
+    }
 
     reinitialize(removals: TEntity[] = [], add: TEntity[] = [], updates: TEntity[] = []) {
         this.additions = [];
@@ -51,7 +57,7 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
         return result;
     }
 
-    mapAndSetDefaults<T extends Object>(entity: T, maps: PropertyMap<any, any, any>[], defaults: DeepPartial<OmittedEntity<T>> = {} as any) {
+    mapAndSetDefaults(entity: TEntity | OmittedEntity<TEntity, TExclusions>, maps: PropertyMap<any, any, any>[], defaults: DeepPartial<OmittedEntity<TEntity, TExclusions>> = {} as any) {
         const mergedInstance = { ...defaults, ...entity };
         let mappedInstance = {};
 

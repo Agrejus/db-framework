@@ -5,22 +5,22 @@ import { IPrivateContext } from '../types/context-types';
 import { DbSetType, EntityAndTag, IDbSetApi, IDbSetProps } from '../types/dbset-types';
 import { DbSetKeyType, PropertyMap } from '../types/dbset-builder-types';
 
-export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExtraExclusions extends string = never> {
+export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> {
 
-    protected defaults: DbSetPickDefaultActionRequired<TDocumentType, TEntity>;
+    protected defaults: DbSetPickDefaultActionRequired<TDocumentType, TEntity, TExclusions>;
     protected idKeys: EntityIdKeys<TDocumentType, TEntity>;
     protected documentType: TDocumentType;
-    protected context: IPrivateContext<TDocumentType, TEntity>;
-    protected api: IDbSetApi<TDocumentType, TEntity>;
+    protected context: IPrivateContext<TDocumentType, TEntity, TExclusions>;
+    protected api: IDbSetApi<TDocumentType, TEntity, TExclusions>;
     protected isReadonly: boolean;
     protected keyType: DbSetKeyType;
     protected map: PropertyMap<TDocumentType, TEntity, any>[];
     protected filterSelector: EntitySelector<TDocumentType, TEntity> | null;
     protected type: DbSetType;
 
-    constructor(props: IDbSetProps<TDocumentType, TEntity>, type: DbSetType) {
+    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType) {
         this.documentType = props.documentType;
-        this.context = props.context as IPrivateContext<TDocumentType, TEntity>;
+        this.context = props.context as IPrivateContext<TDocumentType, TEntity, TExclusions>;
         this.idKeys = props.idKeys;
         this.defaults = props.defaults;
         this.isReadonly = props.readonly;
