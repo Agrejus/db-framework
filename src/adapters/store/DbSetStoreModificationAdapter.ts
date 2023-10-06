@@ -11,7 +11,7 @@ export class DbSetStoreModificationAdapter<TDocumentType extends string, TEntity
     constructor(props: IStoreDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType) {
         super(props, type);
         this._onChange = props.onChange
-        this._store = new CacheDataStore<TDocumentType, TEntity>();
+        this._store = new CacheDataStore<TDocumentType, TEntity>(this.api.dbPlugin.idPropertName);
     }
 
     protected override async onAfterSaveChanges(getChanges: () => { adds: EntityAndTag<TEntity>[]; removes: EntityAndTag<TEntity>[]; updates: EntityAndTag<TEntity>[]; }) {
