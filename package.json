@@ -27,7 +27,7 @@
     "dist"
   ],
   "devDependencies": {
-    "@agrejus/db-framework-plugin-pouchdb": "file:../db-framework-plugin-pouchdb",
+    "@agrejus/db-framework-plugin-pouchdb": "0.0.1-beta.2",
     "@babel/preset-env": "^7.18.0",
     "@babel/preset-typescript": "^7.17.12",
     "@faker-js/faker": "^7.1.0",
