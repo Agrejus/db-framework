@@ -3,12 +3,12 @@ import { IDbRecord } from "../../types/entity-types";
 import { DbSetModificationAdapter } from "../DbSetModificationAdapter";
 import { CacheDataStore } from '../../cache/CacheDataStore';
 
-export class DbSetStoreModificationAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExtraExclusions extends string = never> extends DbSetModificationAdapter<TDocumentType, TEntity, TExtraExclusions> {
+export class DbSetStoreModificationAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> extends DbSetModificationAdapter<TDocumentType, TEntity, TExclusions> {
 
     private _store: CacheDataStore<TDocumentType, TEntity>;
     private _onChange: DbSetOnChangeEvent<TDocumentType, TEntity> | null;
 
-    constructor(props: IStoreDbSetProps<TDocumentType, TEntity>, type: DbSetType) {
+    constructor(props: IStoreDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType) {
         super(props, type);
         this._onChange = props.onChange
         this._store = new CacheDataStore<TDocumentType, TEntity>();

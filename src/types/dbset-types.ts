@@ -5,8 +5,8 @@ import { DbSetKeyType, PropertyMap } from "./dbset-builder-types";
 import { IDbRecord, OmittedEntity, IDbRecordBase, EntityIdKeys } from "./entity-types";
 import { IDbPlugin } from "./plugin-types";
 
-export type IDbSetTypes<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExtraExclusions extends string = never> = {
-    modify: OmittedEntity<TEntity, TExtraExclusions>;
+export type IDbSetTypes<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> = {
+    modify: OmittedEntity<TEntity, TExclusions>;
     result: TEntity;
     documentType: TEntity["DocumentType"];
     map: { [DocumentType in TEntity["DocumentType"]]: TEntity; };
@@ -45,8 +45,8 @@ export interface IDbSetEnumerable<TDocumentType extends string, TEntity extends 
 export interface IStoreDbSet<
     TDocumentType extends string,
     TEntity extends IDbRecord<TDocumentType>,
-    TExtraExclusions extends string = never,
-> extends IDbSet<TDocumentType, TEntity, TExtraExclusions> {
+    TExclusions extends keyof TEntity = never,
+> extends IDbSet<TDocumentType, TEntity, TExclusions> {
     /**
      * Load existing data into the memory store
      * @returns {Promise<number>}
@@ -62,10 +62,10 @@ export interface IStoreDbSet<
 export interface IDbSet<
     TDocumentType extends string,
     TEntity extends IDbRecord<TDocumentType>,
-    TExtraExclusions extends string = never,
+    TExclusions extends keyof TEntity = never,
 > extends IDbSetEnumerable<TDocumentType, TEntity> {
 
-    get types(): IDbSetTypes<TDocumentType, TEntity, TExtraExclusions>;
+    get types(): IDbSetTypes<TDocumentType, TEntity, TExclusions>;
 
     /**
      * Add a tag to the transaction (one or more entites from add/remove/upsert) and make available for onAfterSaveChanges or onBeforeSaveChanges.
@@ -93,14 +93,14 @@ export interface IDbSet<
      * @param entities Entity or entities to add to the data context
      * @returns {Promise<TEntity[]>}
      */
-    add(...entities: OmittedEntity<TEntity, TExtraExclusions>[]): Promise<TEntity[]>;
+    add(...entities: OmittedEntity<TEntity, TExclusions>[]): Promise<TEntity[]>;
 
     /**
      * Add or update one or more entities from the underlying data context, saveChanges must be called to persist these items to the store
      * @param entities Entity or entities to add to the data context
      * @returns {Promise<TEntity[]>}
      */
-    upsert(...entities: (OmittedEntity<TEntity, TExtraExclusions> | Omit<TEntity, "DocumentType">)[]): Promise<TEntity[]>;
+    upsert(...entities: (OmittedEntity<TEntity, TExclusions> | Omit<TEntity, "DocumentType">)[]): Promise<TEntity[]>;
 
     /**
      * Create one or more entities and do not add it to the underlying data context.  This is useful for creating entities and passing them to other functions.
@@ -108,7 +108,7 @@ export interface IDbSet<
      * @param entities Entity or entities to create
      * @returns {TEntity[]}
      */
-    instance(...entities: OmittedEntity<TEntity, TExtraExclusions>[]): TEntity[];
+    instance(...entities: OmittedEntity<TEntity, TExclusions>[]): TEntity[];
 
     /**
      * Remove one or more entities from the underlying data context, saveChanges must be called to persist these items to the store
@@ -157,7 +157,7 @@ export interface IDbSet<
      * Get DbSet info
      * @returns {IDbSetInfo<TDocumentType, TEntity>}
      */
-    info(): IDbSetInfo<TDocumentType, TEntity>
+    info(): IDbSetInfo<TDocumentType, TEntity, TExclusions>
 }
 
 export interface IDbSetBase<TDocumentType extends string> {
@@ -168,34 +168,34 @@ export interface IDbSetBase<TDocumentType extends string> {
     empty(): Promise<void>;
 }
 
-export interface IDbSetApi<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> {
+export interface IDbSetApi<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase> {
     dbPlugin: IDbPlugin<TDocumentType, TEntityBase>;
-    changeTrackingAdapter: ChangeTrackingAdapterBase<TDocumentType, TEntityBase>;
-    tag(id: string, value: unknown): void;
+    changeTrackingAdapter: ChangeTrackingAdapterBase<TDocumentType, TEntityBase, TExclusions>;
+    tag(id: TEntityBase[keyof TEntityBase], value: unknown): void;
     registerOnBeforeSaveChanges: (documentType: TDocumentType, onBeforeSaveChanges: (getChanges: () => { adds: EntityAndTag[], removes: EntityAndTag[], updates: EntityAndTag[] }) => Promise<void>) => void;
     registerOnAfterSaveChanges: (documentType: TDocumentType, onAfterSaveChanges: (getChanges: () => { adds: EntityAndTag[], removes: EntityAndTag[], updates: EntityAndTag[] }) => Promise<void>) => void;
 }
 
-export interface IDbSetInfo<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> {
+export interface IDbSetInfo<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> {
     DocumentType: TDocumentType,
     IdKeys: EntityIdKeys<TDocumentType, TEntity>,
-    Defaults: DbSetPickDefaultActionRequired<TDocumentType, TEntity>,
+    Defaults: DbSetPickDefaultActionRequired<TDocumentType, TEntity, TExclusions>,
     KeyType: DbSetKeyType;
     Map: PropertyMap<TDocumentType, TEntity, any>[];
     Readonly: boolean;
 }
 
-export interface IStoreDbSetProps<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> extends IDbSetProps<TDocumentType, TEntity> {
+export interface IStoreDbSetProps<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> extends IDbSetProps<TDocumentType, TEntity, TExclusions> {
     onChange: DbSetOnChangeEvent<TDocumentType, TEntity> | null;
 }
 
 export type DbSetChangeType = "hydrate" | "change" | "rehydrate";
 export type DbSetOnChangeEvent<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = (documentType: TDocumentType, type: DbSetChangeType, changes: { adds: TEntity[], removes: TEntity[], updates: TEntity[], all: TEntity[] }) => void
 
-export interface IDbSetProps<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> {
+export interface IDbSetProps<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> {
     documentType: TDocumentType,
     context: IDataContext<TDocumentType, TEntity>,
-    defaults: DbSetPickDefaultActionRequired<TDocumentType, TEntity>,
+    defaults: DbSetPickDefaultActionRequired<TDocumentType, TEntity, TExclusions>,
     idKeys: EntityIdKeys<TDocumentType, TEntity>;
     readonly: boolean;
     keyType: DbSetKeyType;

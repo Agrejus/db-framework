@@ -9,18 +9,18 @@ import { StoreDbSet } from "../StoreDbSet";
 import { DefaultDbSetBuilder } from "./DefaultDbSetBuilder";
 import { StoreDbSetBuilder } from "./StoreDbSetBuilder";
 
-export class DbSetInitializer<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TPluginOptions extends IDbPluginOptions> {
+export class DbSetInitializer<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase, TPluginOptions extends IDbPluginOptions> {
 
     protected onAddDbSet: (dbset: IDbSetBase<TDocumentType>) => void;
     protected context: IDataContext<TDocumentType, TEntityBase>;
 
-    constructor(onAddDbSet: (dbset: IDbSetBase<TDocumentType>) => void, context: DataContext<TDocumentType, TEntityBase, TPluginOptions>) {
+    constructor(onAddDbSet: (dbset: IDbSetBase<TDocumentType>) => void, context: DataContext<TDocumentType, TEntityBase, TExclusions, TPluginOptions>) {
         this.onAddDbSet = onAddDbSet;
         this.context = context;
     }
 
     default<TEntity extends TEntityBase>(documentType: TEntity["DocumentType"]) {
-        return new DefaultDbSetBuilder<TEntity["DocumentType"], TEntity, never, IDbSet<TEntity["DocumentType"], TEntity>, IDbSetBuilderParams<TEntity["DocumentType"], TEntity, never, IDbSet<TEntity["DocumentType"], TEntity>>>(this.onAddDbSet, {
+        return new DefaultDbSetBuilder<TEntity["DocumentType"], TEntity, TExclusions, IDbSet<TEntity["DocumentType"], TEntity, TExclusions>, IDbSetBuilderParams<TEntity["DocumentType"], TEntity, TExclusions, IDbSet<TEntity["DocumentType"], TEntity, TExclusions>>>(this.onAddDbSet, {
             documentType,
             context: this.context as IDataContext<TEntity["DocumentType"], TEntity>,
             readonly: false,
@@ -35,7 +35,7 @@ export class DbSetInitializer<TDocumentType extends string, TEntityBase extends 
     }
 
     store<TEntity extends TEntityBase>(documentType: TEntity["DocumentType"]) {
-        return new StoreDbSetBuilder<TEntity["DocumentType"], TEntity, never, IStoreDbSet<TEntity["DocumentType"], TEntity>, IDbSetStoreBuilderParams<TEntity["DocumentType"], TEntity, never, IStoreDbSet<TEntity["DocumentType"], TEntity>>>(this.onAddDbSet, {
+        return new StoreDbSetBuilder<TEntity["DocumentType"], TEntity, TExclusions, IStoreDbSet<TEntity["DocumentType"], TEntity, TExclusions>, IDbSetStoreBuilderParams<TEntity["DocumentType"], TEntity, TExclusions, IStoreDbSet<TEntity["DocumentType"], TEntity, TExclusions>>>(this.onAddDbSet, {
             documentType,
             context: this.context as IDataContext<TEntity["DocumentType"], TEntity>,
             readonly: false,

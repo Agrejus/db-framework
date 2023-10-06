@@ -3,13 +3,16 @@ import { IDbRecord } from "../types/entity-types";
 export class CacheDataStore<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> {
 
     private _data: { [id: string]: TEntity };
+    private _idPropertyName: keyof TEntity
 
-    constructor() {
+    constructor(idPropertyName: keyof TEntity) {
         this._data = {};
+        this._idPropertyName = idPropertyName;
     }
 
     put(entity: TEntity) {
-        this._data[entity._id] = entity;
+        const id = entity[this._idPropertyName] as string;
+        this._data[id] = entity;
     }
 
     putMany(...entities: TEntity[]) {
@@ -19,7 +22,8 @@ export class CacheDataStore<TDocumentType extends string, TEntity extends IDbRec
     }
 
     remove(entity: TEntity) {
-        delete this._data[entity._id];
+        const id = entity[this._idPropertyName] as string;
+        delete this._data[id];
     }
 
     removeMany(...entities: TEntity[]) {

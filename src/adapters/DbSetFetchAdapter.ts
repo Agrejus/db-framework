@@ -4,9 +4,9 @@ import { DbSetType, IDbSetProps } from '../types/dbset-types';
 import { IDbRecord } from '../types/entity-types';
 import { DbSetBaseAdapter } from './DbSetBaseAdapter';
 
-export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExtraExclusions extends string = never> extends DbSetBaseAdapter<TDocumentType, TEntity, TExtraExclusions> implements IDbSetFetchAdapter<TDocumentType, TEntity, TExtraExclusions> {
+export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> extends DbSetBaseAdapter<TDocumentType, TEntity, TExclusions> implements IDbSetFetchAdapter<TDocumentType, TEntity, TExclusions> {
 
-    constructor(props: IDbSetProps<TDocumentType, TEntity>, type: DbSetType) {
+    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType) {
         super(props, type);
     }
 

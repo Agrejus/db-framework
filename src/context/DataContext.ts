@@ -1,14 +1,14 @@
 import { IPreviewChanges } from "../types/common-types";
 import { ContextOptions, IDataContext, OnChangeEvent } from "../types/context-types";
-import { DbSetMap, EntityAndTag, IDbSet, IDbSetApi, IStoreDbSet } from "../types/dbset-types";
-import { IIndexableEntity, IDbRecord } from "../types/entity-types";
+import { DbSetMap, EntityAndTag, IDbSet, IStoreDbSet } from "../types/dbset-types";
+import { IDbRecord } from "../types/entity-types";
 import { DbSetInitializer } from './dbset/builders/DbSetInitializer';
 import { DbPluginInstanceCreator, IDbPlugin, IDbPluginOptions } from '../types/plugin-types';
 import { ChangeTrackingAdapterBase } from '../adapters/change-tracking/ChangeTrackingAdapterBase';
 import { EntityChangeTrackingAdapter } from '../adapters/change-tracking/EntityChangeTrackingAdapter';
 import { ContextChangeTrackingAdapter } from '../adapters/change-tracking/ContextChangeTrackingAdapter';
 
-export abstract class DataContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TPluginOptions extends IDbPluginOptions = IDbPluginOptions, TDbPlugin extends IDbPlugin<TDocumentType, TEntityBase> = IDbPlugin<TDocumentType, TEntityBase>> implements IDataContext<TDocumentType, TEntityBase> {
+export abstract class DataContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase, TPluginOptions extends IDbPluginOptions = IDbPluginOptions, TDbPlugin extends IDbPlugin<TDocumentType, TEntityBase, TExclusions> = IDbPlugin<TDocumentType, TEntityBase, TExclusions>> implements IDataContext<TDocumentType, TEntityBase> {
 
     private _tags: { [id: string]: unknown } = {}
 
@@ -16,17 +16,17 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
     protected dbSets: DbSetMap = {} as DbSetMap;
     private _onBeforeSaveChangesEvents: { [key in TDocumentType]: OnChangeEvent } = {} as any;
     private _onAfterSaveChangesEvents: { [key in TDocumentType]: OnChangeEvent } = {} as any;
-    private readonly _changeAdapter: ChangeTrackingAdapterBase<TDocumentType, TEntityBase>;
+    private readonly _changeAdapter: ChangeTrackingAdapterBase<TDocumentType, TEntityBase, typeof this.dbPlugin.types.exclusions>;
 
-    constructor(options: TPluginOptions, Plugin: DbPluginInstanceCreator<TDocumentType, TEntityBase, TDbPlugin>, contextOptions: ContextOptions = { changeTrackingType: "entity" }) {
+    constructor(options: TPluginOptions, Plugin: DbPluginInstanceCreator<TDocumentType, TEntityBase, TExclusions, TDbPlugin>, contextOptions: ContextOptions = { changeTrackingType: "entity" }) {
         this.dbPlugin = new Plugin(options);
 
         if (contextOptions.changeTrackingType === "entity") {
-            this._changeAdapter = new EntityChangeTrackingAdapter();
+            this._changeAdapter = new EntityChangeTrackingAdapter<TDocumentType, TEntityBase, typeof this.dbPlugin.types.exclusions>(this.dbPlugin.idPropertName);
             return;
         }
 
-        this._changeAdapter = new ContextChangeTrackingAdapter();
+        this._changeAdapter = new ContextChangeTrackingAdapter<TDocumentType, TEntityBase, typeof this.dbPlugin.types.exclusions>(this.dbPlugin.idPropertName);
     }
 
     async getAllDocs() {
@@ -56,7 +56,7 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
      * Gets an API to be used by DbSets
      * @returns IData
      */
-    private _getApi(): IDbSetApi<TDocumentType, TEntityBase> {
+    private _getApi() {
         return {
             dbPlugin: this.dbPlugin,
             changeTrackingAdapter: this._changeAdapter,
@@ -105,15 +105,11 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
         const { add, remove, removeById, updated } = this._changeAdapter.getPendingChanges(changes, this.dbSets);
 
         const extraRemovals = await this.dbPlugin.getStrict(...removeById);
+        const formattedDeletions = this.dbPlugin.formatDeletions(...remove, ...extraRemovals)
 
         return {
             add,
-            remove: [...remove, ...extraRemovals].map(w => {
-
-                let result = { ...w, _id: w._id, _rev: w._rev, DocumentType: w.DocumentType, _deleted: true } as IIndexableEntity;
-
-                return result as TEntityBase
-            }),
+            remove: formattedDeletions,
             updated
         }
     }
@@ -125,18 +121,36 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
         for (const documentType in this._onBeforeSaveChangesEvents) {
             const event = this._onBeforeSaveChangesEvents[documentType];
             await event(() => ({
-                adds: beforeSaveChanges.add.filter(w => w.DocumentType === documentType).map(w => ({ entity: w, tag: beforeOnBeforeSaveChangesTags[w._id] } as EntityAndTag<TEntityBase>)),
-                removes: beforeSaveChanges.remove.filter(w => w.DocumentType === documentType).map(w => ({ entity: w, tag: beforeOnBeforeSaveChangesTags[w._id] } as EntityAndTag<TEntityBase>)),
-                updates: beforeSaveChanges.updated.filter(w => w.DocumentType === documentType).map(w => ({ entity: w, tag: beforeOnBeforeSaveChangesTags[w._id] } as EntityAndTag<TEntityBase>))
+                adds: beforeSaveChanges.add.filter(w => w.DocumentType === documentType).map(w => {
+                    const id = w[this.dbPlugin.idPropertName] as string;
+                    return { entity: w, tag: beforeOnBeforeSaveChangesTags[id] } as EntityAndTag<TEntityBase>
+                }),
+                removes: beforeSaveChanges.remove.filter(w => w.DocumentType === documentType).map(w => {
+                    const id = w[this.dbPlugin.idPropertName] as string;
+                    return { entity: w, tag: beforeOnBeforeSaveChangesTags[id] } as EntityAndTag<TEntityBase>
+                }),
+                updates: beforeSaveChanges.updated.filter(w => w.DocumentType === documentType).map(w => {
+                    const id = w[this.dbPlugin.idPropertName] as string;
+                    return { entity: w, tag: beforeOnBeforeSaveChangesTags[id] } as EntityAndTag<TEntityBase>
+                })
             }))
         }
 
         // Devs are allowed to modify data/add data in onBeforeSaveChanges.  Useful for
         // creating history dbset that tracks changes in another dbset
         await this.onBeforeSaveChanges(() => ({
-            adds: beforeSaveChanges.add.map(w => ({ entity: w, tag: beforeOnBeforeSaveChangesTags[w._id] } as EntityAndTag<TEntityBase>)),
-            removes: beforeSaveChanges.remove.map(w => ({ entity: w, tag: beforeOnBeforeSaveChangesTags[w._id] } as EntityAndTag<TEntityBase>)),
-            updates: beforeSaveChanges.updated.map(w => ({ entity: w, tag: beforeOnBeforeSaveChangesTags[w._id] } as EntityAndTag<TEntityBase>))
+            adds: beforeSaveChanges.add.map(w => {
+                const id = w[this.dbPlugin.idPropertName] as string;
+                return { entity: w, tag: beforeOnBeforeSaveChangesTags[id] } as EntityAndTag<TEntityBase>
+            }),
+            removes: beforeSaveChanges.remove.map(w => {
+                const id = w[this.dbPlugin.idPropertName] as string;
+                return { entity: w, tag: beforeOnBeforeSaveChangesTags[id] } as EntityAndTag<TEntityBase>
+            }),
+            updates: beforeSaveChanges.updated.map(w => {
+                const id = w[this.dbPlugin.idPropertName] as string;
+                return { entity: w, tag: beforeOnBeforeSaveChangesTags[id] } as EntityAndTag<TEntityBase>
+            })
         }));
 
         // get tags again in case more were added in onBeforeSaveChanges
@@ -164,26 +178,13 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
             // remove pristine entity before we send to bulk docs
             this._changeAdapter.makePristine(...modifications);
 
-            // can we just skip over memory here?
-
             const modificationResult = await this.dbPlugin.bulkOperations({ adds: add, removes: remove, updates: updated });
 
-            for (let i = 0; i < modifications.length; i++) {
-                const modification = modifications[i];
-                const found = modificationResult.successes[modification._id];
+            // set any properties return from the database
+            this.dbPlugin.setDbGeneratedValues(modificationResult, modifications);
 
-                // update the rev in case we edit the record again
-                if (found && found.ok === true) {
-                    const indexableEntity = modification as IIndexableEntity;
-                    indexableEntity._rev = found.rev;
-
-                    this.onAfterSetRev(indexableEntity);
-
-                    // make pristine again because we set the _rev above
-                    this._changeAdapter.makePristine(modification);
-                }
-            }
-
+            // make pristine again because we potentially set properties above
+            this._changeAdapter.makePristine(...modifications);
             this._changeAdapter.reinitialize(remove, add, updated);
 
             await this._onAfterSaveChanges(changes, tags);
@@ -218,16 +219,34 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
         for (const documentType in this._onAfterSaveChangesEvents) {
             const event = this._onAfterSaveChangesEvents[documentType];
             await event(() => JSON.parse(JSON.stringify({
-                adds: add.filter(w => w.DocumentType === documentType).map(w => ({ entity: w, tag: tags[w._id] } as EntityAndTag)),
-                removes: remove.filter(w => w.DocumentType === documentType).map(w => ({ entity: w, tag: tags[w._id] } as EntityAndTag)),
-                updates: updated.filter(w => w.DocumentType === documentType).map(w => ({ entity: w, tag: tags[w._id] } as EntityAndTag))
+                adds: add.filter(w => w.DocumentType === documentType).map(w => {
+                    const id = w[this.dbPlugin.idPropertName] as string;
+                    return { entity: w, tag: tags[id] } as EntityAndTag
+                }),
+                removes: remove.filter(w => w.DocumentType === documentType).map(w => {
+                    const id = w[this.dbPlugin.idPropertName] as string;
+                    return { entity: w, tag: tags[id] } as EntityAndTag
+                }),
+                updates: updated.filter(w => w.DocumentType === documentType).map(w => {
+                    const id = w[this.dbPlugin.idPropertName] as string;
+                    return { entity: w, tag: tags[id] } as EntityAndTag
+                })
             })))
         }
 
         await this.onAfterSaveChanges(() => JSON.parse(JSON.stringify({
-            adds: add.map(w => ({ entity: w, tag: tags[w._id] } as EntityAndTag)),
-            removes: remove.map(w => ({ entity: w, tag: tags[w._id] } as EntityAndTag)),
-            updates: updated.map(w => ({ entity: w, tag: tags[w._id] } as EntityAndTag))
+            adds: add.map(w => {
+                const id = w[this.dbPlugin.idPropertName] as string;
+                return { entity: w, tag: tags[id] } as EntityAndTag
+            }),
+            removes: remove.map(w => {
+                const id = w[this.dbPlugin.idPropertName] as string;
+                return { entity: w, tag: tags[id] } as EntityAndTag
+            }),
+            updates: updated.map(w => {
+                const id = w[this.dbPlugin.idPropertName] as string;
+                return { entity: w, tag: tags[id] } as EntityAndTag
+            })
         })));
     }
 
@@ -246,10 +265,6 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
 
     }
 
-    protected onAfterSetRev(entity: IIndexableEntity) {
-
-    }
-
     protected async onAfterSaveChanges(getChanges: () => { adds: EntityAndTag[], removes: EntityAndTag[], updates: EntityAndTag[] }) {
 
     }
@@ -258,8 +273,8 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
      * Starts the dbset fluent API.  Only required function call is create(), all others are optional
      * @returns {DbSetInitializer}
      */
-    protected dbset(): DbSetInitializer<TDocumentType, TEntityBase, TPluginOptions> {
-        return new DbSetInitializer<TDocumentType, TEntityBase, TPluginOptions>(this.addDbSet.bind(this), this);
+    protected dbset(): DbSetInitializer<TDocumentType, TEntityBase, TExclusions, TPluginOptions> {
+        return new DbSetInitializer<TDocumentType, TEntityBase, TExclusions, TPluginOptions>(this.addDbSet.bind(this), this);
     }
 
     hasPendingChanges() {

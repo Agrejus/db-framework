@@ -5,19 +5,19 @@ import { DbSet } from '../context/dbset/DbSet';
 import { IDataContext } from './context-types';
 
 
-export interface IDbSetStoreBuilderParams<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExtraExclusions extends string, TResult extends IDbSet<TDocumentType, TEntity, TExtraExclusions>>
-    extends IDbSetBuilderParams<TDocumentType, TEntity, TExtraExclusions, TResult> {
+export interface IDbSetStoreBuilderParams<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity, TResult extends IDbSet<TDocumentType, TEntity, TExclusions>>
+    extends IDbSetBuilderParams<TDocumentType, TEntity, TExclusions, TResult> {
     onChange: DbSetOnChangeEvent<TDocumentType, TEntity>;
 }
 
-export interface IDbSetBuilderParams<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExtraExclusions extends string, TResult extends IDbSet<TDocumentType, TEntity, TExtraExclusions>> {
+export interface IDbSetBuilderParams<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity, TResult extends IDbSet<TDocumentType, TEntity, TExclusions>> {
     context: IDataContext<TDocumentType, TEntity>;
     documentType: TDocumentType;
     idKeys: EntityIdKeys<TDocumentType, TEntity>;
-    defaults: DbSetPickDefaultActionRequired<TDocumentType, TEntity>;
-    exclusions: string[];
+    defaults: DbSetPickDefaultActionRequired<TDocumentType, TEntity, TExclusions>;
+    exclusions: (keyof TEntity)[];
     readonly: boolean;
-    extend: DbSetExtenderCreator<TDocumentType, TEntity, TExtraExclusions, TResult>[]
+    extend: DbSetExtenderCreator<TDocumentType, TEntity, TExclusions, TResult>[]
     keyType: DbSetKeyType;
     map: PropertyMap<TDocumentType, TEntity, any>[];
     filterSelector: EntitySelector<TDocumentType, TEntity>;
@@ -25,8 +25,8 @@ export interface IDbSetBuilderParams<TDocumentType extends string, TEntity exten
 
 
 export type ConvertDateToString<T> = T extends Date ? string : T;
-export type DbSetStoreExtenderCreator<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExtraExclusions extends string, TResult extends IStoreDbSet<TDocumentType, TEntity, TExtraExclusions>> = (i: DbSetExtender<TDocumentType, TEntity, TExtraExclusions>, args: IStoreDbSetProps<TDocumentType, TEntity>) => TResult
-export type DbSetExtenderCreator<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExtraExclusions extends string, TResult extends IDbSet<TDocumentType, TEntity, TExtraExclusions>> = (i: DbSetExtender<TDocumentType, TEntity, TExtraExclusions>, args: IDbSetProps<TDocumentType, TEntity>) => TResult
+export type DbSetStoreExtenderCreator<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity, TResult extends IStoreDbSet<TDocumentType, TEntity, TExclusions>> = (i: DbSetExtender<TDocumentType, TEntity, TExclusions>, args: IStoreDbSetProps<TDocumentType, TEntity, TExclusions>) => TResult
+export type DbSetExtenderCreator<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity, TResult extends IDbSet<TDocumentType, TEntity, TExclusions>> = (i: DbSetExtender<TDocumentType, TEntity, TExclusions>, args: IDbSetProps<TDocumentType, TEntity, TExclusions>) => TResult
 
 export type PropertyMap<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TProperty extends keyof TEntity> = { property: TProperty, map: (value: ConvertDateToString<TEntity[TProperty]>, entity: TEntity) => TEntity[TProperty] }
 
@@ -56,7 +56,7 @@ export interface IIdBuilderBase<TDocumentType extends string, TEntity extends ID
     auto(): ITerminateIdBuilder<TDocumentType, TEntity>;
 }
 
-export type DbSetExtender<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExtraExclusions extends string = never> = new (props: IDbSetProps<TDocumentType, TEntity>) => DbSet<TDocumentType, TEntity, TExtraExclusions>;
+export type DbSetExtender<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> = new (props: IDbSetProps<TDocumentType, TEntity, TExclusions>) => DbSet<TDocumentType, TEntity, TExclusions>;
 
 export type DbSetKeyType = "auto" | "none" | "user-defined";
 

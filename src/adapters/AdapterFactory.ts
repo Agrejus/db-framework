@@ -6,30 +6,30 @@ import { IDbRecord } from "../types/entity-types";
 import { IDbSetFetchAdapter, IDbSetGeneralAdapter, IDbSetModificationAdapter } from "../types/adapter-types";
 import { DbSetStoreModificationAdapter } from './store/DbSetStoreModificationAdapter';
 
-export class AdapterFactory<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExtraExclusions extends string = never> {
+export class AdapterFactory<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> {
 
-    private _props: IDbSetProps<TDocumentType, TEntity>;
+    private _props: IDbSetProps<TDocumentType, TEntity, TExclusions>;
     private _type: DbSetType;
 
-    constructor(props: IDbSetProps<TDocumentType, TEntity>, type: DbSetType) {
+    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType) {
         this._props = props;
         this._type = type;
     }
 
-    createFetchAdapter(): IDbSetFetchAdapter<TDocumentType, TEntity, TExtraExclusions> {
-        return new DbSetFetchAdapter<TDocumentType, TEntity, TExtraExclusions>(this._props, this._type)
+    createFetchAdapter(): IDbSetFetchAdapter<TDocumentType, TEntity, TExclusions> {
+        return new DbSetFetchAdapter<TDocumentType, TEntity, TExclusions>(this._props, this._type)
     }
 
-    createGeneralAdapter(): IDbSetGeneralAdapter<TDocumentType, TEntity, TExtraExclusions> {
-        return new DbSetGeneralAdapter<TDocumentType, TEntity, TExtraExclusions>(this._props, this._type)
+    createGeneralAdapter(): IDbSetGeneralAdapter<TDocumentType, TEntity, TExclusions> {
+        return new DbSetGeneralAdapter<TDocumentType, TEntity, TExclusions>(this._props, this._type)
     }
 
-    createModificationAdapter(): IDbSetModificationAdapter<TDocumentType, TEntity, TExtraExclusions> {
+    createModificationAdapter(): IDbSetModificationAdapter<TDocumentType, TEntity, TExclusions> {
 
         if (this._type === "store") {
-            return new DbSetStoreModificationAdapter<TDocumentType, TEntity, TExtraExclusions>(this._props as IStoreDbSetProps<TDocumentType, TEntity>, this._type)
+            return new DbSetStoreModificationAdapter<TDocumentType, TEntity, TExclusions>(this._props as IStoreDbSetProps<TDocumentType, TEntity, TExclusions>, this._type)
         }
 
-        return new DbSetModificationAdapter<TDocumentType, TEntity, TExtraExclusions>(this._props, this._type)
+        return new DbSetModificationAdapter<TDocumentType, TEntity, TExclusions>(this._props, this._type)
     }
 }

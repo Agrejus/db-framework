@@ -1,18 +1,18 @@
 import { AdapterFactory } from '../../adapters/AdapterFactory';
 import { IDbSetFetchAdapter, IDbSetGeneralAdapter, IDbSetModificationAdapter } from '../../types/adapter-types';
 import { EntitySelector } from '../../types/common-types';
-import { IDbSetProps, IDbSet, DbSetType } from '../../types/dbset-types';
+import { IDbSetProps, DbSetType } from '../../types/dbset-types';
 import { IDbRecord, OmittedEntity, IDbRecordBase } from '../../types/entity-types';
 import { IDbPlugin } from '../../types/plugin-types';
 
 /**
  * Data Collection for set of documents with the same type.  To be used inside of the DbContext
  */
-export class DbSet<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExtraExclusions extends string = never> implements IDbSet<TDocumentType, TEntity, TExtraExclusions> {
+export class DbSet<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never>  {
 
-    protected readonly _fetchAdapter: IDbSetFetchAdapter<TDocumentType, TEntity, TExtraExclusions>;
-    protected readonly _generalAdapter: IDbSetGeneralAdapter<TDocumentType, TEntity, TExtraExclusions>;
-    protected readonly _modificationAdapter: IDbSetModificationAdapter<TDocumentType, TEntity, TExtraExclusions>;
+    protected readonly _fetchAdapter: IDbSetFetchAdapter<TDocumentType, TEntity, TExclusions>;
+    protected readonly _generalAdapter: IDbSetGeneralAdapter<TDocumentType, TEntity, TExclusions>;
+    protected readonly _modificationAdapter: IDbSetModificationAdapter<TDocumentType, TEntity, TExclusions>;
     protected readonly plugin: IDbPlugin<TDocumentType, TEntity>;
 
     protected getDbSetType(): DbSetType {
@@ -21,7 +21,7 @@ export class DbSet<TDocumentType extends string, TEntity extends IDbRecord<TDocu
 
     get types() {
         return {
-            modify: {} as OmittedEntity<TEntity, TExtraExclusions>,
+            modify: {} as OmittedEntity<TEntity, TExclusions>,
             result: {} as TEntity,
             documentType: {} as TEntity["DocumentType"],
             map: {} as { [DocumentType in TEntity["DocumentType"]]: TEntity },
@@ -33,9 +33,9 @@ export class DbSet<TDocumentType extends string, TEntity extends IDbRecord<TDocu
      * Constructor
      * @param props Properties for the constructor
      */
-    constructor(props: IDbSetProps<TDocumentType, TEntity>) {
+    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>) {
 
-        const adapterFactory = new AdapterFactory<TDocumentType, TEntity, TExtraExclusions>(props, this.types.dbsetType);
+        const adapterFactory = new AdapterFactory<TDocumentType, TEntity, TExclusions>(props, this.types.dbsetType);
 
         this._fetchAdapter = adapterFactory.createFetchAdapter();
         this._generalAdapter = adapterFactory.createGeneralAdapter();
@@ -51,15 +51,15 @@ export class DbSet<TDocumentType extends string, TEntity extends IDbRecord<TDocu
         return this;
     }
 
-    instance(...entities: OmittedEntity<TEntity, TExtraExclusions>[]) {
+    instance(...entities: OmittedEntity<TEntity, TExclusions>[]) {
         return this._modificationAdapter.instance(...entities);
     }
 
-    async add(...entities: OmittedEntity<TEntity, TExtraExclusions>[]) {
+    async add(...entities: OmittedEntity<TEntity, TExclusions>[]) {
         return await this._modificationAdapter.add(...entities);
     }
 
-    async upsert(...entities: (OmittedEntity<TEntity, TExtraExclusions> | Omit<TEntity, "DocumentType">)[]) {
+    async upsert(...entities: (OmittedEntity<TEntity, TExclusions> | Omit<TEntity, "DocumentType">)[]) {
         return await this._modificationAdapter.upsert(...entities);
     }
 
