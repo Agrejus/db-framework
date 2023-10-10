@@ -1,4 +1,4 @@
-import { IDbRecord } from "../../../../src/types/entity-types";
+import { PouchDbRecord } from "@agrejus/db-framework-plugin-pouchdb";
 
 export enum DocumentTypes {
     Notes = "Notes",
@@ -31,45 +31,40 @@ export enum DocumentTypes {
     SplitBooks = "SplitBooks",
 }
 
-export interface IPouchDbRecord<TDocumentType extends string> extends IDbRecord<TDocumentType> {
-    readonly _id: string;
-    readonly _rev: string;
-}
-
-export interface IContact extends IPouchDbRecord<DocumentTypes> {
+export interface IContact extends PouchDbRecord<DocumentTypes> {
     firstName: string;
     lastName: string;
     address: string;
     phone: string;
 }
 
-export interface IComputer extends IPouchDbRecord<DocumentTypes> {
+export interface IComputer extends PouchDbRecord<DocumentTypes> {
     name: string;
     cores: number;
     keyboard?: string;
 }
 
-export interface INote extends IPouchDbRecord<DocumentTypes> {
+export interface INote extends PouchDbRecord<DocumentTypes> {
     contents: string;
     createdDate: Date;
     userId: string;
 }
 
-export interface INoteV2 extends IPouchDbRecord<DocumentTypes> {
+export interface INoteV2 extends PouchDbRecord<DocumentTypes> {
     contents: string;
     createdDate: string;
     userId: string;
 }
 
 
-export interface IBook extends IPouchDbRecord<DocumentTypes> {
+export interface IBook extends PouchDbRecord<DocumentTypes> {
     author: string;
     publishDate?: Date;
     rejectedCount: number;
     status: "pending" | "approved" | "rejected";
 }
 
-export interface IBookV4 extends IPouchDbRecord<DocumentTypes> {
+export interface IBookV4 extends PouchDbRecord<DocumentTypes> {
     author: string;
     publishDate?: Date;
     createdDate: Date;
@@ -77,19 +72,19 @@ export interface IBookV4 extends IPouchDbRecord<DocumentTypes> {
     status: "pending" | "approved" | "rejected";
 }
 
-export interface ICar extends IPouchDbRecord<DocumentTypes> {
+export interface ICar extends PouchDbRecord<DocumentTypes> {
     make: string;
     model: string;
     year: number;
     manufactureDate: Date;
 }
 
-export interface IPreference extends IPouchDbRecord<DocumentTypes> {
+export interface IPreference extends PouchDbRecord<DocumentTypes> {
     isSomePropertyOn: boolean;
     isOtherPropertyOn: boolean;
 }
 
-export interface ISyncDocument<TDocumentType extends string> extends IPouchDbRecord<TDocumentType> {
+export interface ISyncDocument<TDocumentType extends string> extends PouchDbRecord<TDocumentType> {
     SyncStatus: "Pending" | "Failed" | "Succeeded";
     SyncRetryCount: number
 }
@@ -106,14 +101,14 @@ export interface IBookV3 extends ISyncDocument<DocumentTypes> {
     rejectedCount: number;
 }
 
-export interface ISplitComputer extends IPouchDbRecord<DocumentTypes> {
+export interface ISplitComputer extends PouchDbRecord<DocumentTypes> {
     name: string;
     cores: number;
     keyboard?: string;
     reference: INoteV2
 }
 
-export interface ISplitBook extends IPouchDbRecord<DocumentTypes> {
+export interface ISplitBook extends PouchDbRecord<DocumentTypes> {
     author: string;
     publishDate?: string;
     rejectedCount: number;

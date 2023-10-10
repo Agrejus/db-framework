@@ -1,15 +1,15 @@
 import { DataContext } from "../../../context/DataContext";
 import { IDbSet } from "../../../types/dbset-types";
 import { IDbRecordBase } from "../../../types/entity-types";
-import { DocumentTypes, ISyncDocument, ISetStatus, IComputer, IBook, IBookV4, INote, IContact, IBookV3, ICar, IPreference, IPouchDbRecord } from "./types";
+import { DocumentTypes, ISyncDocument, ISetStatus, IComputer, IBook, IBookV4, INote, IContact, IBookV3, ICar, IPreference } from "./types";
 import { v4 as uuidv4 } from 'uuid';
 import { DefaultDbSetBuilder } from "../../../context/dbset/builders/DefaultDbSetBuilder";
-import { PouchDbPlugin } from "@agrejus/db-framework-plugin-pouchdb";
+import { PouchDbPlugin, PouchDbRecord } from "@agrejus/db-framework-plugin-pouchdb";
 import { IDbSetBuilderParams } from "../../../types/dbset-builder-types";
 import { ContextOptions } from "../../../types/context-types";
 import { IDbPluginOptions } from "../../../types/plugin-types";
 
-const dataContextWithParamsCreator = (type: string, name?: string) => new class extends DataContext<DocumentTypes, IPouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, IPouchDbRecord<DocumentTypes>, IDbPluginOptions>> {
+const dataContextWithParamsCreator = (type: string, name?: string) => new class extends DataContext<DocumentTypes, PouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, PouchDbRecord<DocumentTypes>, IDbPluginOptions>> {
 
     constructor() {
         super({ dbName: name ?? `${uuidv4()}-db` }, PouchDbPlugin);
@@ -26,7 +26,7 @@ const dataContextWithParamsCreator = (type: string, name?: string) => new class 
 const context = dataContextWithParamsCreator("");
 export const ExternalDbDataContextWithDefaults = context;
 
-export class ExternalDataContext extends DataContext<DocumentTypes, IPouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, IPouchDbRecord<DocumentTypes>, IDbPluginOptions>> {
+export class ExternalDataContext extends DataContext<DocumentTypes, PouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, PouchDbRecord<DocumentTypes>, IDbPluginOptions>> {
 
     constructor(name: string, contextOptions: ContextOptions = { changeTrackingType: "entity" }) {
         super({ dbName: name }, PouchDbPlugin, contextOptions);
@@ -150,7 +150,7 @@ export class ExternalDataContext extends DataContext<DocumentTypes, IPouchDbReco
     notesWithMapping = this.dbset().default<INote>(DocumentTypes.NotesWithMapping).map({ property: "createdDate", map: w => new Date(w) }).create();
 }
 
-export class BooksWithOneDefaultContext extends DataContext<DocumentTypes, IPouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, IPouchDbRecord<DocumentTypes>, IDbPluginOptions>> {
+export class BooksWithOneDefaultContext extends DataContext<DocumentTypes, PouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, PouchDbRecord<DocumentTypes>, IDbPluginOptions>> {
 
     constructor(name: string) {
         super({ dbName: name }, PouchDbPlugin);
@@ -167,7 +167,7 @@ export class BooksWithOneDefaultContext extends DataContext<DocumentTypes, IPouc
 }
 
 
-export class BooksWithTwoDefaultContext extends DataContext<DocumentTypes, IPouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, IPouchDbRecord<DocumentTypes>, IDbPluginOptions>> {
+export class BooksWithTwoDefaultContext extends DataContext<DocumentTypes, PouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, PouchDbRecord<DocumentTypes>, IDbPluginOptions>> {
 
     constructor(name: string) {
         super({ dbName: name }, PouchDbPlugin);
@@ -178,7 +178,7 @@ export class BooksWithTwoDefaultContext extends DataContext<DocumentTypes, IPouc
 
 export class DbContextFactory {
 
-    private _dbs: { [key: string]: DataContext<DocumentTypes, IPouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, IPouchDbRecord<DocumentTypes>, IDbPluginOptions>> } = {}
+    private _dbs: { [key: string]: DataContext<DocumentTypes, PouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, PouchDbRecord<DocumentTypes>, IDbPluginOptions>> } = {}
 
     getRandomDbName() {
         return uuidv4();
@@ -195,7 +195,7 @@ export class DbContextFactory {
         return result;
     }
 
-    createDbContexts<T extends DataContext<DocumentTypes, IPouchDbRecord<DocumentTypes>, "_rev" | "_id", IDbPluginOptions, PouchDbPlugin<DocumentTypes, IPouchDbRecord<DocumentTypes>, IDbPluginOptions>>>(factory: (name: string) => T[]) {
+    createDbContexts<T extends DataContext<DocumentTypes, PouchDbRecord<DocumentTypes>, "_rev" | "_id", IDbPluginOptions, PouchDbPlugin<DocumentTypes, PouchDbRecord<DocumentTypes>, IDbPluginOptions>>>(factory: (name: string) => T[]) {
         const name = `${uuidv4()}-db`;
         const contexts = factory(name);
 

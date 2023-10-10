@@ -1,7 +1,9 @@
+import { DataContext } from '../context/DataContext';
 import { IAttachmentDictionary } from './change-tracking-types';
 import { IPreviewChanges } from './common-types';
 import { EntityAndTag, IDbSetApi } from './dbset-types';
 import { IDbRecord, IDbRecordBase } from './entity-types';
+import { DbPluginInstanceCreator, IDbPlugin, IDbPluginOptions } from './plugin-types';
 
 export type OnChangeEvent = <T extends IDbRecordBase = IDbRecordBase>(getChanges: () => { adds: EntityAndTag<T>[], removes: EntityAndTag<T>[], updates: EntityAndTag<T>[] }) => Promise<void>
 
@@ -63,3 +65,11 @@ export interface IPrivateContext<TDocumentType extends string, TEntityBase exten
 }
 
 export type ContextOptions = { changeTrackingType: "context" | "entity"}
+
+export type ContextInstanceCreator<
+    TDocumentType extends string,
+    TEntityBase extends IDbRecord<TDocumentType>,
+    TExclusions extends keyof TEntityBase,
+    TPluginOptions extends IDbPluginOptions,
+    TDbPlugin extends IDbPlugin<TDocumentType, TEntityBase, TExclusions>
+> = new () => DataContext<TDocumentType, TEntityBase, TExclusions, TPluginOptions, TDbPlugin>

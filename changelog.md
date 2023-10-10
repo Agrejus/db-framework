@@ -1,5 +1,5 @@
 ## 0.0.1-beta.3
-- Fix build
+- Introduced Context Builder
 
 ## 0.0.1-beta.2
 - Removed dependencies on _rev and _id, can now declare this properites dynamically via a plugin

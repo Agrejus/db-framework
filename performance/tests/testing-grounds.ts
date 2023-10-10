@@ -1,8 +1,9 @@
 import { ExternalDataContext } from "../../src/__tests__/integration/shared/context";
 import { DataContext } from "../../src/context/DataContext";
 import { IDbRecord } from "../../src/types/entity-types";
-import { PouchDbPlugin } from "@agrejus/db-framework-plugin-pouchdb";
+import { PouchDbPlugin, PouchDbRecord } from "@agrejus/db-framework-plugin-pouchdb";
 import { IDbPluginOptions } from "../../src/types/plugin-types";
+import { contextBuilder } from "../../src/context/builder/context-builder";
 
 enum DocumentTypes {
     Notes = "Notes",
@@ -12,28 +13,23 @@ enum DocumentTypes {
     Preference = "Preference"
 }
 
-interface IPouchDbRecord<TDocumentType extends string> extends IDbRecord<TDocumentType> {
-    readonly _id: string;
-    readonly _rev: string;
-}
-
-interface IPreference extends IPouchDbRecord<DocumentTypes> {
+interface IPreference extends PouchDbRecord<DocumentTypes> {
     isSomePropertyOn: boolean;
     isOtherPropertyOn: boolean;
 }
 
-interface IBaseEntity extends IPouchDbRecord<DocumentTypes> {
+interface IBaseEntity extends PouchDbRecord<DocumentTypes> {
     syncStatus: "pending" | "approved" | "rejected";
     syncRetryCount: 0;
 }
 
-interface INote extends IPouchDbRecord<DocumentTypes> {
+interface INote extends PouchDbRecord<DocumentTypes> {
     contents: string;
     createdDate: string;
     userId: string;
 }
 
-interface IBook extends IPouchDbRecord<DocumentTypes.Books> {
+interface IBook extends PouchDbRecord<DocumentTypes.Books> {
     author: string;
     publishDate?: string;
     rejectedCount: number;
@@ -42,14 +38,46 @@ interface IBook extends IPouchDbRecord<DocumentTypes.Books> {
     test?: string
 }
 
-interface ICar extends IPouchDbRecord<DocumentTypes.Cars> {
+interface ICar extends PouchDbRecord<DocumentTypes.Cars> {
     make: string;
     model: string;
     year: number;
     manufactureDate: string;
 }
 
-class ExternalDbDataContext extends DataContext<DocumentTypes, IPouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, IPouchDbRecord<DocumentTypes>, IDbPluginOptions>> {
+const TestDataContext = contextBuilder<DocumentTypes>()
+.useBaseRecord<PouchDbRecord<DocumentTypes>>()
+.useExclusions()
+.usePlugin({ dbName: "test-builder-db" }, PouchDbPlugin)
+.create((Base) => {
+    return class extends Base {
+
+        types = {
+            map: {} as typeof this.cars.types.map & typeof this.books.types.map
+        }
+    
+    
+        onChange(documentType: DocumentTypes, type: any, data: IDbRecord<DocumentTypes>[]) {
+            // all 
+            // what if we have the store dbset automatically implement onChange?
+            console.log('onChange', documentType, data, type)
+        }
+    
+        books = this.dbset().store<IBook>(DocumentTypes.Books)
+            .onChange((d, w, c) => { this.onChange(d, w, c.all) })
+            .defaults({ test: "Winner" })
+            .keys(w => w.add("author").add("test"))
+            .filter(w => w.test == "Winner")
+            .create();
+    
+        cars = this.dbset().store<ICar>(DocumentTypes.Cars)
+            .onChange((d, w, c) => { this.onChange(d, w, c.all) })
+            .keys(w => w.auto())
+            .create();
+    }
+});
+
+class ExternalDbDataContext extends DataContext<DocumentTypes, PouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, PouchDbRecord<DocumentTypes>, IDbPluginOptions>> {
 
     constructor() {
         super({ dbName: "Test"}, PouchDbPlugin, { changeTrackingType: "context" });
@@ -80,29 +108,42 @@ class ExternalDbDataContext extends DataContext<DocumentTypes, IPouchDbRecord<Do
 }
 
 const runTest = async () => {
-    const context = new ExternalDataContext("Test-db", { changeTrackingType: "context" })
+    const context = new ExternalDbDataContext();
 
-    const [book] = await context.books.add({ 
+    const [bookOne, bookTwo] = await context.books.add({
         author: "James",
-        publishDate: new Date()
+        rejectedCount: 1,
+        status: "pending",
+        syncStatus: "pending"
+    }, {
+        author: "Megan",
+        rejectedCount: 1,
+        status: "pending",
+        syncStatus: "pending"
     });
 
+    // Add
     await context.saveChanges();
 
-    const found = await context.books.find(w => w._id === book._id);
+    let foundOne = await context.books.find(w => w._id === bookOne._id);
+    let foundTwo = await context.books.find(w => w._id === bookTwo._id);
 
-    if (found == null) {
-        expect(1).toBe(2);
-        return;
-    }
+    foundOne!.status = "rejected";
 
-    found.status = "rejected";
+    // Make First Change
     await context.saveChanges();
 
-    found.status = "approved";
-    await context.saveChanges();
+    foundOne = await context.books.find(w => w._id === foundOne!._id);
 
+
+    foundTwo!.status = "approved";
     debugger;
+    // Change Second Change
+    const count = await context.saveChanges();
+
+    foundTwo = await context.books.find(w => w._id === foundTwo!._id);
+    debugger;
+
 }
 
 export const run = async () => {
@@ -138,7 +179,7 @@ export const run = async () => {
                 status: "pending",
                 syncStatus: "approved"
             });
-        debugger;
+
         await context.saveChanges();
 
     } catch (e) {

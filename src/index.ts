@@ -8,3 +8,4 @@ export { IDbRecord, IDbRecordBase, IIndexableEntity, OmittedEntity, EntityIdKeys
 export { IDbSet, IDbSetBase, EntityAndTag, IStoreDbSet, IStoreDbSetProps } from './types/dbset-types';
 export { IdKeys, DeepPartial, DeepOmit, DeepKeyOf, DeepReadOnly } from './types/common-types';
 export { DbPluginInstanceCreator, IBulkOperation, IBulkOperationsResponse, IDbPlugin, IDbPluginOptions, IQueryParams } from './types/plugin-types';
+export { contextBuilder } from './context/builder/context-builder';

@@ -40,13 +40,10 @@ export class ContextChangeTrackingAdapter<TDocumentType extends string, TEntity 
         // no op
     }
 
-    override reinitialize(removals?: TEntity[], add?: TEntity[], updates: TEntity[] = []): void {
+    override reinitialize(removals: TEntity[] = [], add: TEntity[] = [], updates: TEntity[] = []): void {
         super.reinitialize(removals, add, updates);
-        this.originalAttachmentHashes = {};
 
-        const adds = add ?? [];
-
-        for (const item of adds) {
+        for (const item of add) {
             const hashCode = this._generateHashCode(item);
             const id = item[this.idPropertyName] as string;
             this.originalAttachmentHashes[id] = hashCode;
@@ -58,8 +55,13 @@ export class ContextChangeTrackingAdapter<TDocumentType extends string, TEntity 
             this.originalAttachmentHashes[id] = hashCode;
         }
 
+        for(const item of removals) {
+            const id = item[this.idPropertyName] as string;
+            delete this.originalAttachmentHashes[id]
+        }
+
         // reconcile attachments so they all match, so we are not saving out of date information
-        this.attachments.forEach((key, items) => {
+        this.attachments.forEach((_, items) => {
             if (items.length <= 1) {
                 return;
             }
@@ -67,7 +69,11 @@ export class ContextChangeTrackingAdapter<TDocumentType extends string, TEntity 
             const last = items[items.length - 1];
 
             for(let i = 0; i < items.length - 1; i++) {
-                this._mergeObjects(last, items[i])
+                this._mergeObjects(last, items[i]);
+                const item = items[i];
+                const hashCode = this._generateHashCode(item);
+                const id = item[this.idPropertyName] as string;
+                this.originalAttachmentHashes[id] = hashCode;
             }
         })
     }

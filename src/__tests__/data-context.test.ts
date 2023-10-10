@@ -732,7 +732,7 @@ describe('data context', () => {
 
         const context = dbFactory(FluentContext) as FluentContext
 
-        const [book] = await context.books2.add({ 
+        const [book] = await context.books2.add({
             author: "James",
             rejectedCount: 1,
             publishDate: new Date(),
@@ -753,5 +753,115 @@ describe('data context', () => {
 
         found.status = "approved";
         await context.saveChanges();
+    });
+
+    it('should save correctly with context tracking when changes are broken apart', async () => {
+
+        class FluentContext extends ExternalDataContext {
+
+            constructor(name: string) {
+                super(name, { changeTrackingType: "context" });
+            }
+
+            books2 = this.dbset().default<IBook>(DocumentTypes.ExtendedBooks).create();
+        }
+
+        const context = dbFactory(FluentContext) as FluentContext
+
+        const [bookOne, bookTwo] = await context.books2.add({
+            author: "James",
+            rejectedCount: 1,
+            publishDate: new Date(),
+            status: "pending"
+        }, {
+            author: "Megan",
+            rejectedCount: 1,
+            publishDate: new Date(),
+            status: "pending"
+        });
+
+        // Add
+        await context.saveChanges();
+
+        let foundOne = await context.books2.find(w => w._id === bookOne._id);
+        let foundTwo = await context.books2.find(w => w._id === bookTwo._id);
+
+        expect(foundOne).toBeDefined();
+        expect(foundTwo).toBeDefined();
+
+        bookOne.status = "rejected";
+
+        // Make First Change
+        await context.saveChanges();
+
+        foundOne = await context.books2.find(w => w._id === foundOne._id);
+
+        expect(foundOne.status).toBe("rejected")
+
+        bookTwo.status = "approved";
+        debugger;
+        // Change Second Change
+        const count = await context.saveChanges();
+
+        foundTwo = await context.books2.find(w => w._id === foundTwo._id);
+
+        expect(count).toBe(1)
+        expect(foundTwo.status).toBe("approved")
+
+    });
+
+    it('should save correctly with context tracking when changes are broken apart - change out finds', async () => {
+
+        class FluentContext extends ExternalDataContext {
+
+            constructor(name: string) {
+                super(name, { changeTrackingType: "context" });
+            }
+
+            books2 = this.dbset().default<IBook>(DocumentTypes.ExtendedBooks).create();
+        }
+
+        const context = dbFactory(FluentContext) as FluentContext
+
+        const [bookOne, bookTwo] = await context.books2.add({
+            author: "James",
+            rejectedCount: 1,
+            publishDate: new Date(),
+            status: "pending"
+        }, {
+            author: "Megan",
+            rejectedCount: 1,
+            publishDate: new Date(),
+            status: "pending"
+        });
+
+        // Add
+        await context.saveChanges();
+
+        let foundOne = await context.books2.find(w => w._id === bookOne._id);
+        let foundTwo = await context.books2.find(w => w._id === bookTwo._id);
+
+        expect(foundOne).toBeDefined();
+        expect(foundTwo).toBeDefined();
+
+        foundOne.status = "rejected";
+
+        // Make First Change
+        await context.saveChanges();
+
+        foundOne = await context.books2.find(w => w._id === foundOne._id);
+
+        expect(foundOne.status).toBe("rejected")
+
+        foundTwo.status = "approved";
+
+        // Change Second Change
+        const count = await context.saveChanges();
+
+        foundTwo = await context.books2.find(w => w._id === foundTwo._id);
+
+        expect(count).toBe(1)
+        expect(foundTwo.status).toBe("approved")
+
     });
 });

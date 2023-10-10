@@ -8,7 +8,7 @@ export interface IQueryParams<TDocumentType extends string> {
 export interface IBulkOperation {
     ok: boolean;
     id: string;
-    rev: string;
+    rev?: string;
     error?: string;
 }
 
