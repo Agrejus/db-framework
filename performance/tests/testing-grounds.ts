@@ -137,13 +137,11 @@ const runTest = async () => {
 
 
     foundTwo!.status = "approved";
-    debugger;
+
     // Change Second Change
     const count = await context.saveChanges();
 
     foundTwo = await context.books.find(w => w._id === foundTwo!._id);
-    debugger;
-
 }
 
 export const run = async () => {

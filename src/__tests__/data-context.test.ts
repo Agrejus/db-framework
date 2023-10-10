@@ -799,7 +799,7 @@ describe('data context', () => {
         expect(foundOne.status).toBe("rejected")
 
         bookTwo.status = "approved";
-        debugger;
+
         // Change Second Change
         const count = await context.saveChanges();
 
