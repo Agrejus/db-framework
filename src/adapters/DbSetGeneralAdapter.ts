@@ -60,9 +60,7 @@ export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends I
         }
 
         const result = response.docs.map(w => this.api.changeTrackingAdapter.enableChangeTracking(w, this.defaults.add, this.isReadonly, this.map));
-        this.api.changeTrackingAdapter.attach(result);
-
-        return result;
+        return this.api.changeTrackingAdapter.attach(result);
     }
 
     private _detachItems(data: TEntity[]) {

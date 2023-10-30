@@ -278,30 +278,232 @@ Db Framework offers two different types of change tracking: Entity and Context. 
 ## Database Plugins <a name = "database_plugins"></a>
 
 ## DataContext <a name = "data_context"></a>
+A data context is meant to be the orchestrator of all dbsets and manage their operations.  Memory (changes) is not shared across dbsets, meaning, if an entity is being tracked by one data context, other data context's do not know about it.  We can fix that by [linking]() and [unlinking]() entities from one context to another.  When an entity is unlinked from from a dbset, changes are not lost with [entity change tracking](), but are lost with [context change tracking]().  One way to combat the loss of change tracking with context change tracking is to link the entity and [mark it dirty]() afterwards.  
 
-### `.saveChanges` <a name = "save_changes"></a>
-Saves all underlying changes to the data store.  Must be called, otherwise no changes will be saved
+The data context is meant to be light, with all of the heavy lifting done in the db sets.  
 
+### `.saveChanges` <a name = "data_context_save_changes"></a>
+Saves all underlying changes to the data store.  Must be called, otherwise no changes will be saved.  Returns count of entities saved.
 
 **Type:** `.saveChanges(): Promise<number>`
 
-**Returns:** Count of entities saved
+**Usage:**
+```typescript
+import { DataContext, IDbRecord } from '@agrejus/db-framework';
+import { PouchDbPlugin } from '@agrejus/db-framework-plugin-pouchdb';
+
+export enum MyDocumentTypes {
+    Vehicle = "Vehicle"
+}
+
+export interface IVehicle extends IDbRecord<MyDocumentTypes.Vehicle> {
+    make: string;
+    model: string;
+    year: number;
+    color: string;
+    trim: string;
+}
+
+export class MyDataContext extends DataContext<MyDocumentTypes, IDbRecord<MyDocumentTypes.Vehicle>> {
+
+    constructor() {
+        super({ dbName: "some-new-database" }, PouchDbPlugin)
+    }
+
+    vehicles = this.dbset().default<IVehicle>(MyDocumentTypes.Vehicle).create();
+}
+
+const context = new MyDataContext();
+
+const [ myAddedItem ] = await context.vehicles.add({
+    make: "Tesla",
+    model: "Model S",
+    year: 2023,
+    color: "white",
+    trim: "P100D"
+});
+
+const count = await context.saveChanges();
+```
+
 
 ### `.getAllDocs` <a name = "get_all_docs"></a>
 Returns all documents from the data store
 
 **Type:** `.getAllDocs(): Promise<TEntityBase[]>`
 
-**Returns:** All documents in the database
+**Usage:**
+```typescript
+import { DataContext, IDbRecord } from '@agrejus/db-framework';
+import { PouchDbPlugin } from '@agrejus/db-framework-plugin-pouchdb';
 
-### `.hasPendingChanges` <a name = "has_pending_changes"></a>
-Returns boolean flag of whether or not the context has any pending changes
+export enum MyDocumentTypes {
+    Vehicle = "Vehicle"
+}
+
+export interface IVehicle extends IDbRecord<MyDocumentTypes.Vehicle> {
+    make: string;
+    model: string;
+    year: number;
+    color: string;
+    trim: string;
+}
+
+export class MyDataContext extends DataContext<MyDocumentTypes, IDbRecord<MyDocumentTypes.Vehicle>> {
+
+    constructor() {
+        super({ dbName: "some-new-database" }, PouchDbPlugin)
+    }
+
+    vehicles = this.dbset().default<IVehicle>(MyDocumentTypes.Vehicle).create();
+    vehicles = this.dbset().default<IVehicle>(MyDocumentTypes.Vehicle).create();
+}
+
+const context = new MyDataContext();
+
+const [ myAddedItem ] = await context.vehicles.add({
+    make: "Tesla",
+    model: "Model S",
+    year: 2023,
+    color: "white",
+    trim: "P100D"
+});
+
+const count = await context.saveChanges();
+```
+
+### `.hasPendingChanges` <a name = "data_context_has_pending_changes"></a>
+Returns boolean flag of whether or not the context has any pending changes.
 
 **Type:** `.hasPendingChanges(): boolean`
 
-**Returns:** Boolean flag of whether or not the context has any pending changes
+### `.previewChanges` <a name = "data_context_preview_changes"></a>
+Returns an object of adds/updates/removes to be persisted to the database.
+
+NOTE: Items returned are a copy of the original, so changes made to these entities will not be saved to the database.
+
+**Type:** `.previewChanges(): Promise<IPreviewChanges<TDocumentType, TEntityBase>>`
+
+### `.empty` <a name = "data_context_empty"></a>
+Empties all objects in the database.  Save changes must be called to actually empty all items from the database.
+
+**Type:** `.empty(): Promise<void>`
+
+### `.destroyDatabase` <a name = "data_context_destroy_database"></a>
+Destroys the underlying database, save changes does not need to be called
+
+**Type:** `.destroyDatabase(): Promise<void>`
+
+### `.getDbSet` <a name = "data_context_get_db_set"></a>
+Get a db set for the matching document type
+
+**Type:** `.getDbSet(documentType: TDocumentType): IDbSet<string, any, never>`
+
+### protected `.onBeforeSaveChanges` <a name = "data_context_on_before_save_changes"></a>
+Get a db set for the matching document type
+
+**Type:** `.getDbSet(documentType: TDocumentType): IDbSet<string, any, never>`
+
+## Default DbSet <a name = "default_dbset"></a>
+
+### `.types` <a name = "dbset_types"></a>
+Types are exposed from a dbset, because in TypeScript, types are not known until db sets are declared.  Once a dbset is declared, we know the types and can expose the types for other usages in the application.
+
+**Type:** `.get types(): { modify: OmittedEntity<TEntity, TExclusions>, result: TEntity, documentType: TEntity["DocumentType"], map: { [DocumentType in TEntity["DocumentType"]]: TEntity }, dbsetType: DbSetType }>`
+
+### `.info` <a name = "dbset_info"></a>
+Info is used to information about the dbset, such as it's defaults, keys, readonly status and more.  Please check out the [IDbSetInfo](#dbset_info_type) for all information returned from info.
+
+**Type:** `.info(): IDbSetInfo<TDocumentType, TEntity, TExclusions>`
+
+### `.tag` <a name = "dbset_tag"></a>
+Tagging allows for developers to tag entities with meta data that can be read in [onBeforeSaveChanges](#data_context_on_before_save_changes) or onAfterSaveChanges.  One use case for tagging is to tag certain data when it's removed to distinguish between a user clicking to remove data or the application automatically removing data on it's own.  We can add a tag to the code behind the click operation and consume the tag in onBeforeSaveChanges or onAfterSaveChanges to do something with it.
+
+**Type:** `.tag(value: unknown): this`
+
+### `.instance` <a name = "dbset_instance"></a>
+Instance will create an untracked instance of an entity as if it were actually added to change tracking and queued for saving to the database.  One use case for instace is to use it for ID creation.
+
+**Type:** `.instance(...entities: OmittedEntity<TEntity, TExclusions>[]): TEntity[]`
+
+### `.add` <a name = "dbset_add"></a>
+
+**Type:** `.add(...entities: OmittedEntity<TEntity, TExclusions>[]): Promise<TEntity[]>`
+
+### `.upsert` <a name = "dbset_upsert"></a>
+
+**Type:** `.upsert(...entities: (OmittedEntity<TEntity, TExclusions> | Omit<TEntity, "DocumentType">)[]): Promise<TEntity[]>`
+
+### `.remove` <a name = "dbset_remove"></a>
+
+**Type:** `.remove(...ids: string[]): Promise<void>`
+**Type:** `.remove(...entities: TEntity[]): Promise<void>`
+
+### `.empty` <a name = "dbset_empty"></a>
+
+**Type:** `.empty(): Promise<void>`
+
+### `.all` <a name = "dbset_all"></a>
+
+**Type:** `.all(): Promise<TEntity[]>`
+
+### `.filter` <a name = "dbset_filter"></a>
+
+**Type:** `.filter(selector: EntitySelector<TDocumentType, TEntity>): Promise<TEntity[]>`
+
+### `.isMatch` <a name = "dbset_is_match"></a>
+
+**Type:** `.isMatch(first: TEntity, second: any): boolean`
+
+### `.match` <a name = "dbset_match"></a>
+
+**Type:** `.match(...items: IDbRecordBase[]): TEntity[]`
+
+### `.get` <a name = "dbset_get"></a>
+
+**Type:** `.get(...ids: string[]): Promise<TEntity[]>`
+
+### `.find` <a name = "dbset_find"></a>
+
+**Type:** `.find(selector: EntitySelector<TDocumentType, TEntity>): Promise<TEntity | undefined>`
+
+### `.unlink` <a name = "dbset_unlink"></a>
+
+**Type:** `.unlink(...entities: TEntity[]): void`
+
+### `.markDirty` <a name = "dbset_mark_dirty"></a>
+
+**Type:** `.markDirty(...entities: TEntity[]): Promise<TEntity[]>`
+
+### `.link` <a name = "dbset_link"></a>
+
+**Type:** `.link(...entities: TEntity[]): Promise<TEntity[]>`
+
+### `.first` <a name = "dbset_first"></a>
+
+**Type:** `.first(): Promise<TEntity>`
+
+## Default DbSet Builder <a name = "default_dbset_builder"></a>
+
+## Store DbSet <a name = "store_dbset"></a>
+
+## Store DbSet Builder <a name = "default_dbset_builder"></a>
 
 ## Authors <a name = "authors"></a>
 - [@agrejus](https://github.com/agrejus)
+
+## Supporting Type Declarations
+
+### `.IDbSetInfo` <a name = "dbset_info_type"></a>
+```typescript
+export interface IDbSetInfo<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> {
+    DocumentType: TDocumentType,
+    IdKeys: EntityIdKeys<TDocumentType, TEntity>,
+    Defaults: DbSetPickDefaultActionRequired<TDocumentType, TEntity, TExclusions>,
+    KeyType: DbSetKeyType;
+    Map: PropertyMap<TDocumentType, TEntity, any>[];
+    Readonly: boolean;
+}
+```
 
 See also the list of [contributors](https://github.com/kylelobo/The-Documentation-Compendium/contributors) who participated in this project.

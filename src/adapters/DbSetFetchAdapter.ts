@@ -17,9 +17,9 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
 
         await this.onAfterDataFetched(result);
 
-        this.api.changeTrackingAdapter.attach(result)
+        const attached = this.api.changeTrackingAdapter.attach(result)
 
-        return result;
+        return attached;
     }
 
     async all() {
@@ -33,7 +33,7 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
         await this.onAfterDataFetched(filteredResult);
 
         if (filteredResult.length > 0) {
-            this.api.changeTrackingAdapter.attach(filteredResult)
+            return this.api.changeTrackingAdapter.attach(filteredResult)
         }
 
         return filteredResult;
@@ -48,7 +48,9 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
 
             await this.onAfterDataFetched([result]);
 
-            this.api.changeTrackingAdapter.attach([result])
+            const [attached] = this.api.changeTrackingAdapter.attach([result]);
+
+            return attached;
         }
 
         return result;
@@ -62,7 +64,9 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
 
             await this.onAfterDataFetched([result]);
 
-            this.api.changeTrackingAdapter.attach([result])
+            const [attached] = this.api.changeTrackingAdapter.attach([result]);
+
+            return attached;
         }
 
         return result as TEntity | undefined;

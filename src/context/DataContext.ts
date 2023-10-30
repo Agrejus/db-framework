@@ -1,6 +1,6 @@
 import { IPreviewChanges } from "../types/common-types";
 import { ContextOptions, IDataContext, OnChangeEvent } from "../types/context-types";
-import { DbSetMap, EntityAndTag, IDbSet, IStoreDbSet } from "../types/dbset-types";
+import { DbSetMap, EntityAndTag, IDbSet, IStatefulDbSet, SaveChangesEventData } from "../types/dbset-types";
 import { IDbRecord } from "../types/entity-types";
 import { DbSetInitializer } from './dbset/builders/DbSetInitializer';
 import { DbPluginInstanceCreator, IDbPlugin, IDbPluginOptions } from '../types/plugin-types';
@@ -14,19 +14,25 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
 
     protected readonly dbPlugin: TDbPlugin;
     protected dbSets: DbSetMap = {} as DbSetMap;
-    private _onBeforeSaveChangesEvents: { [key in TDocumentType]: OnChangeEvent } = {} as any;
-    private _onAfterSaveChangesEvents: { [key in TDocumentType]: OnChangeEvent } = {} as any;
+    private _onBeforeSaveChangesEvents: { [key in TDocumentType]: OnChangeEvent<TDocumentType, TEntityBase> } = {} as any;
+    private _onAfterSaveChangesEvents: { [key in TDocumentType]: OnChangeEvent<TDocumentType, TEntityBase> } = {} as any;
     private readonly _changeAdapter: ChangeTrackingAdapterBase<TDocumentType, TEntityBase, typeof this.dbPlugin.types.exclusions>;
+    private readonly _options: TPluginOptions;
+    
+    get dbName() {
+        return this._options.dbName;
+    }
 
-    constructor(options: TPluginOptions, Plugin: DbPluginInstanceCreator<TDocumentType, TEntityBase, TExclusions, TDbPlugin>, contextOptions: ContextOptions = { changeTrackingType: "entity" }) {
+    constructor(options: TPluginOptions, Plugin: DbPluginInstanceCreator<TDocumentType, TEntityBase, TExclusions, TDbPlugin>, contextOptions: ContextOptions = { changeTrackingType: "entity", environment: "development" }) {
+        this._options = options;
         this.dbPlugin = new Plugin(options);
 
         if (contextOptions.changeTrackingType === "entity") {
-            this._changeAdapter = new EntityChangeTrackingAdapter<TDocumentType, TEntityBase, typeof this.dbPlugin.types.exclusions>(this.dbPlugin.idPropertName);
+            this._changeAdapter = new EntityChangeTrackingAdapter<TDocumentType, TEntityBase, typeof this.dbPlugin.types.exclusions>(this.dbPlugin.idPropertName, contextOptions.environment);
             return;
         }
 
-        this._changeAdapter = new ContextChangeTrackingAdapter<TDocumentType, TEntityBase, typeof this.dbPlugin.types.exclusions>(this.dbPlugin.idPropertName);
+        this._changeAdapter = new ContextChangeTrackingAdapter<TDocumentType, TEntityBase, typeof this.dbPlugin.types.exclusions>(this.dbPlugin.idPropertName, contextOptions.environment);
     }
 
     async getAllDocs() {
@@ -48,11 +54,6 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
     }
 
     /**
-     * Gets an instance of IDataContext to be used with DbSets
-     */
-    protected getContext() { return this; }
-
-    /**
      * Gets an API to be used by DbSets
      * @returns IData
      */
@@ -66,11 +67,11 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
         }
     }
 
-    private _registerOnBeforeSaveChanges(documentType: TDocumentType, onBeforeSaveChanges: (getChanges: () => { adds: EntityAndTag[], removes: EntityAndTag[], updates: EntityAndTag[] }) => Promise<void>) {
+    private _registerOnBeforeSaveChanges(documentType: TDocumentType, onBeforeSaveChanges: (getChanges: <T extends SaveChangesEventData<TDocumentType, TEntityBase>>() => T) => Promise<void>) {
         this._onBeforeSaveChangesEvents[documentType] = onBeforeSaveChanges;
     }
 
-    private _registerOnAfterSaveChanges(documentType: TDocumentType, onAfterSaveChanges: (getChanges: () => { adds: EntityAndTag[], removes: EntityAndTag[], updates: EntityAndTag[] }) => Promise<void>) {
+    private _registerOnAfterSaveChanges(documentType: TDocumentType, onAfterSaveChanges: (getChanges: <T extends SaveChangesEventData<TDocumentType, TEntityBase>>() => T) => Promise<void>) {
         this._onAfterSaveChangesEvents[documentType] = onAfterSaveChanges;
     }
 
@@ -120,20 +121,23 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
 
         for (const documentType in this._onBeforeSaveChangesEvents) {
             const event = this._onBeforeSaveChangesEvents[documentType];
-            await event(() => ({
-                adds: beforeSaveChanges.add.filter(w => w.DocumentType === documentType).map(w => {
-                    const id = w[this.dbPlugin.idPropertName] as string;
-                    return { entity: w, tag: beforeOnBeforeSaveChangesTags[id] } as EntityAndTag<TEntityBase>
-                }),
-                removes: beforeSaveChanges.remove.filter(w => w.DocumentType === documentType).map(w => {
-                    const id = w[this.dbPlugin.idPropertName] as string;
-                    return { entity: w, tag: beforeOnBeforeSaveChangesTags[id] } as EntityAndTag<TEntityBase>
-                }),
-                updates: beforeSaveChanges.updated.filter(w => w.DocumentType === documentType).map(w => {
-                    const id = w[this.dbPlugin.idPropertName] as string;
-                    return { entity: w, tag: beforeOnBeforeSaveChangesTags[id] } as EntityAndTag<TEntityBase>
-                })
-            }))
+            await event(() => {
+
+                return {
+                    adds: beforeSaveChanges.add.filter(w => w.DocumentType === documentType).map(w => {
+                        const id = w[this.dbPlugin.idPropertName] as string;
+                        return { entity: w, tag: beforeOnBeforeSaveChangesTags[id] } as EntityAndTag<TEntityBase>
+                    }),
+                    removes: beforeSaveChanges.remove.filter(w => w.DocumentType === documentType).map(w => {
+                        const id = w[this.dbPlugin.idPropertName] as string;
+                        return { entity: w, tag: beforeOnBeforeSaveChangesTags[id] } as EntityAndTag<TEntityBase>
+                    }),
+                    updates: beforeSaveChanges.updated.filter(w => w.DocumentType === documentType).map(w => {
+                        const id = w[this.dbPlugin.idPropertName] as string;
+                        return { entity: w, tag: beforeOnBeforeSaveChangesTags[id] } as EntityAndTag<TEntityBase>
+                    })
+                } as SaveChangesEventData<TDocumentType, TEntityBase>
+            })
         }
 
         // Devs are allowed to modify data/add data in onBeforeSaveChanges.  Useful for
@@ -201,10 +205,10 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
     }
 
     private async _rehydrate() {
-        const dbsets: IStoreDbSet<TDocumentType, any>[] = [];
+        const dbsets: IStatefulDbSet<TDocumentType, any>[] = [];
         for (const dbset of this) {
-            if (dbset.types.dbsetType === "store") {
-                dbsets.push(dbset as IStoreDbSet<TDocumentType, any>);
+            if (dbset.types.dbsetType === "stateful") {
+                dbsets.push(dbset as IStatefulDbSet<TDocumentType, any>);
                 continue;
             }
         }
@@ -261,11 +265,11 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
      * If you do not want your changes in the database, consider spreading or cloning the entities
      * @param getChanges 
      */
-    protected async onBeforeSaveChanges(getChanges: () => { adds: EntityAndTag[], removes: EntityAndTag[], updates: EntityAndTag[] }) {
+    protected async onBeforeSaveChanges(getChanges: <T extends SaveChangesEventData<TDocumentType, TEntityBase>>() => T) {
 
     }
 
-    protected async onAfterSaveChanges(getChanges: () => { adds: EntityAndTag[], removes: EntityAndTag[], updates: EntityAndTag[] }) {
+    protected async onAfterSaveChanges(getChanges: <T extends SaveChangesEventData<TDocumentType, TEntityBase>>() => T) {
 
     }
 
@@ -284,12 +288,9 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
     }
 
     async empty() {
-
         for (let dbset of this) {
             await dbset.empty();
         }
-
-        await this.saveChanges();
     }
 
     async destroyDatabase() {

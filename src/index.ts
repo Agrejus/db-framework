@@ -1,11 +1,12 @@
 export { DataContext } from './context/DataContext';
-export { StoreDataContext } from './context/StoreDataContext';
+export { StatefulDataContext as StoreDataContext } from './context/StatefulDataContext';
 export { DbSet } from './context/dbset/DbSet';
 export { DbSetExtender } from './types/dbset-builder-types';
 export { DefaultDbSetBuilder } from './context/dbset/builders/DefaultDbSetBuilder';
 export { IDataContext } from './types/context-types';
 export { IDbRecord, IDbRecordBase, IIndexableEntity, OmittedEntity, EntityIdKeys } from './types/entity-types';
-export { IDbSet, IDbSetBase, EntityAndTag, IStoreDbSet, IStoreDbSetProps } from './types/dbset-types';
+export { IDbSet, IDbSetBase, EntityAndTag, IStatefulDbSet as IStoreDbSet, IStoreDbSetProps } from './types/dbset-types';
 export { IdKeys, DeepPartial, DeepOmit, DeepKeyOf, DeepReadOnly } from './types/common-types';
 export { DbPluginInstanceCreator, IBulkOperation, IBulkOperationsResponse, IDbPlugin, IDbPluginOptions, IQueryParams } from './types/plugin-types';
 export { contextBuilder } from './context/builder/context-builder';
+export { compareObjects } from './common/helpers';

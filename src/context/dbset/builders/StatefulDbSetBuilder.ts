@@ -1,14 +1,14 @@
 import { DbSetPickDefaultActionOptional, DeepPartial, EntitySelector } from "../../../types/common-types";
-import { DbSetExtender, IChainIdBuilder, IDbSetStoreBuilderParams, IIdBuilderBase, ITerminateIdBuilder, IdBuilder, PropertyMap } from "../../../types/dbset-builder-types";
-import { DbSetOnChangeEvent, IDbSetBase, IDbSetProps, IStoreDbSet, IStoreDbSetProps } from "../../../types/dbset-types";
+import { DbSetExtender, IChainIdBuilder, IDbSetStatefulBuilderParams, IIdBuilderBase, ITerminateIdBuilder, IdBuilder, PropertyMap } from "../../../types/dbset-builder-types";
+import { DbSetOnChangeEvent, IDbSetBase, IDbSetProps, IStatefulDbSet, IStoreDbSetProps } from "../../../types/dbset-types";
 import { IDbRecord, OmittedEntity } from "../../../types/entity-types";
 
-export class StoreDbSetBuilder<
+export class StatefulDbSetBuilder<
     TDocumentType extends string,
     TEntity extends IDbRecord<TDocumentType>,
     TExclusions extends keyof TEntity,
-    TResult extends IStoreDbSet<TDocumentType, TEntity, TExclusions>,
-    TParams extends IDbSetStoreBuilderParams<TDocumentType, TEntity, TExclusions, TResult>> {
+    TResult extends IStatefulDbSet<TDocumentType, TEntity, TExclusions>,
+    TParams extends IDbSetStatefulBuilderParams<TDocumentType, TEntity, TExclusions, TResult>> {
 
     protected _onCreate: (dbset: IDbSetBase<string>) => void;
     protected _params: TParams;
@@ -24,7 +24,7 @@ export class StoreDbSetBuilder<
 
     onChange(callback: DbSetOnChangeEvent<TDocumentType, TEntity>) {
         this._params.onChange = callback;
-        return new StoreDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>(this._onCreate, this._params, this.InstanceCreator);
+        return new StatefulDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>(this._onCreate, this._params, this.InstanceCreator);
     }
 
     /**
@@ -33,7 +33,7 @@ export class StoreDbSetBuilder<
      */
     readonly() {
         this._params.readonly = true;
-        return new StoreDbSetBuilder<TDocumentType, Readonly<TEntity>, TExclusions, IStoreDbSet<TDocumentType, Readonly<TEntity>, TExclusions>, TParams>(this._onCreate, this._params, this.InstanceCreator);
+        return new StatefulDbSetBuilder<TDocumentType, Readonly<TEntity>, TExclusions, IStatefulDbSet<TDocumentType, Readonly<TEntity>, TExclusions>, TParams>(this._onCreate, this._params, this.InstanceCreator);
     }
 
     /**
@@ -50,7 +50,7 @@ export class StoreDbSetBuilder<
         this._params.idKeys.push(...idBuilder.Ids);
         this._params.keyType = idBuilder.KeyType;
 
-        return new StoreDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>(this._onCreate, this._params, this.InstanceCreator);
+        return new StatefulDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>(this._onCreate, this._params, this.InstanceCreator);
     }
 
     /**
@@ -60,7 +60,7 @@ export class StoreDbSetBuilder<
      * @param value Pick one or more properties and set their default value
      * @returns DbSetBuilder
      */
-    defaults(value: DbSetPickDefaultActionOptional<TDocumentType, TEntity, TExclusions>): StoreDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>
+    defaults(value: DbSetPickDefaultActionOptional<TDocumentType, TEntity, TExclusions>): StatefulDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>
 
     /**
      * Set default values for both add and retrieval of entities.  This is useful to retroactively add new properties
@@ -69,7 +69,7 @@ export class StoreDbSetBuilder<
      * @param value Pick one or more properties and set their default value
      * @returns DbSetBuilder
      */
-    defaults(value: DeepPartial<OmittedEntity<TEntity>>): StoreDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>
+    defaults(value: DeepPartial<OmittedEntity<TEntity>>): StatefulDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>
     defaults(value: DbSetPickDefaultActionOptional<TDocumentType, TEntity, TExclusions> | DeepPartial<OmittedEntity<TEntity>>) {
 
         if ("add" in value) {
@@ -94,7 +94,7 @@ export class StoreDbSetBuilder<
             };
         }
 
-        return new StoreDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>(this._onCreate, this._params, this.InstanceCreator);
+        return new StatefulDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>(this._onCreate, this._params, this.InstanceCreator);
     }
 
     /**
@@ -106,23 +106,23 @@ export class StoreDbSetBuilder<
      */
     exclude<T extends keyof TEntity>(...exclusions: T[]) {
         this._params.exclusions.push(...exclusions);
-        const params = this._params as IDbSetStoreBuilderParams<TDocumentType, TEntity, T | TExclusions, IStoreDbSet<TDocumentType, TEntity, T | TExclusions>>;
-        const instanceCreator = this.InstanceCreator as new (props: IStoreDbSetProps<TDocumentType, TEntity, T | TExclusions>) => IStoreDbSet<TDocumentType, TEntity, T | TExclusions>;
-        return new StoreDbSetBuilder<TDocumentType, TEntity, T | TExclusions, IStoreDbSet<TDocumentType, TEntity, T | TExclusions>, IDbSetStoreBuilderParams<TDocumentType, TEntity, T | TExclusions, IStoreDbSet<TDocumentType, TEntity, T | TExclusions>>>(this._onCreate, params, instanceCreator);
+        const params = this._params as IDbSetStatefulBuilderParams<TDocumentType, TEntity, T | TExclusions, IStatefulDbSet<TDocumentType, TEntity, T | TExclusions>>;
+        const instanceCreator = this.InstanceCreator as new (props: IStoreDbSetProps<TDocumentType, TEntity, T | TExclusions>) => IStatefulDbSet<TDocumentType, TEntity, T | TExclusions>;
+        return new StatefulDbSetBuilder<TDocumentType, TEntity, T | TExclusions, IStatefulDbSet<TDocumentType, TEntity, T | TExclusions>, IDbSetStatefulBuilderParams<TDocumentType, TEntity, T | TExclusions, IStatefulDbSet<TDocumentType, TEntity, T | TExclusions>>>(this._onCreate, params, instanceCreator);
     }
 
     map<T extends keyof TEntity>(propertyMap: PropertyMap<TDocumentType, TEntity, T>) {
         this._params.map.push(propertyMap);
-        return new StoreDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>(this._onCreate, this._params, this.InstanceCreator);
+        return new StatefulDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>(this._onCreate, this._params, this.InstanceCreator);
     }
 
 
-    extend<TExtension extends IStoreDbSet<TDocumentType, TEntity, TExclusions>>(extend: (i: new (props: IStoreDbSetProps<TDocumentType, TEntity, TExclusions>) => TResult, args: IStoreDbSetProps<TDocumentType, TEntity, TExclusions>) => TExtension) {
+    extend<TExtension extends IStatefulDbSet<TDocumentType, TEntity, TExclusions>>(extend: (i: new (props: IStoreDbSetProps<TDocumentType, TEntity, TExclusions>) => TResult, args: IStoreDbSetProps<TDocumentType, TEntity, TExclusions>) => TExtension) {
         this._params.extend.push(extend as any);
 
-        const params: IDbSetStoreBuilderParams<TDocumentType, TEntity, TExclusions, TExtension> = this._params as any;
+        const params: IDbSetStatefulBuilderParams<TDocumentType, TEntity, TExclusions, TExtension> = this._params as any;
         const instanceCreator: new (props: IStoreDbSetProps<TDocumentType, TEntity, TExclusions>) => TExtension = this.InstanceCreator as any;
-        return new StoreDbSetBuilder<TDocumentType, TEntity, TExclusions, TExtension, IDbSetStoreBuilderParams<TDocumentType, TEntity, TExclusions, TExtension>>(this._onCreate, params, instanceCreator);
+        return new StatefulDbSetBuilder<TDocumentType, TEntity, TExclusions, TExtension, IDbSetStatefulBuilderParams<TDocumentType, TEntity, TExclusions, TExtension>>(this._onCreate, params, instanceCreator);
     }
 
     /**
@@ -132,7 +132,7 @@ export class StoreDbSetBuilder<
      */
     filter(selector: EntitySelector<TDocumentType, TEntity>) {
         this._params.filterSelector = selector;
-        return new StoreDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>(this._onCreate, this._params, this.InstanceCreator);
+        return new StatefulDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>(this._onCreate, this._params, this.InstanceCreator);
     }
 
     /**

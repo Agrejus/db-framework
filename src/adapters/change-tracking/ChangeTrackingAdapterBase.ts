@@ -1,6 +1,6 @@
 import { IAttachmentDictionary } from "../../types/change-tracking-types";
 import { DeepPartial } from "../../types/common-types";
-import { ITrackedChanges, ITrackedData } from "../../types/context-types";
+import { DbFrameworkEnvironment, ITrackedChanges, ITrackedData } from "../../types/context-types";
 import { PropertyMap } from "../../types/dbset-builder-types";
 import { DbSetMap } from "../../types/dbset-types";
 import { IDbRecord, IIndexableEntity, OmittedEntity } from "../../types/entity-types";
@@ -22,9 +22,11 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
     abstract asUntracked(...entities: TEntity[]): TEntity[];
 
     protected readonly idPropertyName: keyof TEntity;
+    protected readonly environment?: DbFrameworkEnvironment;
 
-    constructor(idPropertyName: keyof TEntity) {
+    constructor(idPropertyName: keyof TEntity, environment?: DbFrameworkEnvironment) {
         this.idPropertyName = idPropertyName;
+        this.environment = environment;
     }
 
     reinitialize(removals: TEntity[] = [], add: TEntity[] = [], updates: TEntity[] = []) {
@@ -43,7 +45,33 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
     }
 
     attach(data: TEntity[]) {
-        this.attachments.push(...data)
+
+        const result: TEntity[] = [];
+        const reselectIds: (keyof TEntity)[] = [];
+        for (const item of data) {
+            const id = item[this.idPropertyName] as keyof TEntity;
+
+            const [found] = this.attachments.get(item)
+
+            if (found != null) {
+                if (this.attachments.includes(id) === true && this.isDirty(found) === true) {
+                    // if the attached item is dirty, it has changed and we issue an error, otherwise return a copy of the referenced item, not the one in the database
+                    reselectIds.push(id);
+                }
+
+                result.push(found)
+                continue;
+            } 
+
+            result.push(item);
+            this.attachments.push(item)
+        }
+
+        if (reselectIds.length > 0 && this.environment === "development") {
+            console.warn(`Reselect Error.  Data has been reselected and changed between operations.  Entities should not be changed and then reselected, Db Framework functions return a copy of the entity that should be used in all operations.  Reselecting an item can lead to unwanted and missed changes. - Ids: ${reselectIds.join(', ')}`);
+        }
+
+        return result;
     }
 
     getTrackedData() {

@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { EntityIdKeys, IDbRecord, IIndexableEntity } from '../types/entity-types';
 import { DbSetPickDefaultActionRequired, DocumentKeySelector, EntitySelector } from '../types/common-types';
 import { IPrivateContext } from '../types/context-types';
-import { DbSetType, EntityAndTag, IDbSetApi, IDbSetProps } from '../types/dbset-types';
+import { DbSetType, EntityAndTag, IDbSetApi, IDbSetProps, SaveChangesEventData } from '../types/dbset-types';
 import { DbSetKeyType, PropertyMap } from '../types/dbset-builder-types';
 
 export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> {
@@ -48,12 +48,12 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
 
     }
 
-    protected async onBeforeSaveChanges(getChanges: () => { adds: EntityAndTag[], removes: EntityAndTag[], updates: EntityAndTag[] }) {
+    protected async onBeforeSaveChanges(getChanges: <T extends SaveChangesEventData<TDocumentType, TEntity>>() => T) {
 
     }
 
 
-    protected async onAfterSaveChanges(getChanges: () => { adds: EntityAndTag[], removes: EntityAndTag[], updates: EntityAndTag[] }) {
+    protected async onAfterSaveChanges(getChanges: <T extends SaveChangesEventData<TDocumentType, TEntity>>() => T) {
 
     }
 
@@ -62,9 +62,9 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
 
         await this.onAfterDataFetched(result);
 
-        this.api.changeTrackingAdapter.attach(result);
+        const attached = this.api.changeTrackingAdapter.attach(result);
 
-        return this.filterResult(result);
+        return this.filterResult(attached);
     }
 
     protected filterResult(result: TEntity[]) {

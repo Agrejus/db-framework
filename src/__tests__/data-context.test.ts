@@ -1,12 +1,12 @@
 import { v4 as uuidv4 } from 'uuid';
 import { DataContext } from '../context/DataContext';
-import { IDbRecord } from '../types/entity-types';
-import { PouchDbPlugin } from '@agrejus/db-framework-plugin-pouchdb';
+import { PouchDbPlugin, PouchDbRecord } from '@agrejus/db-framework-plugin-pouchdb';
 import { ContextOptions } from '../types/context-types';
+import { IDbPluginOptions } from '../types/plugin-types';
 
 describe('data context', () => {
 
-    const dbs: { [key: string]: DataContext<DocumentTypes, IDbRecord<DocumentTypes>> } = {}
+    const dbs: { [key: string]: ExternalDataContext } = {}
     const dbFactory = <T extends typeof ExternalDataContext>(Context: T, dbname?: string) => {
         const name = dbname ?? `${uuidv4()}-db`;
         const result = new Context(name);
@@ -24,29 +24,29 @@ describe('data context', () => {
         ExtendedBooks = "ExtendedBooks"
     }
 
-    interface IContact extends IDbRecord<DocumentTypes> {
+    interface IContact extends PouchDbRecord<DocumentTypes.Contacts> {
         firstName: string;
         lastName: string;
         address: string;
         phone: string;
     }
 
-    interface INote extends IDbRecord<DocumentTypes> {
+    interface INote extends PouchDbRecord<DocumentTypes.Notes> {
         contents: string;
         createdDate: Date;
         userId: string;
     }
 
-    interface IBook extends IDbRecord<DocumentTypes> {
+    interface IBook extends PouchDbRecord<DocumentTypes.Books> {
         author: string;
         publishDate?: Date;
         rejectedCount: number;
         status: "pending" | "approved" | "rejected";
     }
 
-    class ExternalDataContext extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>> {
+    class ExternalDataContext extends DataContext<DocumentTypes, PouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, PouchDbRecord<DocumentTypes>, IDbPluginOptions>> {
 
-        constructor(name: string, contextOptions: ContextOptions = { changeTrackingType: "entity" }) {
+        constructor(name: string, contextOptions: ContextOptions = { changeTrackingType: "entity", environment: "development" }) {
             super({ dbName: name }, PouchDbPlugin, contextOptions);
         }
 
@@ -757,6 +757,8 @@ describe('data context', () => {
 
     it('should save correctly with context tracking when changes are broken apart', async () => {
 
+        // How can we fix this?
+
         class FluentContext extends ExternalDataContext {
 
             constructor(name: string) {
@@ -771,17 +773,17 @@ describe('data context', () => {
         const [bookOne, bookTwo] = await context.books2.add({
             author: "James",
             rejectedCount: 1,
-            publishDate: new Date(),
             status: "pending"
         }, {
             author: "Megan",
             rejectedCount: 1,
-            publishDate: new Date(),
             status: "pending"
         });
 
         // Add
         await context.saveChanges();
+
+        // no changes here
 
         let foundOne = await context.books2.find(w => w._id === bookOne._id);
         let foundTwo = await context.books2.find(w => w._id === bookTwo._id);
@@ -789,24 +791,27 @@ describe('data context', () => {
         expect(foundOne).toBeDefined();
         expect(foundTwo).toBeDefined();
 
+        if (foundOne == null || foundTwo == null) {
+            return;
+        }
+
         bookOne.status = "rejected";
 
         // Make First Change
         await context.saveChanges();
 
-        foundOne = await context.books2.find(w => w._id === foundOne._id);
+        foundOne = await context.books2.find(w => w._id === foundOne!._id);
 
-        expect(foundOne.status).toBe("rejected")
+        expect(foundOne!.status).toBe("rejected")
 
         bookTwo.status = "approved";
 
-        // Change Second Change
         const count = await context.saveChanges();
 
-        foundTwo = await context.books2.find(w => w._id === foundTwo._id);
+        foundTwo = await context.books2.find(w => w._id === foundTwo!._id);
 
         expect(count).toBe(1)
-        expect(foundTwo.status).toBe("approved")
+        expect(foundTwo!.status).toBe("approved")
 
     });
 

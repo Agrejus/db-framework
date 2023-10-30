@@ -1,11 +1,9 @@
-import { DataContext } from '../context/DataContext';
 import { IAttachmentDictionary } from './change-tracking-types';
 import { IPreviewChanges } from './common-types';
-import { EntityAndTag, IDbSetApi } from './dbset-types';
-import { IDbRecord, IDbRecordBase } from './entity-types';
-import { DbPluginInstanceCreator, IDbPlugin, IDbPluginOptions } from './plugin-types';
+import { IDbSetApi, SaveChangesEventData } from './dbset-types';
+import { IDbRecord } from './entity-types';
 
-export type OnChangeEvent = <T extends IDbRecordBase = IDbRecordBase>(getChanges: () => { adds: EntityAndTag<T>[], removes: EntityAndTag<T>[], updates: EntityAndTag<T>[] }) => Promise<void>
+export type OnChangeEvent<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> = (getChanges: <T extends SaveChangesEventData<TDocumentType, TEntityBase>>() => T) => Promise<void>
 
 export interface IDataContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> {
 
@@ -64,12 +62,9 @@ export interface IPrivateContext<TDocumentType extends string, TEntityBase exten
     _getApi: () => IDbSetApi<TDocumentType, TEntityBase, TExclusions>;
 }
 
-export type ContextOptions = { changeTrackingType: "context" | "entity"}
+export type DbFrameworkEnvironment = "development" | "production"
 
-export type ContextInstanceCreator<
-    TDocumentType extends string,
-    TEntityBase extends IDbRecord<TDocumentType>,
-    TExclusions extends keyof TEntityBase,
-    TPluginOptions extends IDbPluginOptions,
-    TDbPlugin extends IDbPlugin<TDocumentType, TEntityBase, TExclusions>
-> = new () => DataContext<TDocumentType, TEntityBase, TExclusions, TPluginOptions, TDbPlugin>
+export type ContextOptions = {
+    changeTrackingType: "context" | "entity",
+    environment?: DbFrameworkEnvironment
+}

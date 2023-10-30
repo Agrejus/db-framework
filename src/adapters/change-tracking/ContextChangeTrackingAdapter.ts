@@ -1,6 +1,6 @@
-import { AdvancedDictionary } from "../../common/AdvancedDictionary";
+import { ReselectDictionary } from "../../common/ReselectDictionary";
 import { DeepPartial, DeepOmit } from "../../types/common-types";
-import { ITrackedData, ITrackedChanges } from "../../types/context-types";
+import { ITrackedData, ITrackedChanges, DbFrameworkEnvironment } from "../../types/context-types";
 import { PropertyMap } from "../../types/dbset-builder-types";
 import { DbSetMap } from "../../types/dbset-types";
 import { IDbRecord } from "../../types/entity-types";
@@ -15,9 +15,9 @@ export class ContextChangeTrackingAdapter<TDocumentType extends string, TEntity 
     protected originalAttachmentHashes: { [key: string]: string } = {};
     protected override attachments;
 
-    constructor(idPropertyName: keyof TEntity) {
-        super(idPropertyName);
-        this.attachments = new AdvancedDictionary<TDocumentType, TEntity>(idPropertyName)
+    constructor(idPropertyName: keyof TEntity, environment: DbFrameworkEnvironment) {
+        super(idPropertyName, environment);
+        this.attachments = new ReselectDictionary<TDocumentType, TEntity>(idPropertyName)
     }
 
     asUntracked(...entities: TEntity[]) {
@@ -59,34 +59,19 @@ export class ContextChangeTrackingAdapter<TDocumentType extends string, TEntity 
             const id = item[this.idPropertyName] as string;
             delete this.originalAttachmentHashes[id]
         }
-
-        // reconcile attachments so they all match, so we are not saving out of date information
-        this.attachments.forEach((_, items) => {
-            if (items.length <= 1) {
-                return;
-            }
-
-            const last = items[items.length - 1];
-
-            for(let i = 0; i < items.length - 1; i++) {
-                this._mergeObjects(last, items[i]);
-                const item = items[i];
-                const hashCode = this._generateHashCode(item);
-                const id = item[this.idPropertyName] as string;
-                this.originalAttachmentHashes[id] = hashCode;
-            }
-        })
     }
 
-    override attach(data: TEntity[]): void {
+    override attach(data: TEntity[]) {
 
-        super.attach(data);
+        const result = super.attach(data);
 
         for (const item of data) {
             const hashCode = this._generateHashCode(item);
             const id = item[this.idPropertyName] as string;
             this.originalAttachmentHashes[id] = hashCode;
         }
+
+        return result;
     }
 
     getPendingChanges(changes: ITrackedData<TDocumentType, TEntity>, dbsets: DbSetMap): ITrackedChanges<TDocumentType, TEntity> {

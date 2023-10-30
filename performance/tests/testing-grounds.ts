@@ -4,13 +4,15 @@ import { IDbRecord } from "../../src/types/entity-types";
 import { PouchDbPlugin, PouchDbRecord } from "@agrejus/db-framework-plugin-pouchdb";
 import { IDbPluginOptions } from "../../src/types/plugin-types";
 import { contextBuilder } from "../../src/context/builder/context-builder";
+import { IContact } from "../../src/__tests__/integration/shared/types";
 
 enum DocumentTypes {
     Notes = "Notes",
     Contacts = "Contacts",
     Books = "Books",
     Cars = "Cars",
-    Preference = "Preference"
+    Preference = "Preference",
+    ExtendedBooks = "ExtendedBooks"
 }
 
 interface IPreference extends PouchDbRecord<DocumentTypes> {
@@ -29,7 +31,7 @@ interface INote extends PouchDbRecord<DocumentTypes> {
     userId: string;
 }
 
-interface IBook extends PouchDbRecord<DocumentTypes.Books> {
+interface IBook extends PouchDbRecord<DocumentTypes> {
     author: string;
     publishDate?: string;
     rejectedCount: number;
@@ -46,41 +48,41 @@ interface ICar extends PouchDbRecord<DocumentTypes.Cars> {
 }
 
 const TestDataContext = contextBuilder<DocumentTypes>()
-.useBaseRecord<PouchDbRecord<DocumentTypes>>()
-.useExclusions()
-.usePlugin({ dbName: "test-builder-db" }, PouchDbPlugin)
-.create((Base) => {
-    return class extends Base {
+    .useBaseRecord<PouchDbRecord<DocumentTypes>>()
+    .useExclusions()
+    .usePlugin({ dbName: "test-builder-db" }, PouchDbPlugin)
+    .createDefault((Base) => {
+        return class extends Base {
 
-        types = {
-            map: {} as typeof this.cars.types.map & typeof this.books.types.map
+            types = {
+                map: {} as typeof this.cars.types.map & typeof this.books.types.map
+            }
+
+
+            onChange(documentType: DocumentTypes, type: any, data: IDbRecord<DocumentTypes>[]) {
+                // all 
+                // what if we have the store dbset automatically implement onChange?
+                console.log('onChange', documentType, data, type)
+            }
+
+            books = this.dbset().store<IBook>(DocumentTypes.Books)
+                .onChange((d, w, c) => { this.onChange(d, w, c.all) })
+                .defaults({ test: "Winner" })
+                .keys(w => w.add("author").add("test"))
+                .filter(w => w.test == "Winner")
+                .create();
+
+            cars = this.dbset().store<ICar>(DocumentTypes.Cars)
+                .onChange((d, w, c) => { this.onChange(d, w, c.all) })
+                .keys(w => w.auto())
+                .create();
         }
-    
-    
-        onChange(documentType: DocumentTypes, type: any, data: IDbRecord<DocumentTypes>[]) {
-            // all 
-            // what if we have the store dbset automatically implement onChange?
-            console.log('onChange', documentType, data, type)
-        }
-    
-        books = this.dbset().store<IBook>(DocumentTypes.Books)
-            .onChange((d, w, c) => { this.onChange(d, w, c.all) })
-            .defaults({ test: "Winner" })
-            .keys(w => w.add("author").add("test"))
-            .filter(w => w.test == "Winner")
-            .create();
-    
-        cars = this.dbset().store<ICar>(DocumentTypes.Cars)
-            .onChange((d, w, c) => { this.onChange(d, w, c.all) })
-            .keys(w => w.auto())
-            .create();
-    }
-});
+    });
 
 class ExternalDbDataContext extends DataContext<DocumentTypes, PouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, PouchDbRecord<DocumentTypes>, IDbPluginOptions>> {
 
     constructor() {
-        super({ dbName: "Test"}, PouchDbPlugin, { changeTrackingType: "context" });
+        super({ dbName: "Test" }, PouchDbPlugin, { changeTrackingType: "context", environment: "development" });
     }
 
     types = {
@@ -105,43 +107,63 @@ class ExternalDbDataContext extends DataContext<DocumentTypes, PouchDbRecord<Doc
         .onChange((d, w, c) => { this.onChange(d, w, c.all) })
         .keys(w => w.auto())
         .create();
+
+    books2 = this.dbset().default<IBook>(DocumentTypes.ExtendedBooks).create();
 }
 
 const runTest = async () => {
     const context = new ExternalDbDataContext();
 
-    const [bookOne, bookTwo] = await context.books.add({
+    const [bookOne, bookTwo] = await context.books2.add({
         author: "James",
         rejectedCount: 1,
-        status: "pending",
-        syncStatus: "pending"
+        syncStatus: "pending",
+        status: "pending"
     }, {
         author: "Megan",
         rejectedCount: 1,
-        status: "pending",
-        syncStatus: "pending"
+        syncStatus: "pending",
+        status: "pending"
     });
 
     // Add
     await context.saveChanges();
 
-    let foundOne = await context.books.find(w => w._id === bookOne._id);
-    let foundTwo = await context.books.find(w => w._id === bookTwo._id);
+    // no changes here
 
-    foundOne!.status = "rejected";
+    let foundOne = await context.books2.find(w => w._id === bookOne._id);
+    let foundTwo = await context.books2.find(w => w._id === bookTwo._id);
+
+    if (foundOne == null || foundTwo == null) {
+        return;
+    }
+
+    let changes = await context.previewChanges();
+    debugger;
+
+    bookOne.status = "rejected";
+
+    changes = await context.previewChanges();
+    debugger;
 
     // Make First Change
     await context.saveChanges();
 
-    foundOne = await context.books.find(w => w._id === foundOne!._id);
+    foundOne = await context.books2.find(w => w._id === foundOne!._id);
 
-
-    foundTwo!.status = "approved";
+    changes = await context.previewChanges();
+    debugger;
+    bookTwo.status = "approved";
 
     // Change Second Change
+    changes = await context.previewChanges()
+    debugger;
     const count = await context.saveChanges();
+    debugger;
+    console.log(changes)
+    
 
-    foundTwo = await context.books.find(w => w._id === foundTwo!._id);
+    foundTwo = await context.books2.find(w => w._id === foundTwo!._id);
 }
 
 export const run = async () => {

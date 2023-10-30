@@ -1,6 +1,6 @@
-import { AdvancedDictionary } from "../../common/AdvancedDictionary";
+import { ReselectDictionary } from "../../common/ReselectDictionary";
 import { DeepPartial, DeepOmit } from "../../types/common-types";
-import { ITrackedData, ITrackedChanges } from "../../types/context-types";
+import { ITrackedData, ITrackedChanges, DbFrameworkEnvironment } from "../../types/context-types";
 import { PropertyMap } from "../../types/dbset-builder-types";
 import { DbSetMap } from "../../types/dbset-types";
 import { IDbRecord, IIndexableEntity } from "../../types/entity-types";
@@ -16,9 +16,9 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
     static readonly PROXY_MARKER: string = "__isProxy";
     protected override attachments;
 
-    constructor(idPropertyName: keyof TEntity) {
-        super(idPropertyName);
-        this.attachments = new AdvancedDictionary<TDocumentType, TEntity>(idPropertyName)
+    constructor(idPropertyName: keyof TEntity, environment: DbFrameworkEnvironment) {
+        super(idPropertyName, environment);
+        this.attachments = new ReselectDictionary<TDocumentType, TEntity>(idPropertyName)
     }
 
     static isProxy<T extends Object>(entities: T) {

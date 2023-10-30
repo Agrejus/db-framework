@@ -99,10 +99,10 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
             if (found) {
                 const mergedAndTrackable = this.api.changeTrackingAdapter.enableChangeTracking(found, this.defaults.add, this.isReadonly, this.map);
 
-                this.api.changeTrackingAdapter.attach([mergedAndTrackable]);
+                const [attached] = this.api.changeTrackingAdapter.attach([mergedAndTrackable]);
 
                 try {
-                    this.api.changeTrackingAdapter.merge(entity, mergedAndTrackable);
+                    this.api.changeTrackingAdapter.merge(entity, attached);
                 } catch(e: any) {
                     if ('message' in e && typeof e.message === "string" && e.message.includes("object is not extensible")) {
                         throw new Error(`Cannot change property on readonly entity.  Readonly DbSets can only be added to, not updated, consider removing readonly from the DbSet.  DocumentType: ${this.documentType}.  Original Error: ${e.message}`)
@@ -110,10 +110,10 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
                     throw e;
                 }
 
-                const mergedId = mergedAndTrackable[this.api.dbPlugin.idPropertName];
+                const mergedId = attached[this.api.dbPlugin.idPropertName];
                 this._tryAddMetaData(mergedId);
 
-                result.push(mergedAndTrackable)
+                result.push(attached)
                 continue;
             }
 

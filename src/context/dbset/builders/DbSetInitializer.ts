@@ -1,13 +1,13 @@
 import { IDataContext } from "../../../types/context-types";
-import { IDbSetBuilderParams, IDbSetStoreBuilderParams } from "../../../types/dbset-builder-types";
-import { IDbSet, IDbSetBase, IStoreDbSet } from "../../../types/dbset-types";
+import { IDbSetBuilderParams, IDbSetStatefulBuilderParams } from "../../../types/dbset-builder-types";
+import { IDbSet, IDbSetBase, IStatefulDbSet } from "../../../types/dbset-types";
 import { IDbRecord } from "../../../types/entity-types";
 import { IDbPluginOptions } from "../../../types/plugin-types";
 import { DataContext } from "../../DataContext";
 import { DbSet } from "../DbSet";
-import { StoreDbSet } from "../StoreDbSet";
+import { StatefulDbSet } from "../StatefulDbSet";
 import { DefaultDbSetBuilder } from "./DefaultDbSetBuilder";
-import { StoreDbSetBuilder } from "./StoreDbSetBuilder";
+import { StatefulDbSetBuilder } from "./StatefulDbSetBuilder";
 
 export class DbSetInitializer<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase, TPluginOptions extends IDbPluginOptions> {
 
@@ -34,8 +34,8 @@ export class DbSetInitializer<TDocumentType extends string, TEntityBase extends 
         }, DbSet);
     }
 
-    store<TEntity extends TEntityBase>(documentType: TEntity["DocumentType"]) {
-        return new StoreDbSetBuilder<TEntity["DocumentType"], TEntity, TExclusions, IStoreDbSet<TEntity["DocumentType"], TEntity, TExclusions>, IDbSetStoreBuilderParams<TEntity["DocumentType"], TEntity, TExclusions, IStoreDbSet<TEntity["DocumentType"], TEntity, TExclusions>>>(this.onAddDbSet, {
+    stateful<TEntity extends TEntityBase>(documentType: TEntity["DocumentType"]) {
+        return new StatefulDbSetBuilder<TEntity["DocumentType"], TEntity, TExclusions, IStatefulDbSet<TEntity["DocumentType"], TEntity, TExclusions>, IDbSetStatefulBuilderParams<TEntity["DocumentType"], TEntity, TExclusions, IStatefulDbSet<TEntity["DocumentType"], TEntity, TExclusions>>>(this.onAddDbSet, {
             documentType,
             context: this.context as IDataContext<TEntity["DocumentType"], TEntity>,
             readonly: false,
@@ -47,6 +47,6 @@ export class DbSetInitializer<TDocumentType extends string, TEntityBase extends 
             map: [],
             filterSelector: null,
             onChange: () => void(0)
-        }, StoreDbSet);
+        }, StatefulDbSet);
     }
 }

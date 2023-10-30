@@ -4,7 +4,7 @@ import { DbSetModificationAdapter } from "./DbSetModificationAdapter";
 import { DbSetType, IDbSetProps, IStoreDbSetProps } from "../types/dbset-types";
 import { IDbRecord } from "../types/entity-types";
 import { IDbSetFetchAdapter, IDbSetGeneralAdapter, IDbSetModificationAdapter } from "../types/adapter-types";
-import { DbSetStoreModificationAdapter } from './store/DbSetStoreModificationAdapter';
+import { DbSetStatefulModificationAdapter } from './stateful/DbSetStatefulModificationAdapter';
 
 export class AdapterFactory<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> {
 
@@ -26,8 +26,8 @@ export class AdapterFactory<TDocumentType extends string, TEntity extends IDbRec
 
     createModificationAdapter(): IDbSetModificationAdapter<TDocumentType, TEntity, TExclusions> {
 
-        if (this._type === "store") {
-            return new DbSetStoreModificationAdapter<TDocumentType, TEntity, TExclusions>(this._props as IStoreDbSetProps<TDocumentType, TEntity, TExclusions>, this._type)
+        if (this._type === "stateful") {
+            return new DbSetStatefulModificationAdapter<TDocumentType, TEntity, TExclusions>(this._props as IStoreDbSetProps<TDocumentType, TEntity, TExclusions>, this._type)
         }
 
         return new DbSetModificationAdapter<TDocumentType, TEntity, TExclusions>(this._props, this._type)

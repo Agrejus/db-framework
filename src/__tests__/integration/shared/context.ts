@@ -188,9 +188,8 @@ export class DbContextFactory {
         return dataContextWithParamsCreator(type, name)
     }
 
-    createContext<T extends typeof ExternalDataContext>(Context: T, dbname?: string, type?: string) {
-        const name = dbname ?? `${uuidv4()}-db`;
-        const result = new Context(name);
+    createContext<T extends typeof ExternalDataContext>(Context: T) {
+        const result = new Context();
         this._dbs[name] = result;
         return result;
     }
