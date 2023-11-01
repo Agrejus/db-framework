@@ -1,6 +1,6 @@
 import { DbSetStatefulModificationAdapter } from '../../adapters/stateful/DbSetStatefulModificationAdapter';
 import { EntitySelector } from '../../types/common-types';
-import { DbSetStores, DbSetType, IStatefulDbSet, IStoreDbSetProps } from '../../types/dbset-types';
+import { DbSetType, IDbSetDataStore, IStatefulDbSet, IStoreDbSetProps } from '../../types/dbset-types';
 import { IDbRecord, OmittedEntity } from '../../types/entity-types';
 import { DbSet } from './DbSet';
 
@@ -22,11 +22,7 @@ export class StatefulDbSet<TDocumentType extends string, TEntity extends IDbReco
         return "stateful";
     }
 
-    // async remote(...entities: OmittedEntity<TEntity, TExclusions>[]) {
-    //     return await this._modificationAdapter.add(...entities);
-    // }
-
-    get state(): DbSetStores<TDocumentType, TEntity, TExclusions> {
+    get state(): IDbSetDataStore<TDocumentType, TEntity, TExclusions> {
         const data = this.storeModificationAdapter.getStoreData();
 
         return {
@@ -39,8 +35,8 @@ export class StatefulDbSet<TDocumentType extends string, TEntity extends IDbReco
             all: () => {
                 return data
             },
-            add: async (data) => {
-                return [];
+            add: (...entities: OmittedEntity<TEntity, TExclusions>[]) => {
+                return this.storeModificationAdapter.addRemote(...entities);
             }
         }
     }

@@ -3,7 +3,7 @@ import { IPreviewChanges } from './common-types';
 import { IDbSetApi, SaveChangesEventData } from './dbset-types';
 import { IDbRecord } from './entity-types';
 
-export type OnChangeEvent<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> = (getChanges: <T extends SaveChangesEventData<TDocumentType, TEntityBase>>() => T) => Promise<void>
+export type OnChangeEvent<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> = (getChanges: () => SaveChangesEventData<TDocumentType, TEntityBase>) => Promise<void>
 
 export interface IDataContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> {
 

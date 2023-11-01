@@ -56,7 +56,7 @@ export interface IStatefulDbSet<
     /**
      * Local data from the database
      */
-    get state(): DbSetStores<TDocumentType, TEntity, TExclusions>;
+    get state(): IDbSetDataStore<TDocumentType, TEntity, TExclusions>;
 }
 
 export interface IDbSet<
@@ -168,7 +168,11 @@ export interface IDbSetBase<TDocumentType extends string> {
     empty(): Promise<void>;
 }
 
-export type SaveChangesEventData<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> = { adds: EntityAndTag<TEntityBase>[], removes: EntityAndTag<TEntityBase>[], updates: EntityAndTag<TEntityBase>[] }
+export type SaveChangesEventData<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> = { 
+    adds: EntityAndTag<TEntityBase>[], 
+    removes: EntityAndTag<TEntityBase>[], 
+    updates: EntityAndTag<TEntityBase>[],
+}
 
 export interface IDbSetApi<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase> {
     dbPlugin: IDbPlugin<TDocumentType, TEntityBase>;
@@ -211,16 +215,14 @@ export interface IDbSetProps<TDocumentType extends string, TEntity extends IDbRe
 export type DbSetType = "default" | "stateful";
 export type EntityAndTag<T extends IDbRecordBase = IDbRecordBase> = { entity: T, tag?: unknown }
 
-export type DbSetStores<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase> = {
+export type DbSetMap = { [key: string]: IDbSet<string, any> }
+
+export interface IDbSetDataStore<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase = never> extends IDataStore<TDocumentType, TEntityBase> {
+    add: (...entities: OmittedEntity<TEntityBase, TExclusions>[]) => Promise<TEntityBase[]>
+}
+
+export interface IDataStore<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> {
     filter: (selector: EntitySelector<TDocumentType, TEntityBase>) => TEntityBase[],
     find: (selector: EntitySelector<TDocumentType, TEntityBase>) => TEntityBase | undefined,
     all: () => TEntityBase[],
-    /**
-     * Add one or more entities to the store context, these remote items will never be saved to the underlying data store, they are only made available to the store for use across the context
-     * @param entities Entity or entities to remotely add to the data context
-     * @returns {Promise<TEntity[]>}
-     */
-    add(...entities: OmittedEntity<TEntityBase, TExclusions>[]): Promise<TEntityBase[]>;
 }
-
-export type DbSetMap = { [key: string]: IDbSet<string, any> }

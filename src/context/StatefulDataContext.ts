@@ -1,6 +1,6 @@
 import { EntitySelector } from '../types/common-types';
 import { ContextOptions } from '../types/context-types';
-import { DbSetChanges, DbSetOnChangeEvent, DbSetStores, IStatefulDbSet } from '../types/dbset-types';
+import { DbSetChanges, IDataStore, IStatefulDbSet } from '../types/dbset-types';
 import { IDbRecord } from '../types/entity-types';
 import { DbPluginInstanceCreator, IDbPlugin, IDbPluginOptions } from '../types/plugin-types';
 import { DataContext } from './DataContext';
@@ -69,8 +69,20 @@ export class StatefulDataContext<TDocumentType extends string, TEntityBase exten
 
         await Promise.all(dbsets.map(w => w.hydrate()))
     }
+     
+    protected override async onSaveError() {
+        const dbsets: IStatefulDbSet<TDocumentType, any>[] = [];
+        for (const dbset of this) {
+            if (dbset.types.dbsetType === "stateful") {
+                dbsets.push(dbset as IStatefulDbSet<TDocumentType, any>);
+                continue;
+            }
+        }
 
-    get store(): DbSetStores<TDocumentType, TEntityBase, TExclusions> {
+        await Promise.all(dbsets.map(w => w.hydrate()))
+    }
+
+    get store(): IDataStore<TDocumentType, TEntityBase> {
         return {
             filter: (selector: EntitySelector<TDocumentType, TEntityBase>) => {
 
@@ -106,9 +118,6 @@ export class StatefulDataContext<TDocumentType extends string, TEntityBase exten
                 });
 
                 return result;
-            },
-            add: async (data) => {
-                return [];
             }
         }
     }
