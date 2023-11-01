@@ -22,12 +22,13 @@ export class DbSetStatefulModificationAdapter<TDocumentType extends string, TEnt
         const addedEntities = adds.map(w => w.entity);
         const updatedEntities = updates.map(w => w.entity);
         const removedEntities = removes.map(w => w.entity);
+        const remotes = this._remotes;
 
         this._store.putMany(...addedEntities);
         this._store.putMany(...updatedEntities);
+        this._store.putMany(...remotes);
         this._store.removeMany(...removedEntities);
 
-        const remotes = this._remotes;
         this._remotes = []; // remove the remotes after save
 
         this._fireOnChangeWithLocalData("change", { adds: addedEntities, removes: removedEntities, updates: updatedEntities, all: this._store.all(), remotes });

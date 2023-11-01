@@ -56,7 +56,7 @@ export interface IStatefulDbSet<
     /**
      * Local data from the database
      */
-    get state(): IDbSetDataStore<TDocumentType, TEntity, TExclusions>;
+    get state(): IDbSetState<TDocumentType, TEntity, TExclusions>;
 }
 
 export interface IDbSet<
@@ -196,7 +196,7 @@ export interface IStoreDbSetProps<TDocumentType extends string, TEntity extends 
 }
 
 export type DbSetChangeType = "hydrate" | "change" | "rehydrate";
-export type DbSetRemoteChanges<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = DbSetChanges<TDocumentType, TEntity> & { remote: TEntity[] }
+export type DbSetRemoteChanges<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = DbSetChanges<TDocumentType, TEntity> & { remotes: TEntity[] }
 export type DbSetChanges<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = { adds: TEntity[], removes: TEntity[], updates: TEntity[], all: TEntity[] }
 export type DbSetOnChangeEvent<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = (documentType: TDocumentType, type: DbSetChangeType, changes: DbSetChanges<TDocumentType, TEntity>) => void;
 export type DbSetRemoteOnChangeEvent<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = (documentType: TDocumentType, type: DbSetChangeType, changes: DbSetRemoteChanges<TDocumentType, TEntity>) => void
@@ -217,11 +217,11 @@ export type EntityAndTag<T extends IDbRecordBase = IDbRecordBase> = { entity: T,
 
 export type DbSetMap = { [key: string]: IDbSet<string, any> }
 
-export interface IDbSetDataStore<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase = never> extends IDataStore<TDocumentType, TEntityBase> {
+export interface IDbSetState<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase = never> extends IDataContextState<TDocumentType, TEntityBase> {
     add: (...entities: OmittedEntity<TEntityBase, TExclusions>[]) => Promise<TEntityBase[]>
 }
 
-export interface IDataStore<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> {
+export interface IDataContextState<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> {
     filter: (selector: EntitySelector<TDocumentType, TEntityBase>) => TEntityBase[],
     find: (selector: EntitySelector<TDocumentType, TEntityBase>) => TEntityBase | undefined,
     all: () => TEntityBase[],

@@ -5,7 +5,7 @@ import { DbSetBaseAdapter } from './DbSetBaseAdapter';
 
 export class DbSetModificationAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> extends DbSetBaseAdapter<TDocumentType, TEntity, TExclusions> implements IDbSetModificationAdapter<TDocumentType, TEntity, TExclusions> {
 
-    private _tag: unknown | null = null; 
+    private _tag: unknown | null = null;
 
     constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType) {
         super(props, type);
@@ -16,7 +16,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
         (addItem as any).DocumentType = this.documentType;
         const id = this.getKeyFromEntity(entity as any);
 
-        
+
 
         if (id != undefined) {
             (addItem as any)[this.api.dbPlugin.idPropertName] = id;
@@ -51,7 +51,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
 
             const mappedEntity = this.api.changeTrackingAdapter.mapAndSetDefaults(entity, this.map, this.defaults.add);
             const trackableEntity = this.processAdditionAndMakeTrackable(mappedEntity);
-            
+
             this._tryAddMetaData(trackableEntity[this.api.dbPlugin.idPropertName]);
 
             add.push(trackableEntity);
@@ -82,7 +82,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
     }
 
     async upsert(...entities: (OmittedEntity<TEntity, TExclusions> | Omit<TEntity, "DocumentType">)[]) {
- 
+
         const all = await this.getAllData();
         const allDictionary: { [key: string]: TEntity } = all.reduce((a, v) => {
 
@@ -103,7 +103,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
 
                 try {
                     this.api.changeTrackingAdapter.merge(entity, attached);
-                } catch(e: any) {
+                } catch (e: any) {
                     if ('message' in e && typeof e.message === "string" && e.message.includes("object is not extensible")) {
                         throw new Error(`Cannot change property on readonly entity.  Readonly DbSets can only be added to, not updated, consider removing readonly from the DbSet.  DocumentType: ${this.documentType}.  Original Error: ${e.message}`)
                     }
@@ -130,7 +130,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
     async remove(...ids: string[]): Promise<void>;
     async remove(...entities: TEntity[]): Promise<void>;
     async remove(...entities: any[]) {
-        
+
         await this.onRemove();
 
         if (entities.some(w => typeof w === "string")) {

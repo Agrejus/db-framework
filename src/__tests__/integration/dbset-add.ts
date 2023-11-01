@@ -1,10 +1,5 @@
 import { DocumentTypes } from "./shared/types";
-import { EntityAndTag } from "../../types/dbset-types";
-import { getContexts, EntityChangeTrackingContext } from '../setup/contexts';
-
-jest.mock('nanoid', () => ({
-    nanoid: () => `${Math.floor(Math.random() * 100000)}-${new Date().getTime()}`
-}))
+import { getContexts } from '../setup/contexts';
 
 const response = getContexts();
 

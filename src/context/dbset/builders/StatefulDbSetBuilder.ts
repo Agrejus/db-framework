@@ -1,6 +1,6 @@
 import { DbSetPickDefaultActionOptional, DeepPartial, EntitySelector } from "../../../types/common-types";
 import { DbSetExtender, IChainIdBuilder, IDbSetStatefulBuilderParams, IIdBuilderBase, ITerminateIdBuilder, IdBuilder, PropertyMap } from "../../../types/dbset-builder-types";
-import { DbSetOnChangeEvent, IDbSetBase, IDbSetProps, IStatefulDbSet, IStoreDbSetProps } from "../../../types/dbset-types";
+import { DbSetRemoteOnChangeEvent, IDbSetBase, IDbSetProps, IStatefulDbSet, IStoreDbSetProps } from "../../../types/dbset-types";
 import { IDbRecord, OmittedEntity } from "../../../types/entity-types";
 
 export class StatefulDbSetBuilder<
@@ -22,7 +22,7 @@ export class StatefulDbSetBuilder<
         this._onCreate = onCreate;
     }
 
-    onChange(callback: DbSetOnChangeEvent<TDocumentType, TEntity>) {
+    onChange(callback: DbSetRemoteOnChangeEvent<TDocumentType, TEntity>) {
         this._params.onChange = callback;
         return new StatefulDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>(this._onCreate, this._params, this.InstanceCreator);
     }

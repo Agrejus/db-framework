@@ -1,10 +1,9 @@
-import { ExternalDataContext } from "../../src/__tests__/integration/shared/context";
 import { DataContext } from "../../src/context/DataContext";
 import { IDbRecord } from "../../src/types/entity-types";
 import { PouchDbPlugin, PouchDbRecord } from "@agrejus/db-framework-plugin-pouchdb";
 import { IDbPluginOptions } from "../../src/types/plugin-types";
 import { contextBuilder } from "../../src/context/builder/context-builder";
-import { IContact } from "../../src/__tests__/integration/shared/types";
+import { DbSetRemoteChanges } from "../../src/types/dbset-types";
 
 enum DocumentTypes {
     Notes = "Notes",
@@ -65,14 +64,14 @@ const TestDataContext = contextBuilder<DocumentTypes>()
                 console.log('onChange', documentType, data, type)
             }
 
-            books = this.dbset().store<IBook>(DocumentTypes.Books)
+            books = this.dbset().stateful<IBook>(DocumentTypes.Books)
                 .onChange((d, w, c) => { this.onChange(d, w, c.all) })
                 .defaults({ test: "Winner" })
                 .keys(w => w.add("author").add("test"))
                 .filter(w => w.test == "Winner")
                 .create();
 
-            cars = this.dbset().store<ICar>(DocumentTypes.Cars)
+            cars = this.dbset().stateful<ICar>(DocumentTypes.Cars)
                 .onChange((d, w, c) => { this.onChange(d, w, c.all) })
                 .keys(w => w.auto())
                 .create();
@@ -90,21 +89,21 @@ class ExternalDbDataContext extends DataContext<DocumentTypes, PouchDbRecord<Doc
     }
 
 
-    onChange(documentType: DocumentTypes, type: any, data: IDbRecord<DocumentTypes>[]) {
+    onChange(documentType: DocumentTypes, type: any, data: DbSetRemoteChanges<DocumentTypes, PouchDbRecord<DocumentTypes>>) {
         // all 
         // what if we have the store dbset automatically implement onChange?
         console.log('onChange', documentType, data, type)
     }
 
-    books = this.dbset().store<IBook>(DocumentTypes.Books)
-        .onChange((d, w, c) => { this.onChange(d, w, c.all) })
+    books = this.dbset().stateful<IBook>(DocumentTypes.Books)
+        .onChange((d, w, c) => { this.onChange(d, w, c) })
         .defaults({ test: "Winner" })
         .keys(w => w.add("author").add("test"))
         .filter(w => w.test == "Winner")
         .create();
 
-    cars = this.dbset().store<ICar>(DocumentTypes.Cars)
-        .onChange((d, w, c) => { this.onChange(d, w, c.all) })
+    cars = this.dbset().stateful<ICar>(DocumentTypes.Cars)
+        .onChange((d, w, c) => { this.onChange(d, w, c) })
         .keys(w => w.auto())
         .create();
 
@@ -139,12 +138,11 @@ const runTest = async () => {
     }
 
     let changes = await context.previewChanges();
-    debugger;
 
     bookOne.status = "rejected";
 
     changes = await context.previewChanges();
-    debugger;
+
 
     // Make First Change
     await context.saveChanges();
@@ -152,14 +150,14 @@ const runTest = async () => {
     foundOne = await context.books2.find(w => w._id === foundOne!._id);
 
     changes = await context.previewChanges();
-    debugger;
+
     bookTwo.status = "approved";
 
     // Change Second Change
     changes = await context.previewChanges()
-    debugger;
+
     const count = await context.saveChanges();
-    debugger;
+
     console.log(changes)
     
 
@@ -175,8 +173,15 @@ export const run = async () => {
         await context.books.hydrate();
         await context.cars.hydrate();
 
-        console.log('context.books.store', context.books.store)
-        console.log('context.cars.store', context.cars.store)
+        console.log('context.books.store', context.books.state)
+        console.log('context.cars.store', context.cars.state)
+
+        await context.books.state.add({
+            author: "ME",
+            rejectedCount: 1,
+            status: "rejected",
+            syncStatus: "approved"
+        })
 
         await context.saveChanges();
 

@@ -49,3 +49,14 @@ export const optimizeSync = <TResult extends any, TArgs extends any>(context: an
         })
     };
 }
+
+export const generateRandomId = () => {
+    const length = 10;
+    const result = Math.random().toString(36).substring(2, length + 2);
+
+    if (!result) {
+        return new Date().getTime().toString();
+    }
+
+    return result;
+}

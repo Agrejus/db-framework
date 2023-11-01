@@ -1,10 +1,10 @@
+import { generateRandomId } from '../common/helpers';
 import { EntitySelector } from '../types/common-types';
 import { ContextOptions } from '../types/context-types';
-import { DbSetChanges, IDataStore, IStatefulDbSet } from '../types/dbset-types';
+import { DbSetChanges, IDataContextState, IStatefulDbSet } from '../types/dbset-types';
 import { IDbRecord } from '../types/entity-types';
 import { DbPluginInstanceCreator, IDbPlugin, IDbPluginOptions } from '../types/plugin-types';
 import { DataContext } from './DataContext';
-import { nanoid } from 'nanoid';
 
 export type ChangeHandler = <TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>>(data: DbSetChanges<TDocumentType, TEntityBase>) => void
 export type OnChangeHandlerDictionary = {
@@ -41,7 +41,7 @@ export class StatefulDataContext<TDocumentType extends string, TEntityBase exten
     }
 
     addChangeEventListener(documentType: TDocumentType, callback: ChangeHandler) {
-        const id = nanoid();
+        const id = generateRandomId();
 
         if (onChangeHandlers[documentType] == null) {
             onChangeHandlers[documentType] = {}
@@ -82,7 +82,7 @@ export class StatefulDataContext<TDocumentType extends string, TEntityBase exten
         await Promise.all(dbsets.map(w => w.hydrate()))
     }
 
-    get store(): IDataStore<TDocumentType, TEntityBase> {
+    get store(): IDataContextState<TDocumentType, TEntityBase> {
         return {
             filter: (selector: EntitySelector<TDocumentType, TEntityBase>) => {
 

@@ -4,15 +4,15 @@ import { IDbRecord, IDbRecordBase } from "../../types/entity-types";
 import { DocumentTypes, IBook, IBookV3, IBookV4, ICar, IComputer, IContact, INote, IPreference, ISetStatus, ISyncDocument } from "./models";
 import { DataContext } from "../../context/DataContext";
 import { IDbPluginOptions } from "../../types/plugin-types";
-import { nanoid } from "nanoid";
 import { DefaultDbSetBuilder } from "../../context/dbset/builders/DefaultDbSetBuilder";
 import { IDbSetBuilderParams } from "../../types/dbset-builder-types";
 import { IDbSet } from "../../types/dbset-types";
+import { generateRandomId } from '../../common/helpers';
 
 export const ContextBuilderEntityChangeTrackingContextBuilder = (changeTrackingType: "context" | "entity") => contextBuilder<DocumentTypes>({ changeTrackingType })
     .useBaseRecord<PouchDbRecord<DocumentTypes>>()
     .useExclusions()
-    .usePlugin(() => ({ dbName: `test-builder-${nanoid()}-db` }), PouchDbPlugin)
+    .usePlugin(() => ({ dbName: `test-builder-${generateRandomId()}-db` }), PouchDbPlugin)
     .createDefault((Base) => {
         return class extends Base {
 
@@ -146,7 +146,7 @@ export const ContextBuilderEntityChangeTrackingContextBuilder = (changeTrackingT
 export class EntityChangeTrackingContext extends DataContext<DocumentTypes, PouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, PouchDbRecord<DocumentTypes>, IDbPluginOptions>> {
 
     constructor(changeTrackingType: "context" | "entity") {
-        super({ dbName: `test-${nanoid()}-db` }, PouchDbPlugin, { changeTrackingType, environment: "development" });
+        super({ dbName: `test-${generateRandomId()}-db` }, PouchDbPlugin, { changeTrackingType, environment: "development" });
     }
 
     types = {

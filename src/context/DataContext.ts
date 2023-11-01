@@ -18,6 +18,7 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
     private _onAfterSaveChangesEvents: { [key in TDocumentType]: OnChangeEvent<TDocumentType, TEntityBase> } = {} as any;
     private readonly _changeAdapter: ChangeTrackingAdapterBase<TDocumentType, TEntityBase, typeof this.dbPlugin.types.exclusions>;
     private readonly _options: TPluginOptions;
+    private _readonlyDocumentTypes: { [key: string]: true } = {}
 
     get dbName() {
         return this._options.dbName;
@@ -87,6 +88,10 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
             throw new Error(`Can only have one DbSet per document type in a context, please create a new context instead`)
         }
 
+        if (info.Readonly === true) {
+            this._readonlyDocumentTypes[info.DocumentType] = true;
+        }
+
         this.dbSets[info.DocumentType] = dbset;
     }
 
@@ -154,11 +159,19 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
 
             const { add, remove, updated } = changes;
 
+            // check for readonly updates, they are not allowed
+            if (updated.length > 0) {
+                const readonlyDocumentTypes = Object.keys(updated.filter(w => this._readonlyDocumentTypes[w.DocumentType] === true).reduce((a, v) => ({ ...a, [v.DocumentType]: v.DocumentType }), {} as { [key: string]: string }));
+                
+                if (readonlyDocumentTypes.length > 0) {
+                    throw new Error(`Cannot save readonly entities.  Document Types: ${readonlyDocumentTypes.join(', ')}`)
+                }
+            }
+
             // Process removals first, so we can remove items first and then add.  Just
             // in case are are trying to remove and add the same Id
             const modifications = [...remove, ...add, ...updated];
 
-            // remove pristine entity before we send to bulk docs
             this._changeAdapter.makePristine(...modifications);
 
             const modificationResult = await this.dbPlugin.bulkOperations({ adds: add, removes: remove, updates: updated });
@@ -166,7 +179,6 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
             // set any properties return from the database
             this.dbPlugin.setDbGeneratedValues(modificationResult, modifications);
 
-            // make pristine again because we potentially set properties above
             this._changeAdapter.makePristine(...modifications);
             this._changeAdapter.reinitialize(remove, add, updated);
 
@@ -176,7 +188,6 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
         } catch (e: any) {
             this._changeAdapter.reinitialize();
 
-            // rehydrate on error so we can ensure the store matches
             await this.onSaveError(e);
 
             throw e;
