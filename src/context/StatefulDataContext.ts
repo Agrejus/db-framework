@@ -5,6 +5,7 @@ import { DbSetChanges, IDataContextState, IStatefulDbSet } from '../types/dbset-
 import { IDbRecord } from '../types/entity-types';
 import { DbPluginInstanceCreator, IDbPlugin, IDbPluginOptions } from '../types/plugin-types';
 import { DataContext } from './DataContext';
+import { StatefulDbSetInitializer } from './dbset/builders/StatefulDbSetInitializer';
 
 export type ChangeHandler = <TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>>(data: DbSetChanges<TDocumentType, TEntityBase>) => void
 export type OnChangeHandlerDictionary = {
@@ -31,7 +32,7 @@ export class StatefulDataContext<TDocumentType extends string, TEntityBase exten
         }
     }
 
-    protected fireChangeEvents(documentType: TDocumentType,  data: DbSetChanges<TDocumentType, TEntityBase>) {
+    protected fireChangeEvents(documentType: TDocumentType, data: DbSetChanges<TDocumentType, TEntityBase>) {
 
         const handlers = Object.values<ChangeHandler>(onChangeHandlers[documentType] ?? {});
 
@@ -55,9 +56,13 @@ export class StatefulDataContext<TDocumentType extends string, TEntityBase exten
     }
 
     removeAllEventListeners() {
-        for(const documentType in onChangeHandlers) {
+        for (const documentType in onChangeHandlers) {
             delete onChangeHandlers[documentType];
         }
+    }
+
+    protected override dbset(): StatefulDbSetInitializer<TDocumentType, TEntityBase, TExclusions, TPluginOptions> {
+        return new StatefulDbSetInitializer<TDocumentType, TEntityBase, TExclusions, TPluginOptions>(this.addDbSet.bind(this), this);
     }
 
     async hydrate() {
@@ -69,7 +74,7 @@ export class StatefulDataContext<TDocumentType extends string, TEntityBase exten
 
         await Promise.all(dbsets.map(w => w.hydrate()))
     }
-     
+
     protected override async onSaveError() {
         const dbsets: IStatefulDbSet<TDocumentType, any>[] = [];
         for (const dbset of this) {
@@ -82,7 +87,7 @@ export class StatefulDataContext<TDocumentType extends string, TEntityBase exten
         await Promise.all(dbsets.map(w => w.hydrate()))
     }
 
-    get store(): IDataContextState<TDocumentType, TEntityBase> {
+    get state(): IDataContextState<TDocumentType, TEntityBase> {
         return {
             filter: (selector: EntitySelector<TDocumentType, TEntityBase>) => {
 

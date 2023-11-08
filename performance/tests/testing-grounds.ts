@@ -4,6 +4,7 @@ import { PouchDbPlugin, PouchDbRecord } from "@agrejus/db-framework-plugin-pouch
 import { IDbPluginOptions } from "../../src/types/plugin-types";
 import { contextBuilder } from "../../src/context/builder/context-builder";
 import { DbSetRemoteChanges } from "../../src/types/dbset-types";
+import { StatefulDataContext } from "../../src/context/StatefulDataContext";
 
 enum DocumentTypes {
     Notes = "Notes",
@@ -50,7 +51,7 @@ const TestDataContext = contextBuilder<DocumentTypes>()
     .useBaseRecord<PouchDbRecord<DocumentTypes>>()
     .useExclusions()
     .usePlugin({ dbName: "test-builder-db" }, PouchDbPlugin)
-    .createDefault((Base) => {
+    .createStateful((Base) => {
         return class extends Base {
 
             types = {
@@ -78,7 +79,7 @@ const TestDataContext = contextBuilder<DocumentTypes>()
         }
     });
 
-class ExternalDbDataContext extends DataContext<DocumentTypes, PouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, PouchDbRecord<DocumentTypes>, IDbPluginOptions>> {
+class ExternalDbDataContext extends StatefulDataContext<DocumentTypes, PouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, PouchDbRecord<DocumentTypes>, IDbPluginOptions>> {
 
     constructor() {
         super({ dbName: "Test" }, PouchDbPlugin, { changeTrackingType: "context", environment: "development" });

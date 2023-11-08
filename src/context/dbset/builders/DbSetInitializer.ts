@@ -34,7 +34,7 @@ export class DbSetInitializer<TDocumentType extends string, TEntityBase extends 
         }, DbSet);
     }
 
-    stateful<TEntity extends TEntityBase>(documentType: TEntity["DocumentType"]) {
+    protected _stateful<TEntity extends TEntityBase>(documentType: TEntity["DocumentType"]) {
         return new StatefulDbSetBuilder<TEntity["DocumentType"], TEntity, TExclusions, IStatefulDbSet<TEntity["DocumentType"], TEntity, TExclusions>, IDbSetStatefulBuilderParams<TEntity["DocumentType"], TEntity, TExclusions, IStatefulDbSet<TEntity["DocumentType"], TEntity, TExclusions>>>(this.onAddDbSet, {
             documentType,
             context: this.context as IDataContext<TEntity["DocumentType"], TEntity>,

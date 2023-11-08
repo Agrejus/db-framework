@@ -16,7 +16,7 @@
 
 ---
 
-<p align="center"> Database agnostic ORM for NodeJS and the web
+<p align="center"> Database agnostic Data Layer for NodeJS and the web
     <br> 
 </p>
 
@@ -25,6 +25,48 @@
 - [Getting Started](#getting_started)
   - [Installation](#installation)
   - [Basic Usage](#basic_usage_example)
+- [Saving Data](#test)
+    - [Add](#test)
+    - [Remove](#test)
+    - [Update](#test)
+- [Change Tracking](#test)
+    - [Entity Change Tracking](#test)
+    - [Context Change Tracking](#test)
+- [Database Plugins](#test)
+    - [Memory Database Plugin](#test)
+    - [PouchDB Database Plugin](#test)
+    - [Local Storage Database Plugin](#test)
+    - [Custom Database Plugin](#test)
+- [Data Context](#test)
+    - [Methods](#test)
+        - [Remove](#test)
+        - [Update](#test)
+    - [Middleware](#test)
+    - [Builder API](#test)
+- [Stateful Data Context](#test)
+    - [Methods](#test)
+        - [Remove](#test)
+        - [Update](#test)
+- [Model Declaration](#test)
+- [Concepts](#test)
+    - [Redux Replacement](#test)
+    - [Logging](#test)
+    - [Entity Tagging](#test)
+    - [History Tracking](#test)
+- [DbSet](#test)
+    - [Builder API](#test)
+        - [DbSet](#test)
+    - [Methods](#test)
+        - [DbSet](#test)
+    - [Fields](#test)
+        - [Types](#test)
+    - [Customization](#test)
+- [Stateful DbSet](#test)
+    - [Builder API](#test)
+        - [DbSet](#test)
+    - [Methods](#test)
+        - [DbSet](#test)
+- [FAQ](#test)
 - [Change Log](./changelog.md)
 - [Authors](#authors)
 
@@ -34,6 +76,7 @@ Db Framework is a TypeScript first ORM desiged to wrap existing database framewo
 Db Framework provides a ton of flexibility, even going as far as offering a local state store (think Redux).
 
 Why it's great:
+- Works with many different databases
 - Can easily add/augment current functionality
 - Can create plugins to use with any database
 - Fast, uses bulk operations for all data manipulation
@@ -95,6 +138,15 @@ await context.vehicles.add({
 
 await context.saveChanges();
 ```
+
+
+
+
+
+
+
+
+
 
 ## Modifying Data <a name = "modifying_data"></a>
 DB Framework makes it very easy to modify data.  Simply use the appropiate DbSet to create/update/delete a record.  Updating data can change depending on the change tracking being used.  [Entity Change Tracking]() or [Context Change Tracking]() can be used to track changes on an entity.  By default Entity Change Tracking is used, but if serialization becomes an issue, please use Context Change Tracking.
@@ -222,6 +274,15 @@ await context.saveChanges();
 
 ```
 
+
+
+
+
+
+
+
+
+
 ## Query Data <a name = "query_data"></a>
 Db Framework makes it very easy to query data in each underlying DbSet.  Please see DbSet for more examples of querying data
 
@@ -273,9 +334,39 @@ Db Framework offers two different types of change tracking: Entity and Context. 
       - Entities are plain JavaScript objects
     - Cons:
       - Changes are lost when entites are linked between contexts
+      - Saving/Selecting a lot of data can be slow
+
+
+
+
+
+
+
+
+
 
 
 ## Database Plugins <a name = "database_plugins"></a>
+DB Framework can work with a variety of different data stores through the use of database plugins.  The database plugin is the way DB Framework interacts with the database.  These plugins can be swapped out for different ones, or custom ones can be created.  For ease of use, there are 3 existing plugins that can be used below.
+
+### Memory Plugin <a name = "data_context_save_changes"></a>
+Saves all underlying changes to the data store.  Must be called, otherwise no changes will be saved.  Returns count of entities saved.
+
+**Package:** [@agrejus/db-framework-plugin-memory](https://www.npmjs.com/package/@agrejus/db-framework-plugin-memory)
+
+### PouchDB Plugin <a name = "data_context_save_changes"></a>
+Saves all underlying changes to the data store.  Must be called, otherwise no changes will be saved.  Returns count of entities saved.
+
+**Package:** [@agrejus/db-framework-plugin-pouchdb](https://www.npmjs.com/package/@agrejus/db-framework-plugin-pouchdb)
+
+### Local Storage Plugin <a name = "data_context_save_changes"></a>
+Saves all underlying changes to the data store.  Must be called, otherwise no changes will be saved.  Returns count of entities saved.
+
+**Package:** [@agrejus/db-framework-plugin-local-storage](https://www.npmjs.com/package/@agrejus/db-framework-plugin-local-storage)
+
+
+
+
 
 ## DataContext <a name = "data_context"></a>
 A data context is meant to be the orchestrator of all dbsets and manage their operations.  Memory (changes) is not shared across dbsets, meaning, if an entity is being tracked by one data context, other data context's do not know about it.  We can fix that by [linking]() and [unlinking]() entities from one context to another.  When an entity is unlinked from from a dbset, changes are not lost with [entity change tracking](), but are lost with [context change tracking]().  One way to combat the loss of change tracking with context change tracking is to link the entity and [mark it dirty]() afterwards.  
@@ -334,42 +425,9 @@ Returns all documents from the data store
 
 **Usage:**
 ```typescript
-import { DataContext, IDbRecord } from '@agrejus/db-framework';
-import { PouchDbPlugin } from '@agrejus/db-framework-plugin-pouchdb';
-
-export enum MyDocumentTypes {
-    Vehicle = "Vehicle"
-}
-
-export interface IVehicle extends IDbRecord<MyDocumentTypes.Vehicle> {
-    make: string;
-    model: string;
-    year: number;
-    color: string;
-    trim: string;
-}
-
-export class MyDataContext extends DataContext<MyDocumentTypes, IDbRecord<MyDocumentTypes.Vehicle>> {
-
-    constructor() {
-        super({ dbName: "some-new-database" }, PouchDbPlugin)
-    }
-
-    vehicles = this.dbset().default<IVehicle>(MyDocumentTypes.Vehicle).create();
-    vehicles = this.dbset().default<IVehicle>(MyDocumentTypes.Vehicle).create();
-}
-
 const context = new MyDataContext();
 
-const [ myAddedItem ] = await context.vehicles.add({
-    make: "Tesla",
-    model: "Model S",
-    year: 2023,
-    color: "white",
-    trim: "P100D"
-});
-
-const count = await context.saveChanges();
+const allDocs = await context.getAllDocs();
 ```
 
 ### `.hasPendingChanges` <a name = "data_context_has_pending_changes"></a>
@@ -400,9 +458,48 @@ Get a db set for the matching document type
 **Type:** `.getDbSet(documentType: TDocumentType): IDbSet<string, any, never>`
 
 ### protected `.onBeforeSaveChanges` <a name = "data_context_on_before_save_changes"></a>
-Get a db set for the matching document type
+Function that is called before changes are persisted to the underlying data store.  Entites returned are a reference, meaning, if an entity is changed, that change will make it into the database.  This function has an argument that is a function to help with performance.  The argument `getChanges` must be called to get all changes an any entity tags.  This function can be used for a variety of things.  Most commonly, it is used for history tracking and evaluating entity tags.
 
-**Type:** `.getDbSet(documentType: TDocumentType): IDbSet<string, any, never>`
+**Type:** `.onBeforeSaveChanges(getChanges: () => SaveChangesEventData<TDocumentType, TEntityBase>):Promise<void>`
+
+### protected `.onAfterSaveChanges` <a name = "data_context_on_after_save_changes"></a>
+Function that is called after changes are persisted to the underlying data store.  Entites returned are a copy not a reference, meaning any changes will be thrown away and not saved to the data base.  This function has an argument that is a function to help with performance.  The argument `getChanges` must be called to get all changes an any entity tags.  This function is also commonly used for history tracking and evaluating entity tags.
+
+**Type:** `.onAfterSaveChanges(getChanges: () => SaveChangesEventData<TDocumentType, TEntityBase>):Promise<void>`
+
+### protected `.onSaveError` <a name = "data_context_on_save_error"></a>
+Function that is called when there is an error saving data.
+
+**Type:** `.onSaveError(error: any):Promise<void>`
+
+
+## StatefulDataContext <a name = "stateful_data_context"></a>
+A stateful data context is meant to keep data store information in sync between memory and the underlying data base.  This can be done with [on before save changes](#data_context_on_before_save_changes) and [on after save changes](#data_context_on_after_save_changes) manually, or DB Framework can manage it for you.  Often times, apps will use a state management middleware, this middleware needs to be kept in sync with the database in some way.  The previously mention functions can be used with existing middleware or this data context can be used.  A [React hook](#react_state_hook) can even be created for ease of use.
+
+### `.addChangeEventListener` <a name = "add_change_event_listener"></a>
+Function to add change events that are fired when data is added, removed, updated.  Returns an unregister function, when called, unregisters the event handler. Change events do not need to be re-registered when a context is destroyed, these change events are registered globally.
+
+**Type:** `.addChangeEventListener(documentType: TDocumentType, callback: ChangeHandler): () => void`
+
+### `.removeAllEventListeners` <a name = "remove_all_event_listeners"></a>
+Will unregister all event listeners.
+**Type:** `.removeAllEventListeners(): void`
+
+### `.hydrate` <a name = "stateful_data_context_hydrate"></a>
+Populates all DbSet states with existing data from the database.  Must be called every time a new Data Context is created.
+**Type:** `.hydrate(): Promise<void>`
+
+### `.state` <a name = "stateful_data_context_state"></a>
+In memory 
+**Type:** `get state(): IDataContextState<TDocumentType, TEntityBase>`
+
+
+
+
+
+
+
+
 
 ## Default DbSet <a name = "default_dbset"></a>
 
@@ -483,11 +580,38 @@ Instance will create an untracked instance of an entity as if it were actually a
 
 **Type:** `.first(): Promise<TEntity>`
 
+
+
+
+
+
+
+
+
+
 ## Default DbSet Builder <a name = "default_dbset_builder"></a>
 
-## Store DbSet <a name = "store_dbset"></a>
 
-## Store DbSet Builder <a name = "default_dbset_builder"></a>
+
+
+
+
+
+
+## Stateful DbSet <a name = "store_dbset"></a>
+
+
+
+
+
+## Stateful DbSet Builder <a name = "default_dbset_builder"></a>
+
+
+
+
+
+
+
 
 ## Authors <a name = "authors"></a>
 - [@agrejus](https://github.com/agrejus)

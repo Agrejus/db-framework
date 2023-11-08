@@ -27,7 +27,7 @@ export const contextBuilder = <TDocumentType extends string>(contextOptions?: Co
                                         }
                                     });
                                 },
-                                createStore: <TInstance extends new () => StatefulDataContext<TDocumentType, TEntityBase, TExclusions | typeof p.types.exclusions, TPluginOptions, TDbPlugin>>(
+                                createStateful: <TInstance extends new () => StatefulDataContext<TDocumentType, TEntityBase, TExclusions | typeof p.types.exclusions, TPluginOptions, TDbPlugin>>(
                                     extend: (Base: new () => StatefulDataContext<TDocumentType, TEntityBase, TExclusions | typeof p.types.exclusions, TPluginOptions, TDbPlugin>) => TInstance
                                 ) => {
                                     return extend(class extends StatefulDataContext<TDocumentType, TEntityBase, TExclusions | typeof p.types.exclusions, TPluginOptions, TDbPlugin> {

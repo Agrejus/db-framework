@@ -248,9 +248,8 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
 
     /**
      * Starts the dbset fluent API.  Only required function call is create(), all others are optional
-     * @returns {DbSetInitializer}
      */
-    protected dbset(): DbSetInitializer<TDocumentType, TEntityBase, TExclusions, TPluginOptions> {
+    protected dbset() {
         return new DbSetInitializer<TDocumentType, TEntityBase, TExclusions, TPluginOptions>(this.addDbSet.bind(this), this);
     }
 
