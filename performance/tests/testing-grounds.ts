@@ -171,26 +171,16 @@ export const run = async () => {
         const contextFactory = new DbContextFactory();
         const context = contextFactory.createContext(ExternalDataContext);
 
-        await context.contacts.add({
-            firstName: "James",
-            lastName: "DeMeuse",
-            phone: "111-111-1111",
-            address: "1234 Test St"
+        const [book] = await context.books.add({
+            author: "James DeMeuse",
+            publishDate: new Date()
         });
 
-        await context.cars.add({
-            make: "test",
-            manufactureDate: new Date(),
-            model: "test",
-            year: 2000
-        });
-
-        debugger;
         await context.saveChanges();
 
-        const all = await context.contacts.all();
+        const found = await context.books.first();
 
-        debugger;
+        const x = Object.prototype.toString.call(found?.publishDate);
 
     } catch (e) {
         console.log(e)

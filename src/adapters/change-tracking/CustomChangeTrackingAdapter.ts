@@ -61,7 +61,7 @@ export class CustomChangeTrackingAdapter<TDocumentType extends string, TEntity e
     }
 
     override attach(data: TEntity[]) {
-        this._pushOriginals(...data)
+        this._pushOriginals(...data);
         return super.attach(data);
     }
 

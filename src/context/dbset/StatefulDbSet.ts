@@ -22,11 +22,6 @@ export class StatefulDbSet<TDocumentType extends string, TEntity extends IDbReco
         return "stateful";
     }
 
-    override async link(...entities: TEntity[]) {
-        const result = await this.markDirty(...entities)
-        return await super.link(...result);
-    }
-
     get state(): IDbSetState<TDocumentType, TEntity, TExclusions> {
         const data = this.storeModificationAdapter.getStoreData();
 

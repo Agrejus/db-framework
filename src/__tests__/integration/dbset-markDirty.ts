@@ -34,11 +34,11 @@ describe('DbSet markDirty Tests', () => {
         }
 
         const [dirty] = await context.notes.markDirty(found);
-
+        
         expect(context.hasPendingChanges()).toBe(true);
         await context.saveChanges();
         expect(context.hasPendingChanges()).toBe(false);
-        debugger;
-        expect(dirty._rev === one._rev).toBe(false);
+
+        expect(dirty._rev === one._rev).toBe(true);
     });
 });

@@ -71,6 +71,11 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
                 if (property !== EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY && indexableEntity._id != null) {
                     const oldValue = indexableEntity[key];
 
+                    // if values are the same, do nothing
+                    if (oldValue === value) {
+                        return true;
+                    }
+
                     if (indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY] === undefined) {
                         indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY] = {};
                     }
@@ -78,7 +83,8 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
                     if (indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY][key] != null && indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY][key] === value) {
                         // we are changing the value back to the original value, remove the change
                         delete indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY][key];
-                    } else {
+                    } else if (indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY][key] == null) {
+                        // don't keep updating, keep the original value
                         indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY][key] = oldValue;
                     }
 
