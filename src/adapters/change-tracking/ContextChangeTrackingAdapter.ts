@@ -1,8 +1,7 @@
 import { IDbSetChangeTracker, IContextChangeTracker } from "../../types/change-tracking-types";
 import { DeepPartial, DeepOmit } from "../../types/common-types";
-import { ITrackedData, ITrackedChanges } from "../../types/context-types";
+import { ITrackedChanges } from "../../types/context-types";
 import { PropertyMap } from "../../types/dbset-builder-types";
-import { DbSetMap } from "../../types/dbset-types";
 import { IDbRecord } from "../../types/entity-types";
 
 /**
@@ -20,9 +19,8 @@ export class ContextChangeTrackingAdapter<TDocumentType extends string, TEntity 
         return this._changeTrackers[entity.DocumentType].enableChangeTracking(entity, defaults, readonly, maps);
     }
 
-    getPendingChanges(): ITrackedChanges<TDocumentType, TEntity> {
-
-        return Object.values(this._changeTrackers).reduce((a, v, i) => {
+    getPendingChanges() {
+        const trackedChanges = Object.values(this._changeTrackers).reduce((a, v, i) => {
             const trackedData = v.getPendingChanges();
 
             if (i === 0) {
@@ -35,7 +33,9 @@ export class ContextChangeTrackingAdapter<TDocumentType extends string, TEntity 
             a.remove = a.remove.concat(trackedData.remove);
 
             return a;
-        }, {} as ITrackedChanges<TDocumentType, TEntity>)
+        }, {} as ITrackedChanges<TDocumentType, TEntity>);
+
+        return trackedChanges;
     }
 
     makePristine(...entities: TEntity[]) {
@@ -44,7 +44,41 @@ export class ContextChangeTrackingAdapter<TDocumentType extends string, TEntity 
         }
     }
 
+    private _toDictionary(data?: TEntity[]) {
+
+        return (data ?? []).reduce((a, v) => {
+            if (a[v.DocumentType] == null) {
+                a[v.DocumentType] = [];
+            }
+
+            a[v.DocumentType].push(v);
+
+            return a;
+        }, {} as { [key: string]: TEntity[] });
+    }
+
     reinitialize(removals?: TEntity[], add?: TEntity[], updates?: TEntity[]) {
+        const removalDictionary = this._toDictionary(removals);
+        const addDictionary = this._toDictionary(add);
+        const updateDictionary = this._toDictionary(updates);
+
+        const removalDictionaryDocumentTypes = Object.keys(removalDictionary);
+        const addDictionaryDocumentTypes = Object.keys(addDictionary);
+        const updateDictionaryDocumentTypes = Object.keys(updateDictionary);
+
+        const documentTypes = [
+            ...removalDictionaryDocumentTypes,
+            ...addDictionaryDocumentTypes,
+            ...updateDictionaryDocumentTypes
+        ].reduce((a, v) => ({ ...a, [v]: v }), {} as { [key: string]: string });
+
+        for(const documentType in documentTypes) {
+            const removalsByDocumentType = removalDictionary[documentType];
+            const addByDocumentType = addDictionary[documentType];
+            const updatesByDocumentType = updateDictionary[documentType];
+
+            this._changeTrackers[documentType].reinitialize(removalsByDocumentType, addByDocumentType, updatesByDocumentType)
+        }
 
     }
 

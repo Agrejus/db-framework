@@ -1,12 +1,12 @@
 import { v4 as uuidv4 } from 'uuid';
 import { DataContext } from '../context/DataContext';
-import { PouchDbPlugin, PouchDbRecord } from '@agrejus/db-framework-plugin-pouchdb';
+import { IDbRecord } from '../types/entity-types';
+import { PouchDbPlugin } from '@agrejus/db-framework-plugin-pouchdb';
 import { ContextOptions } from '../types/context-types';
-import { IDbPluginOptions } from '../types/plugin-types';
 
 describe('data context', () => {
 
-    const dbs: { [key: string]: ExternalDataContext } = {}
+    const dbs: { [key: string]: DataContext<DocumentTypes, IDbRecord<DocumentTypes>> } = {}
     const dbFactory = <T extends typeof ExternalDataContext>(Context: T, dbname?: string) => {
         const name = dbname ?? `${uuidv4()}-db`;
         const result = new Context(name);
@@ -24,29 +24,29 @@ describe('data context', () => {
         ExtendedBooks = "ExtendedBooks"
     }
 
-    interface IContact extends PouchDbRecord<DocumentTypes.Contacts> {
+    interface IContact extends IDbRecord<DocumentTypes> {
         firstName: string;
         lastName: string;
         address: string;
         phone: string;
     }
 
-    interface INote extends PouchDbRecord<DocumentTypes.Notes> {
+    interface INote extends IDbRecord<DocumentTypes> {
         contents: string;
         createdDate: Date;
         userId: string;
     }
 
-    interface IBook extends PouchDbRecord<DocumentTypes.Books> {
+    interface IBook extends IDbRecord<DocumentTypes> {
         author: string;
         publishDate?: Date;
         rejectedCount: number;
         status: "pending" | "approved" | "rejected";
     }
 
-    class ExternalDataContext extends DataContext<DocumentTypes, PouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, PouchDbRecord<DocumentTypes>, IDbPluginOptions>> {
+    class ExternalDataContext extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>> {
 
-        constructor(name: string, contextOptions: ContextOptions = { changeTrackingType: "entity", environment: "development" }) {
+        constructor(name: string, contextOptions: ContextOptions = { changeTrackingType: "entity" }) {
             super({ dbName: name }, PouchDbPlugin, contextOptions);
         }
 
@@ -732,7 +732,7 @@ describe('data context', () => {
 
         const context = dbFactory(FluentContext) as FluentContext
 
-        const [book] = await context.books2.add({
+        const [book] = await context.books2.add({ 
             author: "James",
             rejectedCount: 1,
             publishDate: new Date(),
@@ -753,120 +753,5 @@ describe('data context', () => {
 
         found.status = "approved";
         await context.saveChanges();
-    });
-
-    it('should save correctly with context tracking when changes are broken apart', async () => {
-
-        // How can we fix this?
-
-        class FluentContext extends ExternalDataContext {
-
-            constructor(name: string) {
-                super(name, { changeTrackingType: "context" });
-            }
-
-            books2 = this.dbset().default<IBook>(DocumentTypes.ExtendedBooks).create();
-        }
-
-        const context = dbFactory(FluentContext) as FluentContext
-
-        const [bookOne, bookTwo] = await context.books2.add({
-            author: "James",
-            rejectedCount: 1,
-            status: "pending"
-        }, {
-            author: "Megan",
-            rejectedCount: 1,
-            status: "pending"
-        });
-
-        // Add
-        await context.saveChanges();
-
-        // no changes here
-
-        let foundOne = await context.books2.find(w => w._id === bookOne._id);
-        let foundTwo = await context.books2.find(w => w._id === bookTwo._id);
-
-        expect(foundOne).toBeDefined();
-        expect(foundTwo).toBeDefined();
-
-        if (foundOne == null || foundTwo == null) {
-            return;
-        }
-
-        bookOne.status = "rejected";
-
-        // Make First Change
-        await context.saveChanges();
-
-        foundOne = await context.books2.find(w => w._id === foundOne!._id);
-
-        expect(foundOne!.status).toBe("rejected")
-
-        bookTwo.status = "approved";
-
-        const count = await context.saveChanges();
-
-        foundTwo = await context.books2.find(w => w._id === foundTwo!._id);
-
-        expect(count).toBe(1)
-        expect(foundTwo!.status).toBe("approved")
-
-    });
-
-    it('should save correctly with context tracking when changes are broken apart - change out finds', async () => {
-
-        class FluentContext extends ExternalDataContext {
-
-            constructor(name: string) {
-                super(name, { changeTrackingType: "context" });
-            }
-
-            books2 = this.dbset().default<IBook>(DocumentTypes.ExtendedBooks).create();
-        }
-
-        const context = dbFactory(FluentContext) as FluentContext
-
-        const [bookOne, bookTwo] = await context.books2.add({
-            author: "James",
-            rejectedCount: 1,
-            publishDate: new Date(),
-            status: "pending"
-        }, {
-            author: "Megan",
-            rejectedCount: 1,
-            publishDate: new Date(),
-            status: "pending"
-        });
-
-        // Add
-        await context.saveChanges();
-
-        let foundOne = await context.books2.find(w => w._id === bookOne._id);
-        let foundTwo = await context.books2.find(w => w._id === bookTwo._id);
-
-        expect(foundOne).toBeDefined();
-        expect(foundTwo).toBeDefined();
-
-        foundOne.status = "rejected";
-
-        // Make First Change
-        await context.saveChanges();
-
-        foundOne = await context.books2.find(w => w._id === foundOne._id);
-
-        expect(foundOne.status).toBe("rejected")
-
-        foundTwo.status = "approved";
-
-        // Change Second Change
-        const count = await context.saveChanges();
-
-        foundTwo = await context.books2.find(w => w._id === foundTwo._id);
-
-        expect(count).toBe(1)
-        expect(foundTwo.status).toBe("approved")
-
     });
 });

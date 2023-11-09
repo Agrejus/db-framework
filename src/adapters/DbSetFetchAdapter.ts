@@ -1,4 +1,5 @@
 import { IDbSetFetchAdapter } from '../types/adapter-types';
+import { IDbSetChangeTracker } from '../types/change-tracking-types';
 import { EntitySelector } from '../types/common-types';
 import { DbSetType, IDbSetProps } from '../types/dbset-types';
 import { IDbRecord } from '../types/entity-types';
@@ -6,8 +7,8 @@ import { DbSetBaseAdapter } from './DbSetBaseAdapter';
 
 export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> extends DbSetBaseAdapter<TDocumentType, TEntity, TExclusions> implements IDbSetFetchAdapter<TDocumentType, TEntity, TExclusions> {
 
-    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType) {
-        super(props, type);
+    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType, changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>) {
+        super(props, type, changeTracker);
     }
 
     async filter(selector: EntitySelector<TDocumentType, TEntity>) {

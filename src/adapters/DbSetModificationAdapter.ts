@@ -1,4 +1,5 @@
 import { IDbSetModificationAdapter } from '../types/adapter-types';
+import { IDbSetChangeTracker } from '../types/change-tracking-types';
 import { DbSetType, IDbSetProps } from '../types/dbset-types';
 import { IDbRecord, OmittedEntity, IIndexableEntity } from '../types/entity-types';
 import { DbSetBaseAdapter } from './DbSetBaseAdapter';
@@ -7,8 +8,8 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
 
     private _tag: unknown | null = null;
 
-    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType) {
-        super(props, type);
+    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType, changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>) {
+        super(props, type, changeTracker);
     }
 
     protected processAddition(entity: OmittedEntity<TEntity, TExclusions>) {

@@ -23,7 +23,7 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
     protected type: DbSetType;
     protected changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>;
 
-    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType) {
+    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType, changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>) {
         this.documentType = props.documentType;
         this.context = props.context as IPrivateContext<TDocumentType, TEntity, TExclusions>;
         this.idKeys = props.idKeys;
@@ -33,19 +33,9 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
         this.map = props.map;
         this.filterSelector = props.filterSelector;
         this.type = type;
-
+        this.changeTracker = changeTracker;
+        
         this.api = this.context._getApi();
-
-        const idPropertyName = this.api.dbPlugin.idPropertName;
-        const environment = this.api.contextOptions.environment;
-
-        if (props.readonly === true) {
-            this.changeTracker = new ReadonlyChangeTrackingAdapter(idPropertyName, this.map, environment);
-        } else if (props.entityComparator != null) {
-            this.changeTracker = new CustomChangeTrackingAdapter(idPropertyName, this.map, environment, props.entityComparator);
-        } else {
-            this.changeTracker = new EntityChangeTrackingAdapter(idPropertyName, this.map, environment);
-        }
 
         this.api.registerOnAfterSaveChanges(props.documentType, this.onAfterSaveChanges.bind(this));
         this.api.registerOnBeforeSaveChanges(props.documentType, this.onBeforeSaveChanges.bind(this));

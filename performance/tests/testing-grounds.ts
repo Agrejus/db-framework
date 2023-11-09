@@ -5,6 +5,7 @@ import { IDbPluginOptions } from "../../src/types/plugin-types";
 import { contextBuilder } from "../../src/context/builder/context-builder";
 import { DbSetRemoteChanges } from "../../src/types/dbset-types";
 import { StatefulDataContext } from "../../src/context/StatefulDataContext";
+import { DbContextFactory, ExternalDataContext } from "../../src/__tests__/integration/shared/context";
 
 enum DocumentTypes {
     Notes = "Notes",
@@ -67,7 +68,7 @@ const TestDataContext = contextBuilder<DocumentTypes>()
 
             books = this.dbset().stateful<IBook>(DocumentTypes.Books)
                 .onChange((d, w, c) => { this.onChange(d, w, c.all) })
-                .defaults({ test: "Winner" })
+                //.defaults({ test: "Winner" })
                 .keys(w => w.add("author").add("test"))
                 .filter(w => w.test == "Winner")
                 .create();
@@ -82,7 +83,7 @@ const TestDataContext = contextBuilder<DocumentTypes>()
 class ExternalDbDataContext extends StatefulDataContext<DocumentTypes, PouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, PouchDbRecord<DocumentTypes>, IDbPluginOptions>> {
 
     constructor() {
-        super({ dbName: "Test" }, PouchDbPlugin, { changeTrackingType: "context", environment: "development" });
+        super({ dbName: "Test" }, PouchDbPlugin, { environment: "development" });
     }
 
     types = {
@@ -111,102 +112,85 @@ class ExternalDbDataContext extends StatefulDataContext<DocumentTypes, PouchDbRe
     books2 = this.dbset().default<IBook>(DocumentTypes.ExtendedBooks).create();
 }
 
-const runTest = async () => {
-    const context = new ExternalDbDataContext();
+// const runTest = async () => {
+//     const context = new ExternalDbDataContext();
 
-    const [bookOne, bookTwo] = await context.books2.add({
-        author: "James",
-        rejectedCount: 1,
-        syncStatus: "pending",
-        status: "pending"
-    }, {
-        author: "Megan",
-        rejectedCount: 1,
-        syncStatus: "pending",
-        status: "pending"
-    });
+//     const [bookOne, bookTwo] = await context.books2.add({
+//         author: "James",
+//         rejectedCount: 1,
+//         syncStatus: "pending",
+//         status: "pending"
+//     }, {
+//         author: "Megan",
+//         rejectedCount: 1,
+//         syncStatus: "pending",
+//         status: "pending"
+//     });
 
-    // Add
-    await context.saveChanges();
+//     // Add
+//     await context.saveChanges();
 
-    // no changes here
+//     // no changes here
 
-    let foundOne = await context.books2.find(w => w._id === bookOne._id);
-    let foundTwo = await context.books2.find(w => w._id === bookTwo._id);
+//     let foundOne = await context.books2.find(w => w._id === bookOne._id);
+//     let foundTwo = await context.books2.find(w => w._id === bookTwo._id);
 
-    if (foundOne == null || foundTwo == null) {
-        return;
-    }
+//     if (foundOne == null || foundTwo == null) {
+//         return;
+//     }
 
-    let changes = await context.previewChanges();
+//     let changes = await context.previewChanges();
 
-    bookOne.status = "rejected";
+//     bookOne.status = "rejected";
 
-    changes = await context.previewChanges();
+//     changes = await context.previewChanges();
 
 
-    // Make First Change
-    await context.saveChanges();
+//     // Make First Change
+//     await context.saveChanges();
 
-    foundOne = await context.books2.find(w => w._id === foundOne!._id);
+//     foundOne = await context.books2.find(w => w._id === foundOne!._id);
 
-    changes = await context.previewChanges();
+//     changes = await context.previewChanges();
 
-    bookTwo.status = "approved";
+//     bookTwo.status = "approved";
 
-    // Change Second Change
-    changes = await context.previewChanges()
+//     // Change Second Change
+//     changes = await context.previewChanges()
 
-    const count = await context.saveChanges();
+//     const count = await context.saveChanges();
 
-    console.log(changes)
+//     console.log(changes)
     
 
-    foundTwo = await context.books2.find(w => w._id === foundTwo!._id);
-}
+//     foundTwo = await context.books2.find(w => w._id === foundTwo!._id);
+// }
 
 export const run = async () => {
     try {
-        await runTest();
+        const contextFactory = new DbContextFactory();
+        const context = contextFactory.createContext(ExternalDataContext);
 
-        const context = new ExternalDbDataContext();
-
-        await context.books.hydrate();
-        await context.cars.hydrate();
-
-        console.log('context.books.store', context.books.state)
-        console.log('context.cars.store', context.cars.state)
-
-        await context.books.state.add({
-            author: "ME",
-            rejectedCount: 1,
-            status: "rejected",
-            syncStatus: "approved"
-        })
-
-        await context.saveChanges();
+        await context.contacts.add({
+            firstName: "James",
+            lastName: "DeMeuse",
+            phone: "111-111-1111",
+            address: "1234 Test St"
+        });
 
         await context.cars.add({
-            make: "Chevy",
-            manufactureDate: new Date().toISOString(),
-            model: "Silverado",
-            year: 2021
-        })
+            make: "test",
+            manufactureDate: new Date(),
+            model: "test",
+            year: 2000
+        });
 
-        await context.books.tag('added by user').add({
-            author: "James",
-            rejectedCount: 1,
-            status: "pending",
-            syncStatus: "approved"
-        },
-            {
-                author: "James1",
-                rejectedCount: 2,
-                status: "pending",
-                syncStatus: "approved"
-            });
-
+        debugger;
         await context.saveChanges();
+
+        const all = await context.contacts.all();
+
+        debugger;
 
     } catch (e) {
         console.log(e)
