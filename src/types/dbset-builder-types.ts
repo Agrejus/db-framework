@@ -1,11 +1,11 @@
-import { DbSetPickDefaultActionRequired, EntitySelector } from './common-types';
+import { DbSetPickDefaultActionRequired, EntityComparator, EntitySelector } from './common-types';
 import { EntityIdKey, EntityIdKeys, IDbRecord } from './entity-types';
-import { DbSetOnChangeEvent, IDbSet, IDbSetProps, IStoreDbSet, IStoreDbSetProps } from './dbset-types';
+import { DbSetOnChangeEvent, IDbSet, IDbSetProps, IStatefulDbSet, IStoreDbSetProps } from './dbset-types';
 import { DbSet } from '../context/dbset/DbSet';
 import { IDataContext } from './context-types';
 
 
-export interface IDbSetStoreBuilderParams<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity, TResult extends IDbSet<TDocumentType, TEntity, TExclusions>>
+export interface IDbSetStatefulBuilderParams<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity, TResult extends IDbSet<TDocumentType, TEntity, TExclusions>>
     extends IDbSetBuilderParams<TDocumentType, TEntity, TExclusions, TResult> {
     onChange: DbSetOnChangeEvent<TDocumentType, TEntity>;
 }
@@ -21,11 +21,12 @@ export interface IDbSetBuilderParams<TDocumentType extends string, TEntity exten
     keyType: DbSetKeyType;
     map: PropertyMap<TDocumentType, TEntity, any>[];
     filterSelector: EntitySelector<TDocumentType, TEntity>;
+    entityComparator: EntityComparator<TDocumentType, TEntity> | null;
 }
 
 
 export type ConvertDateToString<T> = T extends Date ? string : T;
-export type DbSetStoreExtenderCreator<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity, TResult extends IStoreDbSet<TDocumentType, TEntity, TExclusions>> = (i: DbSetExtender<TDocumentType, TEntity, TExclusions>, args: IStoreDbSetProps<TDocumentType, TEntity, TExclusions>) => TResult
+export type DbSetStoreExtenderCreator<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity, TResult extends IStatefulDbSet<TDocumentType, TEntity, TExclusions>> = (i: DbSetExtender<TDocumentType, TEntity, TExclusions>, args: IStoreDbSetProps<TDocumentType, TEntity, TExclusions>) => TResult
 export type DbSetExtenderCreator<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity, TResult extends IDbSet<TDocumentType, TEntity, TExclusions>> = (i: DbSetExtender<TDocumentType, TEntity, TExclusions>, args: IDbSetProps<TDocumentType, TEntity, TExclusions>) => TResult
 
 export type PropertyMap<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TProperty extends keyof TEntity> = { property: TProperty, map: (value: ConvertDateToString<TEntity[TProperty]>, entity: TEntity) => TEntity[TProperty] }

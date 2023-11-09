@@ -1,24 +1,25 @@
-import { AdvancedDictionary } from "../../common/AdvancedDictionary";
+import { ReselectDictionary } from "../../common/ReselectDictionary";
+import { IDbSetChangeTracker } from "../../types/change-tracking-types";
 import { DeepPartial, DeepOmit } from "../../types/common-types";
-import { ITrackedData, ITrackedChanges } from "../../types/context-types";
+import { ITrackedChanges, DbFrameworkEnvironment } from "../../types/context-types";
 import { PropertyMap } from "../../types/dbset-builder-types";
-import { DbSetMap } from "../../types/dbset-types";
 import { IDbRecord, IIndexableEntity } from "../../types/entity-types";
 import { ChangeTrackingAdapterBase } from "./ChangeTrackingAdapterBase";
 
 /**
  * Uses proxy objects to track changes at the entity level.  Useful for fine grained change tracking regardless of the context
  */
-export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> extends ChangeTrackingAdapterBase<TDocumentType, TEntity, TExclusions> {
+export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> extends ChangeTrackingAdapterBase<TDocumentType, TEntity, TExclusions> implements IDbSetChangeTracker<TDocumentType, TEntity, TExclusions> {
 
     static readonly DIRTY_ENTITY_MARKER: string = "__isDirty";
     static readonly PRISTINE_ENTITY_KEY: string = "__pristine_entity__";
+    static readonly CHANGES_ENTITY_KEY: string = "__changes__";
     static readonly PROXY_MARKER: string = "__isProxy";
     protected override attachments;
 
-    constructor(idPropertyName: keyof TEntity) {
-        super(idPropertyName);
-        this.attachments = new AdvancedDictionary<TDocumentType, TEntity>(idPropertyName)
+    constructor(idPropertyName: keyof TEntity, propertyMaps: PropertyMap<TDocumentType, TEntity, TExclusions>[], environment: DbFrameworkEnvironment) {
+        super(idPropertyName, propertyMaps, environment);
+        this.attachments = new ReselectDictionary<TDocumentType, TEntity>(idPropertyName)
     }
 
     static isProxy<T extends Object>(entities: T) {
@@ -32,34 +33,25 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
     isDirty(entity: TEntity) {
 
         const indexableEntity = entity as IIndexableEntity;
-        if (indexableEntity[EntityChangeTrackingAdapter.PRISTINE_ENTITY_KEY] === undefined) {
-            return false;
-        }
-
-        const pristineKeys = Object.keys(indexableEntity[EntityChangeTrackingAdapter.PRISTINE_ENTITY_KEY]);
-
-        for (let pristineKey of pristineKeys) {
-            if (indexableEntity[EntityChangeTrackingAdapter.PRISTINE_ENTITY_KEY][pristineKey] != indexableEntity[pristineKey]) {
-                return true
-            }
-        }
-        return false;
+        return indexableEntity[EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER] === true;
     }
 
-    makePristine(...entities: TEntity[]) {
+    async makePristine(...entities: TEntity[]) {
 
         for (let i = 0; i < entities.length; i++) {
             const indexableEntity = entities[i] as IIndexableEntity;
 
             // make pristine again
-            delete indexableEntity[EntityChangeTrackingAdapter.PRISTINE_ENTITY_KEY];
+            delete indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY];
+            delete indexableEntity[EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER];
         }
     }
 
-    getPendingChanges(changes: ITrackedData<TDocumentType, TEntity>, dbsets: DbSetMap): ITrackedChanges<TDocumentType, TEntity> {
+    getPendingChanges(): ITrackedChanges<TDocumentType, TEntity> {
+        const changes = this.getTrackedData();
         const { add, remove, removeById, attach } = changes;
 
-        const updated = attach.filter(w => this.isDirty(w) === true).map(w => this.mapInstance(w, dbsets[w.DocumentType].info().Map));
+        const updated = attach.filter(w => this.isDirty(w) === true).map(w => this.mapInstance(w, this.propertyMaps));
 
         return {
             add,
@@ -76,26 +68,27 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
                 const indexableEntity: IIndexableEntity = entity as any;
                 const key = String(property);
 
-                if (property === EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER) {
-
-                    if (indexableEntity[EntityChangeTrackingAdapter.PRISTINE_ENTITY_KEY] === undefined) {
-                        indexableEntity[EntityChangeTrackingAdapter.PRISTINE_ENTITY_KEY] = {};
-                    }
-
-                    indexableEntity[EntityChangeTrackingAdapter.PRISTINE_ENTITY_KEY][EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER] = true;
-                    return true;
-                }
-
-                if (property !== EntityChangeTrackingAdapter.PRISTINE_ENTITY_KEY && indexableEntity._id != null) {
+                if (property !== EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY && indexableEntity._id != null) {
                     const oldValue = indexableEntity[key];
 
-                    if (indexableEntity[EntityChangeTrackingAdapter.PRISTINE_ENTITY_KEY] === undefined) {
-                        indexableEntity[EntityChangeTrackingAdapter.PRISTINE_ENTITY_KEY] = {};
+                    // if values are the same, do nothing
+                    if (oldValue === value) {
+                        return true;
                     }
 
-                    if (indexableEntity[EntityChangeTrackingAdapter.PRISTINE_ENTITY_KEY][key] === undefined) {
-                        indexableEntity[EntityChangeTrackingAdapter.PRISTINE_ENTITY_KEY][key] = oldValue;
+                    if (indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY] === undefined) {
+                        indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY] = {};
                     }
+
+                    if (indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY][key] != null && indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY][key] === value) {
+                        // we are changing the value back to the original value, remove the change
+                        delete indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY][key];
+                    } else if (indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY][key] == null) {
+                        // don't keep updating, keep the original value
+                        indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY][key] = oldValue;
+                    }
+
+                    indexableEntity[EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER] = Object.keys(indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY]).length > 0
                 }
 
                 indexableEntity[key] = value;
@@ -113,13 +106,12 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
         }
 
         const instance = this.mapAndSetDefaults(entity, maps, defaults);
-        const result = readonly ? Object.freeze(instance) : instance;
 
-        return new Proxy(result, proxyHandler as any) as TEntity
+        return new Proxy(instance, proxyHandler as any) as TEntity
     }
 
     merge(from: TEntity, to: TEntity) {
-        const options = { skip: [EntityChangeTrackingAdapter.PRISTINE_ENTITY_KEY] };
+        const options = { skip: [EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY] };
 
         for (let property in from) {
 

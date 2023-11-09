@@ -1,4 +1,5 @@
 import { IDbSetFetchAdapter } from '../types/adapter-types';
+import { IDbSetChangeTracker } from '../types/change-tracking-types';
 import { EntitySelector } from '../types/common-types';
 import { DbSetType, IDbSetProps } from '../types/dbset-types';
 import { IDbRecord } from '../types/entity-types';
@@ -6,8 +7,8 @@ import { DbSetBaseAdapter } from './DbSetBaseAdapter';
 
 export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> extends DbSetBaseAdapter<TDocumentType, TEntity, TExclusions> implements IDbSetFetchAdapter<TDocumentType, TEntity, TExclusions> {
 
-    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType) {
-        super(props, type);
+    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType, changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>) {
+        super(props, type, changeTracker);
     }
 
     async filter(selector: EntitySelector<TDocumentType, TEntity>) {
@@ -17,9 +18,9 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
 
         await this.onAfterDataFetched(result);
 
-        this.api.changeTrackingAdapter.attach(result)
+        const attached = this.changeTracker.attach(result)
 
-        return result;
+        return attached;
     }
 
     async all() {
@@ -28,12 +29,12 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
 
     async get(...ids: string[]) {
         const entities = await this.api.dbPlugin.getStrict(...ids);
-        const result = entities.map(w => this.api.changeTrackingAdapter.enableChangeTracking(w, this.defaults.retrieve, this.isReadonly, this.map));
+        const result = entities.map(w => this.changeTracker.enableChangeTracking(w, this.defaults.retrieve, this.isReadonly, this.map));
         const filteredResult = this.filterResult(result)
         await this.onAfterDataFetched(filteredResult);
 
         if (filteredResult.length > 0) {
-            this.api.changeTrackingAdapter.attach(filteredResult)
+            return this.changeTracker.attach(filteredResult)
         }
 
         return filteredResult;
@@ -48,7 +49,9 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
 
             await this.onAfterDataFetched([result]);
 
-            this.api.changeTrackingAdapter.attach([result])
+            const [attached] = this.changeTracker.attach([result]);
+
+            return attached;
         }
 
         return result;
@@ -62,7 +65,9 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
 
             await this.onAfterDataFetched([result]);
 
-            this.api.changeTrackingAdapter.attach([result])
+            const [attached] = this.changeTracker.attach([result]);
+
+            return attached;
         }
 
         return result as TEntity | undefined;

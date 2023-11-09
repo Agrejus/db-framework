@@ -2,8 +2,12 @@ import { v4 as uuidv4 } from 'uuid';
 import { EntityIdKeys, IDbRecord, IIndexableEntity } from '../types/entity-types';
 import { DbSetPickDefaultActionRequired, DocumentKeySelector, EntitySelector } from '../types/common-types';
 import { IPrivateContext } from '../types/context-types';
-import { DbSetType, EntityAndTag, IDbSetApi, IDbSetProps } from '../types/dbset-types';
+import { DbSetType, EntityAndTag, IDbSetApi, IDbSetProps, SaveChangesEventData } from '../types/dbset-types';
 import { DbSetKeyType, PropertyMap } from '../types/dbset-builder-types';
+import { IDbSetChangeTracker } from '../types/change-tracking-types';
+import { CustomChangeTrackingAdapter } from './change-tracking/CustomChangeTrackingAdapter';
+import { EntityChangeTrackingAdapter } from './change-tracking/EntityChangeTrackingAdapter';
+import { ReadonlyChangeTrackingAdapter } from './change-tracking/ReadonlyChangeTrackingAdapter';
 
 export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> {
 
@@ -17,8 +21,9 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
     protected map: PropertyMap<TDocumentType, TEntity, any>[];
     protected filterSelector: EntitySelector<TDocumentType, TEntity> | null;
     protected type: DbSetType;
+    protected changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>;
 
-    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType) {
+    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType, changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>) {
         this.documentType = props.documentType;
         this.context = props.context as IPrivateContext<TDocumentType, TEntity, TExclusions>;
         this.idKeys = props.idKeys;
@@ -28,7 +33,8 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
         this.map = props.map;
         this.filterSelector = props.filterSelector;
         this.type = type;
-
+        this.changeTracker = changeTracker;
+        
         this.api = this.context._getApi();
 
         this.api.registerOnAfterSaveChanges(props.documentType, this.onAfterSaveChanges.bind(this));
@@ -39,7 +45,7 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
         const data = await this.getAllData();
 
         // process the mappings when we make the item trackable.  We are essentially prepping the entity
-        const result = data.map(w => this.api.changeTrackingAdapter.enableChangeTracking(w, this.defaults.retrieve, this.isReadonly, this.map));
+        const result = data.map(w => this.changeTracker.enableChangeTracking(w, this.defaults.retrieve, this.isReadonly, this.map));
 
         return this.filterResult(result);
     }
@@ -48,12 +54,12 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
 
     }
 
-    protected async onBeforeSaveChanges(getChanges: () => { adds: EntityAndTag[], removes: EntityAndTag[], updates: EntityAndTag[] }) {
+    protected async onBeforeSaveChanges(getChanges: <T extends SaveChangesEventData<TDocumentType, TEntity>>() => T) {
 
     }
 
 
-    protected async onAfterSaveChanges(getChanges: () => { adds: EntityAndTag[], removes: EntityAndTag[], updates: EntityAndTag[] }) {
+    protected async onAfterSaveChanges(getChanges: <T extends SaveChangesEventData<TDocumentType, TEntity>>() => T) {
 
     }
 
@@ -62,9 +68,9 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
 
         await this.onAfterDataFetched(result);
 
-        this.api.changeTrackingAdapter.attach(result);
+        const attached = this.changeTracker.attach(result);
 
-        return this.filterResult(result);
+        return this.filterResult(attached);
     }
 
     protected filterResult(result: TEntity[]) {

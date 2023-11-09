@@ -205,7 +205,7 @@ describe('DbSet Add Tests', () => {
         expect(book.status).toBe("pending");
     });
 
-    it('should add entity and not map the returning date', async () => {
+    it('should add entity and return the original added object', async () => {
         const context = contextFactory.createContext(ExternalDataContext);
         const [book] = await context.books.add({
             author: "James DeMeuse",
@@ -225,7 +225,7 @@ describe('DbSet Add Tests', () => {
 
         const found = await context.books.first();
 
-        expect(Object.prototype.toString.call(found?.publishDate)).toBe('[object String]');
+        expect(Object.prototype.toString.call(found?.publishDate)).toBe('[object Date]');
     });
 
     it('should add entity and map the returning date', async () => {
@@ -461,7 +461,7 @@ describe('DbSet Add Tests', () => {
 
         const foundUpsertOne = await context.notes.find(w => w._id === one._id);
 
-        expect({ ...upsertedOne, createdDate: upsertedOne.createdDate.toISOString() }).toEqual({ ...foundUpsertOne });
+        expect({ ...upsertedOne, createdDate: upsertedOne.createdDate }).toEqual({ ...foundUpsertOne });
         expect(foundUpsertOne?.contents).toEqual("changed contents");
         expect(foundUpsertOne?.userId).toEqual("changed user");
 

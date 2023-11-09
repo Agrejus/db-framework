@@ -36,18 +36,20 @@ describe('DbSet Link Tests', () => {
 
         contact.firstName = "James Changed";
 
+        expect(context.hasPendingChanges()).toBe(false); // it's unlinked
+
         const secondContext = contextFactory.createContext(ExternalDataContext, dbname);
 
         // attaching re-enables entity tracking for properties changed
         const [linkedContact] = await secondContext.contacts.link(contact);
 
-        linkedContact.firstName = "Test";
+        linkedContact.firstName = "Some Further Change";
 
         expect(secondContext.hasPendingChanges()).toBe(true);
 
         await secondContext.saveChanges();
 
-        const afterAttach = await secondContext.contacts.find(w => w.firstName === "Test");
+        const afterAttach = await secondContext.contacts.find(w => w.firstName === "Some Further Change");
 
         expect(afterAttach).toBeDefined();
     });

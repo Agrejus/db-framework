@@ -28,6 +28,7 @@ describe('DbSet Upsert Tests', () => {
 
         expect(context.hasPendingChanges()).toBe(true);
         await context.saveChanges();
+
         expect(context.hasPendingChanges()).toBe(false);
 
         const [foundOne] = await context.contacts.all();
@@ -99,7 +100,7 @@ describe('DbSet Upsert Tests', () => {
         expect(context.hasPendingChanges()).toBe(true);
         await context.saveChanges();
         expect(context.hasPendingChanges()).toBe(false);
-
+debugger
         await context.computers.upsert({
             ...one,
             keyboard: "something"

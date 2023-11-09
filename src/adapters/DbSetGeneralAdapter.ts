@@ -1,12 +1,13 @@
 import { IDbSetGeneralAdapter } from '../types/adapter-types';
+import { IDbSetChangeTracker } from '../types/change-tracking-types';
 import { IDbSetProps, IDbSetInfo, DbSetType } from '../types/dbset-types';
 import { IDbRecord, IDbRecordBase } from '../types/entity-types';
 import { DbSetBaseAdapter } from './DbSetBaseAdapter';
 
 export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> extends DbSetBaseAdapter<TDocumentType, TEntity, TExclusions> implements IDbSetGeneralAdapter<TDocumentType, TEntity, TExclusions> {
 
-    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType) {
-        super(props, type);
+    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType, changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>) {
+        super(props, type, changeTracker);
     }
 
     isMatch(first: TEntity, second: any) {
@@ -24,14 +25,15 @@ export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends I
             Defaults: this.defaults,
             KeyType: this.keyType,
             Readonly: this.isReadonly,
-            Map: this.map
+            Map: this.map,
+            ChangeTracker: this.changeTracker
         }
 
         return info;
     }
 
     merge(from: TEntity, to: TEntity) {
-        return this.api.changeTrackingAdapter.merge(from, to);
+        return this.changeTracker.merge(from, to);
     }
 
     unlink(...entities: TEntity[]) {
@@ -47,7 +49,7 @@ export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends I
     }
 
     async markDirty(...entities: TEntity[]) {
-        return await this.api.changeTrackingAdapter.markDirty(...entities);
+        return await this.changeTracker.markDirty(...entities);
     }
 
     async link(...entities: TEntity[]) {
@@ -59,13 +61,11 @@ export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends I
             throw new Error(`Entities to be linked have errors.  Errors: \r\n${errors}`)
         }
 
-        const result = response.docs.map(w => this.api.changeTrackingAdapter.enableChangeTracking(w, this.defaults.add, this.isReadonly, this.map));
-        this.api.changeTrackingAdapter.attach(result);
-
-        return result;
+        const result = response.docs.map(w => this.changeTracker.enableChangeTracking(w, this.defaults.add, this.isReadonly, this.map));
+        return this.changeTracker.attach(result);
     }
 
     private _detachItems(data: TEntity[]) {
-        return this.api.changeTrackingAdapter.detach(data);
+        return this.changeTracker.detach(data);
     }
 }

@@ -1,4 +1,4 @@
-import { DbSetPickDefaultActionOptional, DeepPartial, EntitySelector } from "../../../types/common-types";
+import { DbSetPickDefaultActionOptional, DeepPartial, EntityComparator, EntitySelector } from "../../../types/common-types";
 import { IDbSet, IDbSetProps, IDbSetBase } from "../../../types/dbset-types";
 import { IDbRecord, OmittedEntity } from "../../../types/entity-types";
 import { DbSetExtender, IChainIdBuilder, IDbSetBuilderParams, IdBuilder, IIdBuilderBase, ITerminateIdBuilder, PropertyMap } from '../../../types/dbset-builder-types';
@@ -128,6 +128,11 @@ export class DefaultDbSetBuilder<
     filter(selector: EntitySelector<TDocumentType, TEntity>) {
         this._params.filterSelector = selector;
         return new DefaultDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>(this._onCreate, this._params, this.InstanceCreator);
+    }
+
+    hasChanged(comparison: EntityComparator<TDocumentType, TEntity>) {
+        this._params.entityComparator = comparison;
+        return new DefaultDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>(this._onCreate, this._params, this.InstanceCreator); 
     }
 
     /**

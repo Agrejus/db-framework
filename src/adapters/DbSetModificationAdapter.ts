@@ -1,14 +1,15 @@
 import { IDbSetModificationAdapter } from '../types/adapter-types';
+import { IDbSetChangeTracker } from '../types/change-tracking-types';
 import { DbSetType, IDbSetProps } from '../types/dbset-types';
 import { IDbRecord, OmittedEntity, IIndexableEntity } from '../types/entity-types';
 import { DbSetBaseAdapter } from './DbSetBaseAdapter';
 
 export class DbSetModificationAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> extends DbSetBaseAdapter<TDocumentType, TEntity, TExclusions> implements IDbSetModificationAdapter<TDocumentType, TEntity, TExclusions> {
 
-    private _tag: unknown | null = null; 
+    private _tag: unknown | null = null;
 
-    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType) {
-        super(props, type);
+    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType, changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>) {
+        super(props, type, changeTracker);
     }
 
     protected processAddition(entity: OmittedEntity<TEntity, TExclusions>) {
@@ -16,7 +17,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
         (addItem as any).DocumentType = this.documentType;
         const id = this.getKeyFromEntity(entity as any);
 
-        
+
 
         if (id != undefined) {
             (addItem as any)[this.api.dbPlugin.idPropertName] = id;
@@ -28,7 +29,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
     protected processAdditionAndMakeTrackable(entity: OmittedEntity<TEntity, TExclusions>) {
         const addItem = this.processAddition(entity);
 
-        return this.api.changeTrackingAdapter.enableChangeTracking(addItem as TEntity, this.defaults.add, this.isReadonly, this.map);
+        return this.changeTracker.enableChangeTracking(addItem as TEntity, this.defaults.add, this.isReadonly, this.map);
     }
 
     tag(value: unknown) {
@@ -40,7 +41,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
     }
 
     private async _add(...entities: OmittedEntity<TEntity, TExclusions>[]) {
-        const data = this.api.changeTrackingAdapter.getTrackedData();
+        const data = this.changeTracker.getTrackedData();
         const { add } = data;
 
         const result = entities.map(entity => {
@@ -49,9 +50,9 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
                 throw new Error('Cannot add entity that is already in the database, please modify entites by reference or attach an existing entity')
             }
 
-            const mappedEntity = this.api.changeTrackingAdapter.mapAndSetDefaults(entity, this.map, this.defaults.add);
+            const mappedEntity = this.changeTracker.mapAndSetDefaults(entity, this.map, this.defaults.add);
             const trackableEntity = this.processAdditionAndMakeTrackable(mappedEntity);
-            
+
             this._tryAddMetaData(trackableEntity[this.api.dbPlugin.idPropertName]);
 
             add.push(trackableEntity);
@@ -82,7 +83,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
     }
 
     async upsert(...entities: (OmittedEntity<TEntity, TExclusions> | Omit<TEntity, "DocumentType">)[]) {
- 
+
         const all = await this.getAllData();
         const allDictionary: { [key: string]: TEntity } = all.reduce((a, v) => {
 
@@ -97,23 +98,23 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
             const found = allDictionary[id]
 
             if (found) {
-                const mergedAndTrackable = this.api.changeTrackingAdapter.enableChangeTracking(found, this.defaults.add, this.isReadonly, this.map);
+                const mergedAndTrackable = this.changeTracker.enableChangeTracking(found, this.defaults.add, this.isReadonly, this.map);
 
-                this.api.changeTrackingAdapter.attach([mergedAndTrackable]);
+                const [attached] = this.changeTracker.attach([mergedAndTrackable]);
 
                 try {
-                    this.api.changeTrackingAdapter.merge(entity, mergedAndTrackable);
-                } catch(e: any) {
+                    this.changeTracker.merge(entity, attached);
+                } catch (e: any) {
                     if ('message' in e && typeof e.message === "string" && e.message.includes("object is not extensible")) {
                         throw new Error(`Cannot change property on readonly entity.  Readonly DbSets can only be added to, not updated, consider removing readonly from the DbSet.  DocumentType: ${this.documentType}.  Original Error: ${e.message}`)
                     }
                     throw e;
                 }
 
-                const mergedId = mergedAndTrackable[this.api.dbPlugin.idPropertName];
+                const mergedId = attached[this.api.dbPlugin.idPropertName];
                 this._tryAddMetaData(mergedId);
 
-                result.push(mergedAndTrackable)
+                result.push(attached)
                 continue;
             }
 
@@ -130,7 +131,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
     async remove(...ids: string[]): Promise<void>;
     async remove(...entities: TEntity[]): Promise<void>;
     async remove(...entities: any[]) {
-        
+
         await this.onRemove();
 
         if (entities.some(w => typeof w === "string")) {
@@ -155,7 +156,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
     }
 
     private async _remove(entity: TEntity) {
-        const data = this.api.changeTrackingAdapter.getTrackedData();
+        const data = this.changeTracker.getTrackedData();
         const { remove } = data;
 
         const ids = remove.map(w => w[this.api.dbPlugin.idPropertName]);
@@ -170,7 +171,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
     }
 
     protected async _removeById(id: string) {
-        const data = this.api.changeTrackingAdapter.getTrackedData();
+        const data = this.changeTracker.getTrackedData();
         const { removeById } = data;
 
         if (removeById.includes(id)) {

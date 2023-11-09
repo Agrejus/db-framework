@@ -16,6 +16,10 @@ export class AdvancedDictionary<TDocumentType extends string, TEntity extends ID
         this._key = key as string
     }
 
+    includes(key: keyof TEntity): boolean {
+        return false;
+    }
+
     forEach(callback: (key: string, items: TEntity[]) => void) {
         for(const key in this._data) {
             callback(key, this._data[key])
