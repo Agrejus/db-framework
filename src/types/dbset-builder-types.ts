@@ -1,4 +1,4 @@
-import { DbSetPickDefaultActionRequired, EntitySelector } from './common-types';
+import { DbSetPickDefaultActionRequired, EntityComparator, EntitySelector } from './common-types';
 import { EntityIdKey, EntityIdKeys, IDbRecord } from './entity-types';
 import { DbSetOnChangeEvent, IDbSet, IDbSetProps, IStatefulDbSet, IStoreDbSetProps } from './dbset-types';
 import { DbSet } from '../context/dbset/DbSet';
@@ -21,6 +21,7 @@ export interface IDbSetBuilderParams<TDocumentType extends string, TEntity exten
     keyType: DbSetKeyType;
     map: PropertyMap<TDocumentType, TEntity, any>[];
     filterSelector: EntitySelector<TDocumentType, TEntity>;
+    entityComparator: EntityComparator<TDocumentType, TEntity> | null;
 }
 
 

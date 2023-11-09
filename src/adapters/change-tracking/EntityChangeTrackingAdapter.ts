@@ -1,15 +1,15 @@
 import { ReselectDictionary } from "../../common/ReselectDictionary";
+import { IDbSetChangeTracker } from "../../types/change-tracking-types";
 import { DeepPartial, DeepOmit } from "../../types/common-types";
-import { ITrackedData, ITrackedChanges, DbFrameworkEnvironment } from "../../types/context-types";
+import { ITrackedChanges, DbFrameworkEnvironment } from "../../types/context-types";
 import { PropertyMap } from "../../types/dbset-builder-types";
-import { DbSetMap } from "../../types/dbset-types";
 import { IDbRecord, IIndexableEntity } from "../../types/entity-types";
 import { ChangeTrackingAdapterBase } from "./ChangeTrackingAdapterBase";
 
 /**
  * Uses proxy objects to track changes at the entity level.  Useful for fine grained change tracking regardless of the context
  */
-export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> extends ChangeTrackingAdapterBase<TDocumentType, TEntity, TExclusions> {
+export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> extends ChangeTrackingAdapterBase<TDocumentType, TEntity, TExclusions> implements IDbSetChangeTracker<TDocumentType, TEntity, TExclusions> {
 
     static readonly DIRTY_ENTITY_MARKER: string = "__isDirty";
     static readonly PRISTINE_ENTITY_KEY: string = "__pristine_entity__";
@@ -17,8 +17,8 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
     static readonly PROXY_MARKER: string = "__isProxy";
     protected override attachments;
 
-    constructor(idPropertyName: keyof TEntity, environment: DbFrameworkEnvironment) {
-        super(idPropertyName, environment);
+    constructor(idPropertyName: keyof TEntity, propertyMaps: PropertyMap<TDocumentType, TEntity, TExclusions>[], environment: DbFrameworkEnvironment) {
+        super(idPropertyName, propertyMaps, environment);
         this.attachments = new ReselectDictionary<TDocumentType, TEntity>(idPropertyName)
     }
 
@@ -47,10 +47,11 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
         }
     }
 
-    getPendingChanges(changes: ITrackedData<TDocumentType, TEntity>, dbsets: DbSetMap): ITrackedChanges<TDocumentType, TEntity> {
+    getPendingChanges(): ITrackedChanges<TDocumentType, TEntity> {
+        const changes = this.getTrackedData();
         const { add, remove, removeById, attach } = changes;
 
-        const updated = attach.filter(w => this.isDirty(w) === true).map(w => this.mapInstance(w, dbsets[w.DocumentType].info().Map));
+        const updated = attach.filter(w => this.isDirty(w) === true).map(w => this.mapInstance(w, this.propertyMaps));
 
         return {
             add,
@@ -99,9 +100,8 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
         }
 
         const instance = this.mapAndSetDefaults(entity, maps, defaults);
-        const result = readonly ? Object.freeze(instance) : instance;
 
-        return new Proxy(result, proxyHandler as any) as TEntity
+        return new Proxy(instance, proxyHandler as any) as TEntity
     }
 
     merge(from: TEntity, to: TEntity) {

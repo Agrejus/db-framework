@@ -30,7 +30,8 @@ export class DbSetInitializer<TDocumentType extends string, TEntityBase extends 
             idKeys: [],
             keyType: "auto",
             map: [],
-            filterSelector: null
+            filterSelector: null,
+            entityComparator: null
         }, DbSet);
     }
 
@@ -46,7 +47,8 @@ export class DbSetInitializer<TDocumentType extends string, TEntityBase extends 
             keyType: "auto",
             map: [],
             filterSelector: null,
-            onChange: () => void(0)
+            onChange: () => void(0),
+            entityComparator: null
         }, StatefulDbSet);
     }
 }

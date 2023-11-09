@@ -2,7 +2,6 @@ import { IAttachmentDictionary } from "../../types/change-tracking-types";
 import { DeepPartial } from "../../types/common-types";
 import { DbFrameworkEnvironment, ITrackedChanges, ITrackedData } from "../../types/context-types";
 import { PropertyMap } from "../../types/dbset-builder-types";
-import { DbSetMap } from "../../types/dbset-types";
 import { IDbRecord, IIndexableEntity, OmittedEntity } from "../../types/entity-types";
 
 export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> {
@@ -14,7 +13,7 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
     protected abstract attachments: IAttachmentDictionary<TDocumentType, TEntity>;
 
     abstract enableChangeTracking(entity: TEntity, defaults: DeepPartial<OmittedEntity<TEntity, TExclusions>>, readonly: boolean, maps: PropertyMap<TDocumentType, TEntity, any>[]): TEntity;
-    abstract getPendingChanges(changes: ITrackedData<TDocumentType, TEntity>, dbsets: DbSetMap): ITrackedChanges<TDocumentType, TEntity>;
+    abstract getPendingChanges(): ITrackedChanges<TDocumentType, TEntity>;
     abstract makePristine(...entities: TEntity[]): void;
     abstract merge(from: TEntity, to: TEntity): TEntity;
     abstract markDirty(...entities: TEntity[]): Promise<TEntity[]>;
@@ -23,10 +22,12 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
 
     protected readonly idPropertyName: keyof TEntity;
     protected readonly environment?: DbFrameworkEnvironment;
+    protected readonly propertyMaps: PropertyMap<TDocumentType, TEntity, TExclusions>[];
 
-    constructor(idPropertyName: keyof TEntity, environment?: DbFrameworkEnvironment) {
+    constructor(idPropertyName: keyof TEntity, propertyMaps: PropertyMap<TDocumentType, TEntity, TExclusions>[], environment?: DbFrameworkEnvironment) {
         this.idPropertyName = idPropertyName;
         this.environment = environment;
+        this.propertyMaps = propertyMaps;
     }
 
     reinitialize(removals: TEntity[] = [], add: TEntity[] = [], updates: TEntity[] = []) {
@@ -51,7 +52,7 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
         for (const item of data) {
             const id = item[this.idPropertyName] as keyof TEntity;
 
-            const [found] = this.attachments.get(item)
+            const found = this.attachments.get(id)
 
             if (found != null) {
                 if (this.attachments.includes(id) === true && this.isDirty(found) === true) {

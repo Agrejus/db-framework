@@ -4,6 +4,10 @@ import { DbSetPickDefaultActionRequired, DocumentKeySelector, EntitySelector } f
 import { IPrivateContext } from '../types/context-types';
 import { DbSetType, EntityAndTag, IDbSetApi, IDbSetProps, SaveChangesEventData } from '../types/dbset-types';
 import { DbSetKeyType, PropertyMap } from '../types/dbset-builder-types';
+import { IDbSetChangeTracker } from '../types/change-tracking-types';
+import { CustomChangeTrackingAdapter } from './change-tracking/CustomChangeTrackingAdapter';
+import { EntityChangeTrackingAdapter } from './change-tracking/EntityChangeTrackingAdapter';
+import { ReadonlyChangeTrackingAdapter } from './change-tracking/ReadonlyChangeTrackingAdapter';
 
 export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> {
 
@@ -17,6 +21,7 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
     protected map: PropertyMap<TDocumentType, TEntity, any>[];
     protected filterSelector: EntitySelector<TDocumentType, TEntity> | null;
     protected type: DbSetType;
+    protected changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>;
 
     constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType) {
         this.documentType = props.documentType;
@@ -31,6 +36,17 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
 
         this.api = this.context._getApi();
 
+        const idPropertyName = this.api.dbPlugin.idPropertName;
+        const environment = this.api.contextOptions.environment;
+
+        if (props.readonly === true) {
+            this.changeTracker = new ReadonlyChangeTrackingAdapter(idPropertyName, this.map, environment);
+        } else if (props.entityComparator != null) {
+            this.changeTracker = new CustomChangeTrackingAdapter(idPropertyName, this.map, environment, props.entityComparator);
+        } else {
+            this.changeTracker = new EntityChangeTrackingAdapter(idPropertyName, this.map, environment);
+        }
+
         this.api.registerOnAfterSaveChanges(props.documentType, this.onAfterSaveChanges.bind(this));
         this.api.registerOnBeforeSaveChanges(props.documentType, this.onBeforeSaveChanges.bind(this));
     }
@@ -39,7 +55,7 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
         const data = await this.getAllData();
 
         // process the mappings when we make the item trackable.  We are essentially prepping the entity
-        const result = data.map(w => this.api.changeTrackingAdapter.enableChangeTracking(w, this.defaults.retrieve, this.isReadonly, this.map));
+        const result = data.map(w => this.changeTracker.enableChangeTracking(w, this.defaults.retrieve, this.isReadonly, this.map));
 
         return this.filterResult(result);
     }
@@ -62,7 +78,7 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
 
         await this.onAfterDataFetched(result);
 
-        const attached = this.api.changeTrackingAdapter.attach(result);
+        const attached = this.changeTracker.attach(result);
 
         return this.filterResult(attached);
     }

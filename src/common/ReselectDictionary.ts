@@ -14,6 +14,19 @@ export class ReselectDictionary<TDocumentType extends string, TEntity extends ID
         this._key = key;
     }
 
+    all() {
+        return Object.values(this._data);
+    }
+
+    concat(dictionary: IAttachmentDictionary<TDocumentType, TEntity>): IAttachmentDictionary<TDocumentType, TEntity> {
+        const result = new ReselectDictionary<TDocumentType, TEntity>(this._key);
+
+        result.push(...this.all());
+        result.push(...dictionary.all());
+
+        return result;
+    }
+
     forEach(callback: (key: string, items: TEntity) => void) {
         for(const key in this._data) {
             callback(key, this._data[key])
@@ -33,20 +46,8 @@ export class ReselectDictionary<TDocumentType extends string, TEntity extends ID
         }
     }
 
-    get(...entities: TEntity[]) {
-        const result: TEntity[] = [];
-
-        for (let i = 0; i < entities.length; i++) {
-            const entity = entities[i];
-            const key: keyof TEntity = entity[this._key] as any;
-            const item = this._data[key];
-
-            if (item != null) {
-                result.push(item);
-            }
-        }
-
-        return result;
+    get(id: keyof TEntity) {
+        return this._data[id];
     }
 
     remove(...entities: TEntity[]) {

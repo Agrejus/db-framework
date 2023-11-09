@@ -16,7 +16,7 @@ const onChangeHandlers: OnChangeHandlerDictionary = {};
 
 export class StatefulDataContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase, TPluginOptions extends IDbPluginOptions = IDbPluginOptions, TDbPlugin extends IDbPlugin<TDocumentType, TEntityBase, TExclusions> = IDbPlugin<TDocumentType, TEntityBase, TExclusions>> extends DataContext<TDocumentType, TEntityBase, TExclusions, TPluginOptions, TDbPlugin> {
 
-    constructor(options: TPluginOptions, Plugin: DbPluginInstanceCreator<TDocumentType, TEntityBase, TExclusions, TDbPlugin>, contextOptions: ContextOptions = { changeTrackingType: "entity", environment: "development" }) {
+    constructor(options: TPluginOptions, Plugin: DbPluginInstanceCreator<TDocumentType, TEntityBase, TExclusions, TDbPlugin>, contextOptions: ContextOptions = { environment: "development" }) {
         super(options, Plugin, contextOptions)
     }
 
@@ -24,7 +24,7 @@ export class StatefulDataContext<TDocumentType extends string, TEntityBase exten
         for (const dbset of this) {
             if (dbset.types.dbsetType === "stateful") {
 
-                if (callback(dbset as IStatefulDbSet<TDocumentType, TEntityBase>) === false) {
+                if (callback(dbset as any) === false) {
                     return;
                 }
                 continue;
@@ -79,7 +79,7 @@ export class StatefulDataContext<TDocumentType extends string, TEntityBase exten
         const dbsets: IStatefulDbSet<TDocumentType, any>[] = [];
         for (const dbset of this) {
             if (dbset.types.dbsetType === "stateful") {
-                dbsets.push(dbset as IStatefulDbSet<TDocumentType, any>);
+                dbsets.push(dbset as any);
                 continue;
             }
         }

@@ -9,4 +9,3 @@ export { IDbSet, IDbSetBase, EntityAndTag, IStatefulDbSet as IStoreDbSet, IStore
 export { IdKeys, DeepPartial, DeepOmit, DeepKeyOf, DeepReadOnly } from './types/common-types';
 export { DbPluginInstanceCreator, IBulkOperation, IBulkOperationsResponse, IDbPlugin, IDbPluginOptions, IQueryParams } from './types/plugin-types';
 export { contextBuilder } from './context/builder/context-builder';
-export { compareObjects } from './common/helpers';

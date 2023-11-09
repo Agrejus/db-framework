@@ -28,7 +28,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
     protected processAdditionAndMakeTrackable(entity: OmittedEntity<TEntity, TExclusions>) {
         const addItem = this.processAddition(entity);
 
-        return this.api.changeTrackingAdapter.enableChangeTracking(addItem as TEntity, this.defaults.add, this.isReadonly, this.map);
+        return this.changeTracker.enableChangeTracking(addItem as TEntity, this.defaults.add, this.isReadonly, this.map);
     }
 
     tag(value: unknown) {
@@ -40,7 +40,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
     }
 
     private async _add(...entities: OmittedEntity<TEntity, TExclusions>[]) {
-        const data = this.api.changeTrackingAdapter.getTrackedData();
+        const data = this.changeTracker.getTrackedData();
         const { add } = data;
 
         const result = entities.map(entity => {
@@ -49,7 +49,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
                 throw new Error('Cannot add entity that is already in the database, please modify entites by reference or attach an existing entity')
             }
 
-            const mappedEntity = this.api.changeTrackingAdapter.mapAndSetDefaults(entity, this.map, this.defaults.add);
+            const mappedEntity = this.changeTracker.mapAndSetDefaults(entity, this.map, this.defaults.add);
             const trackableEntity = this.processAdditionAndMakeTrackable(mappedEntity);
 
             this._tryAddMetaData(trackableEntity[this.api.dbPlugin.idPropertName]);
@@ -97,12 +97,12 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
             const found = allDictionary[id]
 
             if (found) {
-                const mergedAndTrackable = this.api.changeTrackingAdapter.enableChangeTracking(found, this.defaults.add, this.isReadonly, this.map);
+                const mergedAndTrackable = this.changeTracker.enableChangeTracking(found, this.defaults.add, this.isReadonly, this.map);
 
-                const [attached] = this.api.changeTrackingAdapter.attach([mergedAndTrackable]);
+                const [attached] = this.changeTracker.attach([mergedAndTrackable]);
 
                 try {
-                    this.api.changeTrackingAdapter.merge(entity, attached);
+                    this.changeTracker.merge(entity, attached);
                 } catch (e: any) {
                     if ('message' in e && typeof e.message === "string" && e.message.includes("object is not extensible")) {
                         throw new Error(`Cannot change property on readonly entity.  Readonly DbSets can only be added to, not updated, consider removing readonly from the DbSet.  DocumentType: ${this.documentType}.  Original Error: ${e.message}`)
@@ -155,7 +155,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
     }
 
     private async _remove(entity: TEntity) {
-        const data = this.api.changeTrackingAdapter.getTrackedData();
+        const data = this.changeTracker.getTrackedData();
         const { remove } = data;
 
         const ids = remove.map(w => w[this.api.dbPlugin.idPropertName]);
@@ -170,7 +170,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
     }
 
     protected async _removeById(id: string) {
-        const data = this.api.changeTrackingAdapter.getTrackedData();
+        const data = this.changeTracker.getTrackedData();
         const { removeById } = data;
 
         if (removeById.includes(id)) {

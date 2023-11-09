@@ -65,6 +65,5 @@ export interface IPrivateContext<TDocumentType extends string, TEntityBase exten
 export type DbFrameworkEnvironment = "development" | "production"
 
 export type ContextOptions = {
-    changeTrackingType: "context" | "entity",
     environment?: DbFrameworkEnvironment
 }
