@@ -1,5 +1,4 @@
 import { ReselectDictionary } from "../../common/ReselectDictionary";
-import { ValueReselectDictionary } from "../../common/ValueReselectDictionary";
 import { IAttachmentDictionary, IDbSetChangeTracker } from "../../types/change-tracking-types";
 import { DeepPartial, DeepOmit, EntityComparator } from "../../types/common-types";
 import { ITrackedChanges, DbFrameworkEnvironment } from "../../types/context-types";
@@ -20,7 +19,7 @@ export class CustomChangeTrackingAdapter<TDocumentType extends string, TEntity e
     constructor(idPropertyName: keyof TEntity, propertyMaps: PropertyMap<TDocumentType, TEntity, TExclusions>[], environment: DbFrameworkEnvironment, comparator: EntityComparator<TDocumentType, TEntity>) {
         super(idPropertyName, propertyMaps, environment);
         this.attachments = new ReselectDictionary<TDocumentType, TEntity>(idPropertyName);
-        this._originals = new ValueReselectDictionary<TDocumentType, TEntity>(idPropertyName);
+        this._originals = new ReselectDictionary<TDocumentType, TEntity>(idPropertyName);
         this._comparator = comparator;
     }
 
@@ -46,17 +45,23 @@ export class CustomChangeTrackingAdapter<TDocumentType extends string, TEntity e
         // no op
     }
 
+    private _pushOriginals(...data: TEntity[]) {
+        const clonedItems = JSON.parse(JSON.stringify(data)) as TEntity[];
+        const clonedAndMappedItems =  clonedItems.map(w => this.mapInstance(w, this.propertyMaps));
+        this._originals.push(...clonedAndMappedItems)  
+    }
+
     override reinitialize(removals: TEntity[] = [], add: TEntity[] = [], updates: TEntity[] = []): void {
         super.reinitialize(removals, add, updates);
 
         this._dirtyMarkers = {} as any;
 
-        this._originals = new ValueReselectDictionary<TDocumentType, TEntity>(this.idPropertyName);
-        this._originals.push(...this.attachments.all())       
+        this._originals = new ReselectDictionary<TDocumentType, TEntity>(this.idPropertyName);
+        this._pushOriginals(...this.attachments.all())       
     }
 
     override attach(data: TEntity[]) {
-        this._originals.push(...data)
+        this._pushOriginals(...data)
         return super.attach(data);
     }
 
