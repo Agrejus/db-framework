@@ -14,6 +14,7 @@ export interface IDbSetGeneralAdapter<TDocumentType extends string, TEntity exte
     match(...entities: IDbRecordBase[]): TEntity[];
     info(): IDbSetInfo<TDocumentType, TEntity, TExclusions>;
     merge(from: TEntity, to: TEntity): TEntity;
+    unlink(...ids: (keyof TEntity)[]): void;
     unlink(...entities: TEntity[]): void;
     link(...entites: TEntity[]): Promise<TEntity[]>;
     markDirty(...entities: TEntity[]): Promise<TEntity[]>;

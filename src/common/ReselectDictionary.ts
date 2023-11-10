@@ -50,12 +50,20 @@ export class ReselectDictionary<TDocumentType extends string, TEntity extends ID
         return this._data[id];
     }
 
-    remove(...entities: TEntity[]) {
-        for (let i = 0; i < entities.length; i++) {
-            const entity = entities[i];
-            const key: keyof TEntity = entity[this._key] as any;
-            delete this._data[key];
+    has(id: keyof TEntity) {
+        return this._data[id] != null;
+    }
+
+    removeById(...items: (keyof TEntity)[]): void {
+        for (let i = 0; i < items.length; i++) {
+            const id = items[i];
+            delete this._data[id];
         }
+    }
+
+    remove(...entities: TEntity[]) {
+        const ids = entities.map(w => w[this._key] as keyof TEntity)
+        this.removeById(...ids)
     }
 
     filter(predicate: (value: TEntity, index: number, array: TEntity[]) => boolean): TEntity[] {

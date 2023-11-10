@@ -35,8 +35,12 @@ export class ReadonlyChangeTrackingAdapter<TDocumentType extends string, TEntity
     }
 
     getPendingChanges(): ITrackedChanges<TDocumentType, TEntity> {
+
+        const changes = this.getTrackedData();
+        const { add } = changes;
+
         return {
-            add: [],
+            add,
             remove: [],
             removeById: [],
             updated: []

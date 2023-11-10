@@ -47,7 +47,7 @@ describe('data context', () => {
     class ExternalDataContext extends DataContext<DocumentTypes, IDbRecord<DocumentTypes>> {
 
         constructor(name: string, contextOptions: ContextOptions = { changeTrackingType: "entity" }) {
-            super({ dbName: name }, PouchDbPlugin, contextOptions);
+            super({ dbName: name.endsWith("-db") ? name : `${name}-db` }, PouchDbPlugin, contextOptions);
         }
 
         async empty() {
@@ -66,7 +66,7 @@ describe('data context', () => {
     class CreateDbOverrideContext extends ExternalDataContext {
 
         constructor(name: string) {
-            super(name);
+            super(name.endsWith("-db") ? name : `${name}-db`);
         }
     }
 

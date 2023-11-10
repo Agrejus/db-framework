@@ -14,7 +14,9 @@ export interface IAttachmentDictionary<TDocumentType extends string, TEntity ext
     push(...items: TEntity[]): void;
     includes(key: keyof TEntity): boolean;
     get(id: keyof TEntity): TEntity | undefined;
+    has(id: keyof TEntity): boolean;
     remove(...items: TEntity[]): void;
+    removeById(...items: (keyof TEntity)[]): void;
     filter(predicate: (value: TEntity, index: number, array: TEntity[]) => boolean): TEntity[];
     concat(dictionary: IAttachmentDictionary<TDocumentType, TEntity>): IAttachmentDictionary<TDocumentType, TEntity>;
 }
@@ -39,9 +41,10 @@ export interface IDbSetChangeTracker<TDocumentType extends string, TEntity exten
     merge(from: TEntity, to: TEntity): TEntity;
     markDirty(...entities: TEntity[]): Promise<TEntity[]>;
     isDirty(entity: TEntity): boolean;
-    detach(data: TEntity[]): void;
+    detach(ids: (keyof TEntity)[]): void;
     attach(data: TEntity[]): TEntity[];
     mapAndSetDefaults(entity: TEntity | OmittedEntity<TEntity, TExclusions>, maps: PropertyMap<any, any, any>[], defaults: DeepPartial<OmittedEntity<TEntity, TExclusions>>): TEntity | OmittedEntity<TEntity, TExclusions>;
+    isAttached(id: keyof TEntity): boolean;
 }
 
 export interface IChangeTrackerBase<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> {

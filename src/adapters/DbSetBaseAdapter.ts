@@ -2,12 +2,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { EntityIdKeys, IDbRecord, IIndexableEntity } from '../types/entity-types';
 import { DbSetPickDefaultActionRequired, DocumentKeySelector, EntitySelector } from '../types/common-types';
 import { IPrivateContext } from '../types/context-types';
-import { DbSetType, EntityAndTag, IDbSetApi, IDbSetProps, SaveChangesEventData } from '../types/dbset-types';
+import { DbSetType, IDbSetApi, IDbSetProps, SaveChangesEventData } from '../types/dbset-types';
 import { DbSetKeyType, PropertyMap } from '../types/dbset-builder-types';
 import { IDbSetChangeTracker } from '../types/change-tracking-types';
-import { CustomChangeTrackingAdapter } from './change-tracking/CustomChangeTrackingAdapter';
-import { EntityChangeTrackingAdapter } from './change-tracking/EntityChangeTrackingAdapter';
-import { ReadonlyChangeTrackingAdapter } from './change-tracking/ReadonlyChangeTrackingAdapter';
 
 export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> {
 

@@ -68,6 +68,11 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
                 const indexableEntity: IIndexableEntity = entity as any;
                 const key = String(property);
 
+                if (key === EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER) {
+                    indexableEntity[key] = value;
+                    return true;
+                }
+
                 if (property !== EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY && indexableEntity._id != null) {
                     const oldValue = indexableEntity[key];
 

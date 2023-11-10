@@ -29,7 +29,7 @@ export const ExternalDbDataContextWithDefaults = context;
 export class ExternalDataContext extends DataContext<DocumentTypes, IPouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, IPouchDbRecord<DocumentTypes>, IDbPluginOptions>> {
 
     constructor(name: string, contextOptions: ContextOptions = { environment: "development" }) {
-        super({ dbName: name }, PouchDbPlugin, contextOptions);
+        super({ dbName: name.endsWith("-db") ? name : `${name}-db` }, PouchDbPlugin, contextOptions);
     }
 
     private _setupSyncDbSet<T extends ISyncDocument<DocumentTypes>>(documentType: DocumentTypes) {
@@ -170,7 +170,7 @@ export class BooksWithOneDefaultContext extends DataContext<DocumentTypes, IPouc
 export class BooksWithTwoDefaultContext extends DataContext<DocumentTypes, IPouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, IPouchDbRecord<DocumentTypes>, IDbPluginOptions>> {
 
     constructor(name: string) {
-        super({ dbName: name }, PouchDbPlugin);
+        super({ dbName: name.endsWith("-db") ? name : `${name}-db` }, PouchDbPlugin);
     }
 
     booksWithTwoDefaults = this.dbset().default<IBook>(DocumentTypes.BooksWithTwoDefaults).exclude("status", "rejectedCount").create();

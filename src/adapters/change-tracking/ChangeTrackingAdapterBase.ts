@@ -30,6 +30,10 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
         this.propertyMaps = propertyMaps;
     }
 
+    isAttached(id: keyof TEntity) {
+        return this.attachments.has(id);
+    }
+
     reinitialize(removals: TEntity[] = [], add: TEntity[] = [], updates: TEntity[] = []) {
         this.additions = [];
         this.removals = [];
@@ -41,8 +45,8 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
         this.attachments.push(...add);
     }
 
-    detach(data: TEntity[]) {
-        this.attachments.remove(...data);
+    detach(ids: (keyof TEntity)[]) {
+        this.attachments.removeById(...ids);
     }
 
     attach(data: TEntity[]) {
