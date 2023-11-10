@@ -141,6 +141,13 @@ export interface IDbSet<
     unlink(...entities: TEntity[]): void;
 
     /**
+     * Unlinks an entity or entities from the context so they can be modified and changes will not be persisted to the underlying data store
+     * @param ids Entity ids
+     * @returns {void}
+     */
+    unlink(...ids: (keyof TEntity)[]): void
+
+    /**
      * Link an existing entitiy or entities to the underlying Data Context, saveChanges must be called to persist these items to the store
      * @param entites Entity or entities to link from the data context
      * @returns {Promise<TEntity[]>}

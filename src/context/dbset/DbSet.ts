@@ -8,7 +8,7 @@ import { IDbPlugin } from '../../types/plugin-types';
 /**
  * Data Collection for set of documents with the same type.  To be used inside of the DbContext
  */
-export class DbSet<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never>  {
+export class DbSet<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> {
 
     protected readonly _fetchAdapter: IDbSetFetchAdapter<TDocumentType, TEntity, TExclusions>;
     protected readonly _generalAdapter: IDbSetGeneralAdapter<TDocumentType, TEntity, TExclusions>;
@@ -97,8 +97,10 @@ export class DbSet<TDocumentType extends string, TEntity extends IDbRecord<TDocu
         return await this._fetchAdapter.find(selector);
     }
 
-    unlink(...entities: TEntity[]) {
-        this._generalAdapter.unlink(...entities);
+    unlink(...entities: TEntity[]): void
+    unlink(...ids: (keyof TEntity)[]): void
+    unlink(...items: any[]) {
+        this._generalAdapter.unlink(...items);
     }
 
     async markDirty(...entities: TEntity[]) {

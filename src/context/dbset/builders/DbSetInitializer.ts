@@ -31,7 +31,7 @@ export class DbSetInitializer<TDocumentType extends string, TEntityBase extends 
             keyType: "auto",
             map: [],
             filterSelector: null,
-            entityComparator: null
+            entityComparator: null,
         }, DbSet);
     }
 
