@@ -1,7 +1,8 @@
 import { DbSetPickDefaultActionOptional, DeepPartial, EntityComparator, EntitySelector } from "../../../types/common-types";
 import { IDbSet, IDbSetProps, IDbSetBase } from "../../../types/dbset-types";
 import { IDbRecord, OmittedEntity } from "../../../types/entity-types";
-import { DbSetExtender, IChainIdBuilder, IDbSetBuilderParams, IdBuilder, IIdBuilderBase, ITerminateIdBuilder, PropertyMap } from '../../../types/dbset-builder-types';
+import { DbSetExtender, IChainIdBuilder, IDbSetBuilderParams, IIdBuilderBase, ITerminateIdBuilder, PropertyMap } from '../../../types/dbset-builder-types';
+import { IdBuilder } from "../../builder/IdBuilder";
 
 export class DefaultDbSetBuilder<
     TDocumentType extends string,
@@ -42,8 +43,7 @@ export class DefaultDbSetBuilder<
 
         builder(idBuilder);
 
-        this._params.idKeys.push(...idBuilder.Ids);
-        this._params.keyType = idBuilder.KeyType;
+        this._params.idCreator = idBuilder.Creator;
 
         return new DefaultDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>(this._onCreate, this._params, this.InstanceCreator);
     }

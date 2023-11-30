@@ -38,7 +38,7 @@ export class CustomChangeTrackingAdapter<TDocumentType extends string, TEntity e
 
         const areEntitiesTheSame = this._comparator(entity, original);
 
-        return areEntitiesTheSame === false;
+        return areEntitiesTheSame === true;
     }
 
     makePristine(...entities: TEntity[]) {
@@ -47,8 +47,8 @@ export class CustomChangeTrackingAdapter<TDocumentType extends string, TEntity e
 
     private _pushOriginals(...data: TEntity[]) {
         const clonedItems = JSON.parse(JSON.stringify(data)) as TEntity[];
-        const clonedAndMappedItems =  clonedItems.map(w => this.mapInstance(w, this.propertyMaps));
-        this._originals.push(...clonedAndMappedItems)  
+        const clonedAndMappedItems = clonedItems.map(w => this.mapInstance(w, this.propertyMaps));
+        this._originals.push(...clonedAndMappedItems)
     }
 
     override reinitialize(removals: TEntity[] = [], add: TEntity[] = [], updates: TEntity[] = []): void {
@@ -57,7 +57,7 @@ export class CustomChangeTrackingAdapter<TDocumentType extends string, TEntity e
         this._dirtyMarkers = {} as any;
 
         this._originals = new ReselectDictionary<TDocumentType, TEntity>(this.idPropertyName);
-        this._pushOriginals(...this.attachments.all())       
+        this._pushOriginals(...this.attachments.all())
     }
 
     override attach(data: TEntity[]) {

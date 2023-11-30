@@ -30,7 +30,7 @@ export class DbSetStatefulModificationAdapter<TDocumentType extends string, TEnt
         this._store.putMany(...remotes);
         this._store.removeMany(...removedEntities);
 
-        this._remotes = []; // remove the remotes after save
+        this._remotes = []; // remove the added remotes after save
 
         this._fireOnChangeWithLocalData("change", { adds: addedEntities, removes: removedEntities, updates: updatedEntities, all: this._store.all(), remotes });
     }

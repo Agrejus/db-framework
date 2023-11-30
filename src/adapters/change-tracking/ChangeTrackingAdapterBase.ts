@@ -34,6 +34,10 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
         return this.attachments.has(id);
     }
 
+    isLinked(entity: TEntity) {
+        return this.attachments.get(entity[this.idPropertyName] as keyof TEntity) === entity;
+    }
+
     reinitialize(removals: TEntity[] = [], add: TEntity[] = [], updates: TEntity[] = []) {
         this.additions = [];
         this.removals = [];

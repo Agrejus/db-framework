@@ -12,6 +12,7 @@ describe('DbSet Add Tests', () => {
 
     it('should add entity and return reference', async () => {
         const context = contextFactory.createContext(ExternalDataContext);
+
         const [contact] = await context.contacts.add({
             firstName: "James",
             lastName: "DeMeuse",
@@ -27,6 +28,32 @@ describe('DbSet Add Tests', () => {
         expect(contact.lastName).toBe("DeMeuse");
         expect(contact.phone).toBe("111-111-1111");
         expect(contact.address).toBe("1234 Test St");
+    });
+
+    it('should not add entity and add to internal change tracking for updates until it is saved', async () => {
+        const context = contextFactory.createContext(ExternalDataContext);
+        const [contact] = await context.contacts.add({
+            firstName: "James",
+            lastName: "DeMeuse",
+            phone: "111-111-1111",
+            address: "1234 Test St"
+        });
+
+        expect(context.contacts.isLinked(contact)).toBe(false);
+    });
+
+    it('should add entity and add to internal change tracking for updates', async () => {
+        const context = contextFactory.createContext(ExternalDataContext);
+        const [contact] = await context.contacts.add({
+            firstName: "James",
+            lastName: "DeMeuse",
+            phone: "111-111-1111",
+            address: "1234 Test St"
+        });
+
+        await context.saveChanges();
+
+        expect(context.contacts.isLinked(contact)).toBe(true);
     });
 
     it('should only allow one single entity per dbset', async () => {

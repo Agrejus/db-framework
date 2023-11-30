@@ -170,11 +170,18 @@ export const run = async () => {
     try {
         const contextFactory = new DbContextFactory();
         const context = contextFactory.createContext(ExternalDataContext);
-
+        debugger;
         const [book] = await context.books.add({
             author: "James DeMeuse",
             publishDate: new Date()
         });
+
+        const [car] = await context.cars.add({
+            make: "test",
+            manufactureDate: new Date(),
+            model: "test",
+            year: 1
+        })
 
         await context.saveChanges();
 

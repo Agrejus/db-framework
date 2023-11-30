@@ -8,9 +8,4 @@ describe('DbSet Info Tests', () => {
         await contextFactory.cleanupAllDbs();
     })
 
-    it('supplying no keys should default to auto', async () => {
-        const context = contextFactory.createContext(ExternalDataContext);
-
-        expect(context.books.info().KeyType).toBe("auto")
-    });
 });

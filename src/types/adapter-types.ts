@@ -17,6 +17,8 @@ export interface IDbSetGeneralAdapter<TDocumentType extends string, TEntity exte
     unlink(...ids: (keyof TEntity)[]): void;
     unlink(...entities: TEntity[]): void;
     link(...entites: TEntity[]): Promise<TEntity[]>;
+    linkUnsafe(...entites: TEntity[]): TEntity[];
+    isLinked(entity: TEntity): boolean;
     markDirty(...entities: TEntity[]): Promise<TEntity[]>;
 }
 

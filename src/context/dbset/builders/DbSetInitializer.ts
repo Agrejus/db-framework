@@ -8,6 +8,7 @@ import { DbSet } from "../DbSet";
 import { StatefulDbSet } from "../StatefulDbSet";
 import { DefaultDbSetBuilder } from "./DefaultDbSetBuilder";
 import { StatefulDbSetBuilder } from "./StatefulDbSetBuilder";
+import { IdBuilder } from '../../builder/IdBuilder';
 
 export class DbSetInitializer<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase, TPluginOptions extends IDbPluginOptions> {
 
@@ -27,11 +28,10 @@ export class DbSetInitializer<TDocumentType extends string, TEntityBase extends 
             defaults: { add: {} as any, retrieve: {} as any },
             exclusions: [],
             extend: [],
-            idKeys: [],
-            keyType: "auto",
             map: [],
             filterSelector: null,
             entityComparator: null,
+            idCreator: IdBuilder.createUUID
         }, DbSet);
     }
 
@@ -43,12 +43,11 @@ export class DbSetInitializer<TDocumentType extends string, TEntityBase extends 
             defaults: { add: {} as any, retrieve: {} as any },
             exclusions: [],
             extend: [],
-            idKeys: [],
-            keyType: "auto",
             map: [],
             filterSelector: null,
-            onChange: () => void(0),
-            entityComparator: null
+            onChange: () => void (0),
+            entityComparator: null,
+            idCreator: IdBuilder.createUUID
         }, StatefulDbSet);
     }
 }

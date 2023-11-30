@@ -1,8 +1,7 @@
-import { ChangeTrackingAdapterBase } from "../adapters/change-tracking/ChangeTrackingAdapterBase";
 import { IDbSetChangeTracker } from "./change-tracking-types";
 import { DbSetPickDefaultActionRequired, EntityComparator, EntitySelector } from "./common-types";
 import { ContextOptions, IDataContext } from "./context-types";
-import { DbSetKeyType, PropertyMap } from "./dbset-builder-types";
+import { CustomIdCreator, PropertyMap } from "./dbset-builder-types";
 import { IDbRecord, OmittedEntity, IDbRecordBase, EntityIdKeys } from "./entity-types";
 import { IDbPlugin } from "./plugin-types";
 
@@ -155,6 +154,20 @@ export interface IDbSet<
     link(...entites: TEntity[]): Promise<TEntity[]>;
 
     /**
+     * Link an existing entitiy or entities to the underlying Data Context in an unsafe manner.  Does not check existing entities, will dangerously attach the exact entity
+     * @param entites Entity or entities to link from the data context
+     * @returns {TEntity[]}
+     */
+    linkUnsafe(...entites: TEntity[]): TEntity[];
+
+    /**
+     * Checks to see if an entity is linked to a dbset.  If the entity is linked, any updates are automatically tracked and saved.  If it is not
+     * linked, any changes to an entity will not be saved.
+     * @param entity 
+     */
+    isLinked(entity: TEntity): boolean;
+
+    /**
      * Matches items with the same document type.  Useful for retrieving all docs and calling match() to find the ones that belong in the db set
      * @param entities Entity or entities to match on document type.
      * @returns {TEntity[]}
@@ -192,9 +205,7 @@ export interface IDbSetApi<TDocumentType extends string, TEntityBase extends IDb
 
 export interface IDbSetInfo<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> {
     DocumentType: TDocumentType,
-    IdKeys: EntityIdKeys<TDocumentType, TEntity>,
     Defaults: DbSetPickDefaultActionRequired<TDocumentType, TEntity, TExclusions>,
-    KeyType: DbSetKeyType;
     Map: PropertyMap<TDocumentType, TEntity, any>[];
     Readonly: boolean;
     ChangeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>
@@ -214,9 +225,8 @@ export interface IDbSetProps<TDocumentType extends string, TEntity extends IDbRe
     documentType: TDocumentType,
     context: IDataContext<TDocumentType, TEntity>,
     defaults: DbSetPickDefaultActionRequired<TDocumentType, TEntity, TExclusions>,
-    idKeys: EntityIdKeys<TDocumentType, TEntity>;
     readonly: boolean;
-    keyType: DbSetKeyType;
+    idCreator: CustomIdCreator<TDocumentType, TEntity>;
     map: PropertyMap<TDocumentType, TEntity, TExclusions>[];
     filterSelector: EntitySelector<TDocumentType, TEntity> | null;
     entityComparator: EntityComparator<TDocumentType, TEntity> | null;

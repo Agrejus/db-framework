@@ -671,54 +671,6 @@ describe('data context', () => {
         expect((context.dbsetTest as any)._params.exclusions).toEqual(["contents", "createdDate"]);
     });
 
-    it('should build key using one property using fluent dbset builder', async () => {
-
-        class FluentContext extends ExternalDataContext {
-
-            constructor(name: string) {
-                super(name);
-            }
-
-            dbsetTest = this.dbset().default<INote>(DocumentTypes.Notes).keys(w => w.add("contents"));
-        }
-
-        const context = dbFactory(FluentContext) as FluentContext
-
-        expect((context.dbsetTest as any)._params.idKeys).toEqual(["contents"]);
-    });
-
-    it('should build key using many properties using fluent dbset builder', async () => {
-
-        class FluentContext extends ExternalDataContext {
-
-            constructor(name: string) {
-                super(name);
-            }
-
-            dbsetTest = this.dbset().default<INote>(DocumentTypes.Notes).keys(w => w.add("contents").add("userId"));
-        }
-
-        const context = dbFactory(FluentContext) as FluentContext
-
-        expect((context.dbsetTest as any)._params.idKeys).toEqual(["contents", "userId"]);
-    });
-
-    it('should allow keys to be called more than once and build key using many properties using fluent dbset builder', async () => {
-
-        class FluentContext extends ExternalDataContext {
-
-            constructor(name: string) {
-                super(name);
-            }
-
-            dbsetTest = this.dbset().default<INote>(DocumentTypes.Notes).keys(w => w.add("contents")).keys(w => w.add("userId"));
-        }
-
-        const context = dbFactory(FluentContext) as FluentContext
-
-        expect((context.dbsetTest as any)._params.idKeys).toEqual(["contents", "userId"]);
-    });
-
     it('should save correctly with context tracking', async () => {
 
         class FluentContext extends ExternalDataContext {

@@ -14,6 +14,10 @@ export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends I
         return this.getKeyFromEntity(first) === this.getKeyFromEntity(second);
     }
 
+    isLinked(entity: TEntity) {
+        return this.changeTracker.isLinked(entity);
+    }
+
     match(...items: IDbRecordBase[]) {
         return items.filter(w => w.DocumentType === this.documentType) as TEntity[]
     }
@@ -21,12 +25,10 @@ export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends I
     info() {
         const info: IDbSetInfo<TDocumentType, TEntity, TExclusions> = {
             DocumentType: this.documentType,
-            IdKeys: this.idKeys,
             Defaults: this.defaults,
-            KeyType: this.keyType,
             Readonly: this.isReadonly,
             Map: this.map,
-            ChangeTracker: this.changeTracker
+            ChangeTracker: this.changeTracker,
         }
 
         return info;
@@ -63,6 +65,11 @@ export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends I
 
     async markDirty(...entities: TEntity[]) {
         return await this.changeTracker.markDirty(...entities);
+    }
+
+    linkUnsafe(...entites: TEntity[]) {
+        const result = entites.map(w => this.changeTracker.enableChangeTracking(w, this.defaults.add, this.isReadonly, this.map));
+        return this.changeTracker.attach(result);
     }
 
     async link(...entities: TEntity[]) {

@@ -45,6 +45,7 @@ export interface IDbSetChangeTracker<TDocumentType extends string, TEntity exten
     attach(data: TEntity[]): TEntity[];
     mapAndSetDefaults(entity: TEntity | OmittedEntity<TEntity, TExclusions>, maps: PropertyMap<any, any, any>[], defaults: DeepPartial<OmittedEntity<TEntity, TExclusions>>): TEntity | OmittedEntity<TEntity, TExclusions>;
     isAttached(id: keyof TEntity): boolean;
+    isLinked(entity: TEntity): boolean;
 }
 
 export interface IChangeTrackerBase<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> {
