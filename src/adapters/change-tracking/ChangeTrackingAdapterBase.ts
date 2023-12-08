@@ -2,13 +2,13 @@ import { IAttachmentDictionary } from "../../types/change-tracking-types";
 import { DeepPartial } from "../../types/common-types";
 import { DbFrameworkEnvironment, ITrackedChanges, ITrackedData } from "../../types/context-types";
 import { PropertyMap } from "../../types/dbset-builder-types";
-import { IDbRecord, IIndexableEntity, OmittedEntity } from "../../types/entity-types";
+import { IDbRecord, IIndexableEntity, IdRemoval, OmittedEntity } from "../../types/entity-types";
 
 export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> {
 
     protected removals: TEntity[] = [];
     protected additions: TEntity[] = [];
-    protected removeById: string[] = [];
+    protected removeById: IdRemoval<TDocumentType>[] = [];
 
     protected abstract attachments: IAttachmentDictionary<TDocumentType, TEntity>;
 

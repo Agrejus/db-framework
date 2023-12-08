@@ -1303,9 +1303,6 @@ export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<My
 }
 ```
 
-## Examples <a name = "examples"></a>
-
-
 ### React State Hook <a name = "react_state_hook"></a>
 
 ```typescript

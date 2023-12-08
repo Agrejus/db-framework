@@ -92,7 +92,7 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
             this._readonlyDocumentTypes[info.DocumentType] = true;
         }
 
-        this._changeTracker.registerChangeTracker(info.DocumentType as any, info.ChangeTracker)
+        this._changeTracker.registerChangeTracker(info.DocumentType as any, info.ChangeTracker as any)
 
         this.dbSets[info.DocumentType] = dbset;
     }
@@ -110,9 +110,20 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
 
     private async _getModifications() {
         const { add, remove, removeById, updated } = this._changeTracker.getPendingChanges();
+        const extraRemovalsMap = removeById.reduce((a, v) => {
 
-        const extraRemovals = await this.dbPlugin.getStrict(...removeById);
-        const formattedDeletions = this.dbPlugin.formatDeletions(...remove, ...extraRemovals)
+            if (a[v.DocumentType] == null) {
+                a[v.DocumentType] = [];
+            }
+
+            a[v.DocumentType].push(v.key)
+
+            return a;
+        }, {} as { [key in TDocumentType]: string[] })
+
+        const extraRemovalsByDocumentType = await Promise.all(Object.keys(extraRemovalsMap).map((w: TDocumentType) => this.dbPlugin.getStrict(w, ...extraRemovalsMap[w])));
+        const extraRemovals = extraRemovalsByDocumentType.reduce((a, v) => a.concat(v), []);
+        const formattedDeletions = this.dbPlugin.formatDeletions(...remove, ...extraRemovals);
 
         return {
             add,

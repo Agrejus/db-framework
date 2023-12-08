@@ -28,7 +28,7 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
     }
 
     async get(...ids: string[]) {
-        const entities = await this.api.dbPlugin.getStrict(...ids);
+        const entities = await this.api.dbPlugin.getStrict(this.documentType, ...ids);
         const result = entities.map(w => this.changeTracker.enableChangeTracking(w, this.defaults.retrieve, this.isReadonly, this.map));
         const filteredResult = this.filterResult(result)
         await this.onAfterDataFetched(filteredResult);

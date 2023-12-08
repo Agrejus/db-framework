@@ -1,7 +1,7 @@
 import { IAttachmentDictionary } from './change-tracking-types';
 import { IPreviewChanges } from './common-types';
 import { IDbSetApi, SaveChangesEventData } from './dbset-types';
-import { IDbRecord } from './entity-types';
+import { IDbRecord, IdRemoval } from './entity-types';
 
 export type OnChangeEvent<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> = (getChanges: () => SaveChangesEventData<TDocumentType, TEntityBase>) => Promise<void>
 
@@ -48,13 +48,13 @@ export interface ITrackedData<TDocumentType extends string, TEntityBase extends 
     add: TEntityBase[];
     remove: TEntityBase[];
     attach: IAttachmentDictionary<TDocumentType, TEntityBase>;
-    removeById: string[]
+    removeById: IdRemoval<TDocumentType>[]
 }
 
 export interface ITrackedChanges<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> {
     add: TEntityBase[];
     remove: TEntityBase[];
-    removeById: string[];
+    removeById: IdRemoval<TDocumentType>[];
     updated: TEntityBase[];
 }
 

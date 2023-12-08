@@ -25,8 +25,8 @@ export interface IDbPlugin<TDocumentType extends string, TEntityBase extends IDb
     readonly types: { exclusions: TExclusions }
     destroy(): Promise<void>;
     all(payload?: IQueryParams<TDocumentType>): Promise<TEntityBase[]>;
-    getStrict(...ids: string[]): Promise<TEntityBase[]>;
-    get(...ids: string[]): Promise<TEntityBase[]>;
+    getStrict(DocumentType: TDocumentType, ...ids: string[]): Promise<TEntityBase[]>;
+    get(DocumentType: TDocumentType, ...ids: string[]): Promise<TEntityBase[]>;
     bulkOperations(operations: { adds: TEntityBase[], removes: TEntityBase[], updates: TEntityBase[] }): Promise<IBulkOperationsResponse>;
 
     prepareDetachments(...entities: TEntityBase[]): { ok: boolean, errors: string[], docs: TEntityBase[] }

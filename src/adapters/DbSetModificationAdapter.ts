@@ -174,11 +174,12 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
         const data = this.changeTracker.getTrackedData();
         const { removeById } = data;
 
-        if (removeById.includes(id)) {
+        if (removeById.map(w => w.key).includes(id)) {
             throw new Error(`Cannot remove entity with same id more than once.  id: ${id}`)
         }
 
         this._tryAddMetaData(id as any);
-        removeById.push(id);
+
+        removeById.push({ key: id, DocumentType: this.documentType });
     }
 }
