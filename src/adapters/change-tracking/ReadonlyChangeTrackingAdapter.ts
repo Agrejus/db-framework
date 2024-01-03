@@ -1,5 +1,5 @@
 import { ReselectDictionary } from "../../common/ReselectDictionary";
-import { IDbSetChangeTracker } from "../../types/change-tracking-types";
+import { IDbSetChangeTracker, ProcessedChangesResult } from "../../types/change-tracking-types";
 import { ITrackedChanges, DbFrameworkEnvironment } from "../../types/context-types";
 import { PropertyMap } from "../../types/dbset-builder-types";
 import { IDbRecord } from "../../types/entity-types";
@@ -11,7 +11,7 @@ import { EntityChangeTrackingAdapter } from "./EntityChangeTrackingAdapter";
 export class ReadonlyChangeTrackingAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> extends EntityChangeTrackingAdapter<TDocumentType, TEntity, TExclusions> implements IDbSetChangeTracker<TDocumentType, TEntity, TExclusions> {
 
     protected override attachments;
- 
+
     constructor(idPropertyName: keyof TEntity, propertyMaps: PropertyMap<TDocumentType, TEntity, TExclusions>[], environment: DbFrameworkEnvironment) {
         super(idPropertyName, propertyMaps, environment);
         this.attachments = new ReselectDictionary<TDocumentType, TEntity>(idPropertyName)
@@ -21,8 +21,13 @@ export class ReadonlyChangeTrackingAdapter<TDocumentType extends string, TEntity
         return entities;
     }
 
-    override isDirty(entity: TEntity) {
-        return false;
+    override processChanges(_: TEntity): ProcessedChangesResult<TDocumentType, TEntity> {
+        return {
+            isDirty: false,
+            deltas: null,
+            doc: null,
+            original: null
+        }
     }
 
     override attach(data: TEntity[]) {
@@ -38,7 +43,7 @@ export class ReadonlyChangeTrackingAdapter<TDocumentType extends string, TEntity
             add,
             remove: [],
             removeById: [],
-            updated: []
+            updated: { deltas: {}, docs: {}, originals: [] }
         }
     }
 

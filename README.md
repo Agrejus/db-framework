@@ -43,6 +43,7 @@
     - [Memory Database Plugin](#database_plugins_memory)
     - [PouchDB Database Plugin](#database_plugins_pouchdb)
     - [Local Storage Database Plugin](#database_plugins_local_storage)
+    - [CapacitorJS Realm Database Plugin](#capacitorjs-realm-plugin)
     - [Custom Database Plugin](#database_plugins_custom)
 - [Data Context](#data_context)
     - [Methods](#data_context_methods)
@@ -60,17 +61,18 @@
         - [History Tracking](#data_context_middleware_history_tracking)
         - [Making Your Own Middleware](#data_context_making_your_own_middleware)
     - [Builder API](#data_context_builder_api)
-- [Stateful Data Context](#test)
-    - [Methods](#test)
-        - [Remove](#test)
-        - [Update](#test)
-- [Model Declaration](#test)
-- [Concepts](#test)
-    - [Redux Replacement](#test)
-    - [Logging](#test)
-    - [Entity Tagging](#test)
-    - [History Tracking](#test)
-- [DbSet](#test)
+- [Stateful Data Context](#stateful_data_context)
+    - [Methods](#stateful_data_context_methods)
+        - [addChangeEventListener()](#add_change_event_listener)
+        - [removeAllEventListeners()](#remove_all_event_listeners)
+        - [hydrate()](#stateful_data_context_hydrate)
+- [Model Declaration](#model_declaration)
+- [Concepts](#concepts)
+    - [State Management](#state_management)
+    - [Logging](#logging)
+    - [Entity Tagging](#entity_tagging)
+    - [History Tracking](#history_tracking)
+- [Default DbSet](#default_dbset)
     - [Builder API](#test)
         - [DbSet](#test)
     - [Methods](#test)
@@ -78,12 +80,11 @@
     - [Fields](#test)
         - [Types](#test)
     - [Customization](#test)
-- [Stateful DbSet](#test)
+- [Stateful DbSet](#stateful_dbset)
     - [Builder API](#test)
         - [DbSet](#test)
     - [Methods](#test)
         - [DbSet](#test)
-- [FAQ](#test)
 - [Change Log](./changelog.md)
 - [Authors](#authors)
 
@@ -311,6 +312,11 @@ Saves all underlying changes to local storage.  Must be called, otherwise no cha
 
 **Package:** [@agrejus/db-framework-plugin-local-storage](https://www.npmjs.com/package/@agrejus/db-framework-plugin-local-storage)
 
+### CapacitorJS Realm Plugin <a name = "capacitorjs-realm-plugin"></a>
+Saves all underlying changes to local storage.  Must be called, otherwise no changes will be saved.  Returns count of entities saved.
+
+**Package:** [@agrejus/db-framework-plugin-local-storage](https://www.npmjs.com/package/@agrejus/db-framework-plugin-local-storage)
+
 ### Custom Database Plugin <a name = "database_plugins_custom"></a>
 With DB Framework, developers can create their own custom plugins by implementing `IDbPlugin`.  Below is the interface with explanations on how to implement each method of the interface.
 
@@ -422,7 +428,7 @@ class CustomDbPlugin<TDocumentType extends string, TEntityBase extends MyDbRecor
 ## DataContext <a name = "data_context"></a>
 A data context is meant to be the orchestrator of all dbsets and manage their operations.  The data context is meant to be light weight, with all of the heavy lifting done in the db sets.  Memory (changes) is not shared across dbsets, meaning, if an entity is being tracked by one data context, other data context's do not know about it.  We can fix that by [linking](#dbset_link) and [unlinking](#dbset_unlink) entities from one context to another.  When an entity is unlinked from from a dbset, changes are not lost with [default change tracking](#default_change_tracking), but are lost with [custom change tracking](#custom_change_tracking).  One way to combat the loss of change tracking with context change tracking is to link the entity and [mark it dirty](#dbset_mark_dirty) afterwards.  
 
-## Methonds <a name = "data_context_methods"></a>
+## Methods <a name = "data_context_methods"></a>
 
 ### `.saveChanges` <a name = "data_context_save_changes"></a>
 Saves all underlying changes to the data store.  Must be called, otherwise no changes will be saved.  Returns count of entities saved.  After changes are saved, entites that were saved can be updated and saved again.
@@ -731,6 +737,8 @@ const MyDataContext = contextBuilder<DocumentTypes>()
 ## StatefulDataContext <a name = "stateful_data_context"></a>
 A stateful data context is meant to keep data store information in sync between memory and the underlying data base.  This can be done with [on before save changes](#data_context_on_before_save_changes) and [on after save changes](#data_context_on_after_save_changes) manually, or DB Framework can manage it for you.  Often times, apps will use a state management middleware, this middleware needs to be kept in sync with the database in some way.  The previously mention functions can be used with existing middleware or this data context can be used.  A [React hook](#react_state_hook) can even be created for ease of use.
 
+## Methods <a name = "stateful_data_context_methods"></a>
+
 ### `.addChangeEventListener` <a name = "add_change_event_listener"></a>
 Function to add change events that are fired when data is added, removed, updated.  Returns an unregister function, when called, unregisters the event handler. Change events do not need to be re-registered when a context is destroyed, these change events are registered globally.
 
@@ -783,9 +791,88 @@ const allData = context.state.all();
 
 
 
+## Model Declaration <a name = "model_declaration"></a>
+Models are declared via classes or interfaces.  Interfaces work the best because the data returned from the database is a POJO (Plain Old JavaScript Object).  A class is not a POJO, therefore we can only use the class for types.  Models must inherit from the base class from the Db Plugin.  Below is an example of a model using the PouchDB Plugin.  PouchDbRecord has 3 properties on it, `_id`, `_rev` and `DocumentType`.
+
+**Example:**
+```typescript
+export interface SomePouchDbRecord extends PouchDbRecord<"YourDocumentType"> {
+    make: string;
+    model: string;
+    year: number;
+    color: string;
+    trim: string;
+}
+```
+
+## Concepts <a name = "concepts"></a>
+DB Framework is very flexible letting developers use it for more than data interaction.  Though the use of it's API's, DB Framework can have automatic logging, entity tagging, history tracking, and even replace your state management tool.  There is even a [React Hook](#react_state_hook) for state management
+
+## State Management <a name = "state_management"></a>
+To use state management, please use the [stateful data context](#stateful_data_context) along with [stateful dbSet](#stateful_dbset).  This will expose the correct API's and functionality to keep an internal state in sync with the database.  One caveat, state must be hydrated on application start, by calling `hydrate()` on each dbset or once on the context.  From there, state will automatically be kept in sync.
+
+**Example:**
+```typescript
+import { DataContext } from '@agrejus/db-framework';
+import { PouchDbPlugin, PouchDbRecord } from '@agrejus/db-framework-plugin-pouchdb';
+
+// Declare document types
+export enum MyDocumentTypes {
+    Vehicle = "Vehicle",
+    VehicleHistory = "VehicleHistory",
+    Book = "Book"
+}
+
+// Declare models
+export interface IVehicle extends PouchDbRecord<MyDocumentTypes.Vehicle> {
+    make: string;
+    model: string;
+    year: number;
+    color: string;
+    trim: string;
+}
+
+export interface IBook extends PouchDbRecord<MyDocumentTypes.Book> {
+    author: string;
+    publishedDate: string | null;
+    year: number;
+    status: "pending_publisher" | "approved";
+}
 
 
+// Create Data context using a provider
+export class StatefulDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<MyDocumentTypes>, "_id" | "_rev"> {
 
+    constructor() {
+        super({ dbName: "some-new-database" }, PouchDbPlugin)
+    }
+
+    vehicles = this.dbset().default<IVehicle>(MyDocumentTypes.Vehicle).create();
+    books = this.dbset().default<IBook>(MyDocumentTypes.Book).create();
+}
+
+// Adding Data
+const context = new MyDataContext();
+
+await context.vehicles.add({
+    color: "Silver",
+    make: "Chevrolet",
+    model: "Silverado",
+    trim: "RST",
+    year: 2021
+});
+
+await context.saveChanges();
+```
+
+## Logging <a name = "logging"></a>
+Logging can be added to the data context and db sets as well though the exposed API's
+
+## Entity Tagging <a name = "entity_tagging"></a>
+Logging can be added to the data context and db sets as well though the exposed API's
+
+## History Tracking <a name = "history_tracking"></a>
+Logging can be added to the data context and db sets as well though the exposed API's
 
 ## Default DbSet <a name = "default_dbset"></a>
 

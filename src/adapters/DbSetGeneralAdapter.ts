@@ -68,7 +68,7 @@ export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends I
     }
 
     linkUnsafe(...entites: TEntity[]) {
-        const result = entites.map(w => this.changeTracker.enableChangeTracking(w, this.defaults.add, this.isReadonly, this.map));
+        const result = entites.map(w => this.changeTracker.enableChangeTracking(w, { defaults: this.defaults.add, readonly: this.isReadonly, maps: this.map }));
         return this.changeTracker.attach(result);
     }
 
@@ -87,7 +87,6 @@ export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends I
             throw new Error(`Entities to be linked have errors.  Errors: \r\n${errors}`)
         }
 
-        const result = response.docs.map(w => this.changeTracker.enableChangeTracking(w, this.defaults.add, this.isReadonly, this.map));
-        return this.changeTracker.attach(result);
+        return this.changeTracker.link(response.docs, entities, this.defaults.add, this.isReadonly, this.map);
     }
 }

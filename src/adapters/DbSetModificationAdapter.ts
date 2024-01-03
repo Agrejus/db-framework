@@ -29,7 +29,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
     protected processAdditionAndMakeTrackable(entity: OmittedEntity<TEntity, TExclusions>) {
         const addItem = this.processAddition(entity);
 
-        return this.changeTracker.enableChangeTracking(addItem as TEntity, this.defaults.add, this.isReadonly, this.map);
+        return this.changeTracker.enableChangeTracking(addItem as TEntity, { defaults: this.defaults.add, readonly: this.isReadonly, maps: this.map });
     }
 
     tag(value: unknown) {
@@ -98,7 +98,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
             const found = allDictionary[id]
 
             if (found) {
-                const mergedAndTrackable = this.changeTracker.enableChangeTracking(found, this.defaults.add, this.isReadonly, this.map);
+                const mergedAndTrackable = this.changeTracker.enableChangeTracking(found, { defaults: this.defaults.add, readonly: this.isReadonly, maps: this.map });
 
                 const [attached] = this.changeTracker.attach([mergedAndTrackable]);
 

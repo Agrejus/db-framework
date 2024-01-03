@@ -135,7 +135,12 @@ export class StatefulDbSetBuilder<
         return new StatefulDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>(this._onCreate, this._params, this.InstanceCreator);
     }
 
-    hasChanged(comparison: EntityComparator<TDocumentType, TEntity>) {
+    /**
+     * Returns an object of changed values or null if nothing has changed
+     * @param comparison 
+     * @returns 
+     */
+    getChanges(comparison: EntityComparator<TDocumentType, TEntity>) {
         this._params.entityComparator = comparison;
         return new StatefulDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>(this._onCreate, this._params, this.InstanceCreator); 
     }

@@ -28,7 +28,7 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
         this.filterSelector = props.filterSelector;
         this.type = type;
         this.changeTracker = changeTracker;
-        
+
         this.api = this.context._getApi();
 
         this.api.registerOnAfterSaveChanges(props.documentType, this.onAfterSaveChanges.bind(this));
@@ -39,7 +39,7 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
         const data = await this.getAllData();
 
         // process the mappings when we make the item trackable.  We are essentially prepping the entity
-        const result = data.map(w => this.changeTracker.enableChangeTracking(w, this.defaults.retrieve, this.isReadonly, this.map));
+        const result = data.map(w => this.changeTracker.enableChangeTracking(w, { defaults: this.defaults.retrieve, readonly: this.isReadonly, maps: this.map }));
 
         return this.filterResult(result);
     }

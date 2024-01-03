@@ -14,6 +14,10 @@ export class ReselectDictionary<TDocumentType extends string, TEntity extends ID
         this._key = key;
     }
 
+    map<T>(predicate: (value: TEntity, index: number, array: TEntity[]) => T): T[] {
+        return Object.values<TEntity>(this._data).map(predicate)
+    }
+
     all() {
         return Object.values(this._data);
     }

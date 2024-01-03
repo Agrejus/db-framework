@@ -1,9 +1,9 @@
 import { ReselectDictionary } from "../../common/ReselectDictionary";
-import { IDbSetChangeTracker } from "../../types/change-tracking-types";
+import { IDbSetChangeTracker, ProcessedChangesResult } from "../../types/change-tracking-types";
 import { DeepPartial, DeepOmit } from "../../types/common-types";
-import { ITrackedChanges, DbFrameworkEnvironment } from "../../types/context-types";
+import { ITrackedChanges, DbFrameworkEnvironment, IEntityUpdates } from "../../types/context-types";
 import { PropertyMap } from "../../types/dbset-builder-types";
-import { IDbRecord, IIndexableEntity } from "../../types/entity-types";
+import { IDbRecord, IIndexableEntity, OmittedEntity } from "../../types/entity-types";
 import { ChangeTrackingAdapterBase } from "./ChangeTrackingAdapterBase";
 
 /**
@@ -12,8 +12,8 @@ import { ChangeTrackingAdapterBase } from "./ChangeTrackingAdapterBase";
 export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> extends ChangeTrackingAdapterBase<TDocumentType, TEntity, TExclusions> implements IDbSetChangeTracker<TDocumentType, TEntity, TExclusions> {
 
     static readonly DIRTY_ENTITY_MARKER: string = "__isDirty";
-    static readonly PRISTINE_ENTITY_KEY: string = "__pristine_entity__";
-    static readonly CHANGES_ENTITY_KEY: string = "__changes__";
+    static readonly CHANGES_ENTITY_KEY: string = "__changed__";
+    static readonly ORIGINAL_ENTITY_KEY: string = "__original__";
     static readonly PROXY_MARKER: string = "__isProxy";
     protected override attachments;
 
@@ -30,10 +30,18 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
         return entities.map(w => ({ ...w } as TEntity));
     }
 
-    isDirty(entity: TEntity) {
+    processChanges(entity: TEntity): ProcessedChangesResult<TDocumentType, TEntity> {
 
         const indexableEntity = entity as IIndexableEntity;
-        return indexableEntity[EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER] === true;
+        const isDirty = indexableEntity[EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER] === true;
+        const changes = indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY] as DeepPartial<TEntity>;
+        const result: ProcessedChangesResult<TDocumentType, TEntity> = {
+            isDirty,
+            deltas: isDirty === false ? null : { ...changes, [this.idPropertyName]: entity[this.idPropertyName] },
+            doc: entity,
+            original: entity
+        };
+        return result
     }
 
     async makePristine(...entities: TEntity[]) {
@@ -43,6 +51,7 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
 
             // make pristine again
             delete indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY];
+            delete indexableEntity[EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY];
             delete indexableEntity[EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER];
         }
     }
@@ -51,7 +60,22 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
         const changes = this.getTrackedData();
         const { add, remove, removeById, attach } = changes;
 
-        const updated = attach.filter(w => this.isDirty(w) === true).map(w => this.mapInstance(w, this.propertyMaps));
+        const updated = attach
+            .map(w => this.processChanges(w))
+            .filter(w => w.isDirty === true)
+            .map(w => {
+                w.deltas = this.mapInstance(w.deltas, this.propertyMaps);
+                w.doc = { ...w.doc, ...w.deltas }; // write mapping changes to the main doc,
+                return w;
+            })
+            .reduce((a, v) => {
+
+                const id = v.doc[this.idPropertyName] as string | number;
+                a.docs[id] = v.doc;
+                a.deltas[id] = v.deltas;
+                a.originals.push(v.original);
+                return a;
+            }, { deltas: {}, docs: {}, originals: [] } as IEntityUpdates<TDocumentType, TEntity>);
 
         return {
             add,
@@ -61,7 +85,7 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
         }
     }
 
-    enableChangeTracking(entity: TEntity, defaults: DeepPartial<DeepOmit<TEntity, "DocumentType" | TExclusions>>, readonly: boolean, maps: PropertyMap<TDocumentType, TEntity, any>[]): TEntity {
+    enableChangeTracking(entity: TEntity, options?: { defaults: DeepPartial<OmittedEntity<TEntity, TExclusions>>, readonly: boolean, maps: PropertyMap<TDocumentType, TEntity, any>[] }): TEntity {
         const proxyHandler: ProxyHandler<TEntity> = {
             set: (entity, property, value) => {
 
@@ -73,27 +97,41 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
                     return true;
                 }
 
-                if (property !== EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY && indexableEntity._id != null) {
-                    const oldValue = indexableEntity[key];
+                if (property !== EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY && entity[this.idPropertyName] != null) {
+                    const originalValue = indexableEntity[key];
 
                     // if values are the same, do nothing
-                    if (oldValue === value) {
+                    if (originalValue === value) {
                         return true;
+                    }
+
+                    if (indexableEntity[EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY] === undefined) {
+                        indexableEntity[EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY] = {};
                     }
 
                     if (indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY] === undefined) {
                         indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY] = {};
                     }
 
-                    if (indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY][key] != null && indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY][key] === value) {
-                        // we are changing the value back to the original value, remove the change
-                        delete indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY][key];
+                    if (indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY][key] != null) {
+
+                        if (indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY][key] === value) {
+                            // we are changing the value back to the original value, remove the change
+                            delete indexableEntity[EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY][key];
+                            delete indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY][key];
+                        } else {
+                            // track the change
+                            indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY][key] = value;
+                        }
+
                     } else if (indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY][key] == null) {
                         // don't keep updating, keep the original value
-                        indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY][key] = oldValue;
+                        indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY][key] = value;
+                        indexableEntity[EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY][key] = originalValue;
+
                     }
 
-                    indexableEntity[EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER] = Object.keys(indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY]).length > 0
+                    indexableEntity[EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER] = Object.keys(indexableEntity[EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY]).length > 0
                 }
 
                 indexableEntity[key] = value;
@@ -110,13 +148,13 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
             }
         }
 
-        const instance = this.mapAndSetDefaults(entity, maps, defaults);
+        const instance = options == null ? entity : this.mapAndSetDefaults(entity, options.maps, options.defaults);
 
         return new Proxy(instance, proxyHandler as any) as TEntity
     }
 
     merge(from: TEntity, to: TEntity) {
-        const options = { skip: [EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY] };
+        const options = { skip: [EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY, EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY, EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER] };
 
         for (let property in from) {
 
@@ -137,8 +175,13 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
         }
 
         return entities.map(w => {
-            (w as IIndexableEntity)[EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER] = true;
+            (w as IIndexableEntity)[EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER] = true; 7
             return w;
         });
+    }
+
+    link(found: TEntity[], attachEntities: TEntity[], defaults: DeepPartial<OmittedEntity<TEntity, TExclusions>>, readonly: boolean, maps: PropertyMap<TDocumentType, TEntity, any>[]) {
+        const result = found.map(w => this.enableChangeTracking(w, { defaults, readonly, maps }));
+        return this.attach(result);
     }
 }

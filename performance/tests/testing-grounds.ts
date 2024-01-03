@@ -110,24 +110,52 @@ const PerformanceDataContext = contextBuilder<DocumentTypes>()
 
 export const run = async () => {
     try {
-        const context = new ExternalDataContext("test-db");
+        // const context = new ExternalDataContext("test-db");
+        // const all = await context.computers.all();
+        // console.log(all);
+        // debugger;
 
-        const [contact] = await context.contacts.add({
-            firstName: "James",
-            lastName: "DeMeuse",
-            phone: "111-111-1111",
-            address: "1234 Test St"
+        // const [contact] = await context.computers.add({
+        //     cores: 8,
+        //     name: "Some Name"
+        // });
+
+        // await context.saveChanges();
+
+        // contact.name = "TEst";
+        // debugger;
+        // const changes = await context.previewChanges();
+        // debugger;
+        // console.log(changes)
+        const contextFactory = new DbContextFactory();
+        const dbname = contextFactory.getRandomDbName();
+        const context = contextFactory.createContext(ExternalDataContext, dbname);
+        const [newBook] = await context.books.add({
+            author: "James",
+            publishDate: new Date()
         });
 
-        await context.saveChanges();
-
-        await context.contacts.remove(contact._id);
 
         await context.saveChanges();
 
-        const all = await context.contacts.all();
 
-        expect(all.length).toBe(0);
+        const book = await context.books.first();
+
+        context.books.unlink(book!);
+
+        const secondBook = await context.books.first();
+        secondBook!.author = "DeMeuse"
+        await context.saveChanges();
+
+        const secondaryContext = contextFactory.createContext(ExternalDataContext, dbname);
+        const [linkedBook] = await secondaryContext.books.link(book!);
+
+        linkedBook.author = "James DeMeuse";
+
+        await secondaryContext.saveChanges();
+
+        console.log(linkedBook._rev.startsWith("3"))
+
     } catch (e) {
         console.log(e)
     }

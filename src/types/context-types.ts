@@ -1,5 +1,5 @@
 import { IAttachmentDictionary } from './change-tracking-types';
-import { IPreviewChanges } from './common-types';
+import { DeepPartial, IPreviewChanges } from './common-types';
 import { IDbSetApi, SaveChangesEventData } from './dbset-types';
 import { IDbRecord, IdRemoval } from './entity-types';
 
@@ -11,7 +11,14 @@ export interface IDataContext<TDocumentType extends string, TEntityBase extends 
      * Persist changes to the underlying data store.  Returns number of documents modified
      * @returns {Promise<number>}
      */
-    saveChanges(): Promise<number>;
+    saveChanges(): Promise<{
+        changes: {
+            add: TEntityBase[];
+            remove: TEntityBase[];
+            updated: IEntityUpdates<TDocumentType, TEntityBase>;
+        },
+        successes_count: number
+    }>;
 
     /**
      * Get all documents in the underlying data store
@@ -51,11 +58,17 @@ export interface ITrackedData<TDocumentType extends string, TEntityBase extends 
     removeById: IdRemoval<TDocumentType>[]
 }
 
+export type IEntityUpdates<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> = {
+    docs: { [key: string | number]: TEntityBase; };
+    deltas: { [key: string | number]: DeepPartial<TEntityBase>; };
+    originals: TEntityBase[];
+}
+
 export interface ITrackedChanges<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> {
     add: TEntityBase[];
     remove: TEntityBase[];
     removeById: IdRemoval<TDocumentType>[];
-    updated: TEntityBase[];
+    updated: IEntityUpdates<TDocumentType, TEntityBase>;
 }
 
 export interface IPrivateContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase> extends IDataContext<TDocumentType, TEntityBase> {

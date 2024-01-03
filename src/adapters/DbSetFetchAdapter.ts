@@ -28,8 +28,9 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
     }
 
     async get(...ids: string[]) {
+
         const entities = await this.api.dbPlugin.getStrict(this.documentType, ...ids);
-        const result = entities.map(w => this.changeTracker.enableChangeTracking(w, this.defaults.retrieve, this.isReadonly, this.map));
+        const result = entities.map(w => this.changeTracker.enableChangeTracking(w, { defaults: this.defaults.retrieve, readonly: this.isReadonly, maps: this.map }));
         const filteredResult = this.filterResult(result)
         await this.onAfterDataFetched(filteredResult);
 
@@ -42,6 +43,7 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
 
 
     async find(selector: EntitySelector<TDocumentType, TEntity>): Promise<TEntity | undefined> {
+
         const data = await this.allDataAndMakeTrackable();
         const result = [...data].find(selector);
 

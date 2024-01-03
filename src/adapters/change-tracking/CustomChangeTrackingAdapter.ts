@@ -1,9 +1,9 @@
 import { ReselectDictionary } from "../../common/ReselectDictionary";
-import { IAttachmentDictionary, IDbSetChangeTracker } from "../../types/change-tracking-types";
-import { DeepPartial, DeepOmit, EntityComparator } from "../../types/common-types";
-import { ITrackedChanges, DbFrameworkEnvironment } from "../../types/context-types";
+import { IAttachmentDictionary, IDbSetChangeTracker, ProcessedChangesResult } from "../../types/change-tracking-types";
+import { DeepPartial, EntityComparator } from "../../types/common-types";
+import { ITrackedChanges, DbFrameworkEnvironment, IEntityUpdates } from "../../types/context-types";
 import { PropertyMap } from "../../types/dbset-builder-types";
-import { IDbRecord } from "../../types/entity-types";
+import { IDbRecord, OmittedEntity } from "../../types/entity-types";
 import { ChangeTrackingAdapterBase } from "./ChangeTrackingAdapterBase";
 
 /**
@@ -23,22 +23,51 @@ export class CustomChangeTrackingAdapter<TDocumentType extends string, TEntity e
         this._comparator = comparator;
     }
 
+    link(foundEntities: TEntity[], attachEntities: TEntity[], defaults: DeepPartial<OmittedEntity<TEntity, TExclusions>>, readonly: boolean, maps: PropertyMap<TDocumentType, TEntity, any>[]): TEntity[] {
+        const attachedEntitiesMap = attachEntities.reduce((a, v) => {
+            const id = v[this.idPropertyName] as string | number;
+
+            return { ...a, [id]: v }
+        }, {} as { [key: string | number]: TEntity })
+        const result = foundEntities.map(w => {
+            const id = w[this.idPropertyName] as string | number;
+
+            return {
+                ...this.mapAndSetDefaults(w, maps, defaults),
+                ...attachedEntitiesMap[id]
+            };
+        });
+
+        return this.attach(result);
+    }
+
     asUntracked(...entities: TEntity[]) {
         return entities;
     }
 
-    isDirty(entity: TEntity) {
+    processChanges(entity: TEntity): ProcessedChangesResult<TDocumentType, TEntity> {
 
         const id = entity[this.idPropertyName] as keyof TEntity;
         const original = this._originals.get(id);
 
         if (this._dirtyMarkers[id] === true || original == null) {
-            return true; // mark as dirty so we save it
+            return {
+                isDirty: true,
+                deltas: { ...entity, [this.idPropertyName]: id } as DeepPartial<TEntity>,
+                doc: entity,
+                original: entity
+            }; // mark as dirty so we save it
         }
 
-        const areEntitiesTheSame = this._comparator(entity, original);
+        const deltas = this._comparator(original, entity);
+        const isDirty = deltas != null;
 
-        return areEntitiesTheSame === true;
+        return {
+            isDirty,
+            deltas: { ...deltas, [this.idPropertyName]: original[this.idPropertyName] },
+            doc: entity,
+            original: entity
+        }
     }
 
     makePristine(...entities: TEntity[]) {
@@ -70,12 +99,22 @@ export class CustomChangeTrackingAdapter<TDocumentType extends string, TEntity e
         const changes = this.getTrackedData();
         const { add, remove, removeById, attach } = changes;
 
-        const deduplicatedUpdates = attach.filter(w => this.isDirty(w) === true).map(w => this.mapInstance(w, this.propertyMaps)).reduce((a, v) => {
+        const updated = attach
+            .map(w => this.processChanges(w))
+            .filter(w => w.isDirty === true)
+            .map(w => {
+                w.deltas = this.mapInstance(w.deltas, this.propertyMaps);
+                w.doc = { ...w.doc, ...w.deltas }; // write mapping changes to the main doc
+                return w;
+            })
+            .reduce((a, v) => {
 
-            const id = v[this.idPropertyName] as string;
-            return { ...a, [id]: v }
-        }, {} as { [key: string]: TEntity });
-        const updated = Object.values<TEntity>(deduplicatedUpdates);
+                const id = v.doc[this.idPropertyName] as string | number;
+                a.docs[id] = v.doc;
+                a.deltas[id] = v.deltas;
+                a.originals.push(v.original);
+                return a;
+            }, { deltas: {}, docs: {}, originals: [] } as IEntityUpdates<TDocumentType, TEntity>);
 
         return {
             add,
@@ -85,8 +124,13 @@ export class CustomChangeTrackingAdapter<TDocumentType extends string, TEntity e
         }
     }
 
-    enableChangeTracking(entity: TEntity, defaults: DeepPartial<DeepOmit<TEntity, "DocumentType" | TExclusions>>, readonly: boolean, maps: PropertyMap<TDocumentType, TEntity, any>[]): TEntity {
-        return this.mapAndSetDefaults(entity, maps, defaults) as TEntity;
+    enableChangeTracking(entity: TEntity, options?: { defaults: DeepPartial<OmittedEntity<TEntity, TExclusions>>, readonly: boolean, maps: PropertyMap<TDocumentType, TEntity, any>[] }): TEntity {
+
+        if (options == null) {
+            return entity;
+        }
+
+        return this.mapAndSetDefaults(entity, options.maps, options.defaults) as TEntity;
     }
 
     merge(from: TEntity, to: TEntity) {

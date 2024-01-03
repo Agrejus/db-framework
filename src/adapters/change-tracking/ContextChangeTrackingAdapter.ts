@@ -1,8 +1,8 @@
 import { IDbSetChangeTracker, IContextChangeTracker } from "../../types/change-tracking-types";
-import { DeepPartial, DeepOmit } from "../../types/common-types";
+import { DeepPartial, DeepOmit, DbSetPickDefaultActionRequired } from "../../types/common-types";
 import { ITrackedChanges } from "../../types/context-types";
 import { PropertyMap } from "../../types/dbset-builder-types";
-import { IDbRecord } from "../../types/entity-types";
+import { IDbRecord, OmittedEntity } from "../../types/entity-types";
 
 /**
  * Uses hashing to track changes at the context level.  Useful for applications that have trouble with proxy objects
@@ -15,8 +15,8 @@ export class ContextChangeTrackingAdapter<TDocumentType extends string, TEntity 
         this._changeTrackers[documentType] = tracker;
     }
 
-    enableChangeTracking(entity: TEntity, defaults: DeepPartial<DeepOmit<TEntity, TExclusions | "DocumentType">>, readonly: boolean, maps: PropertyMap<TDocumentType, TEntity, any>[]): TEntity {
-        return this._changeTrackers[entity.DocumentType].enableChangeTracking(entity, defaults, readonly, maps);
+    enableChangeTracking(entity: TEntity, options?: { defaults: DeepPartial<OmittedEntity<TEntity, TExclusions>>, readonly: boolean, maps: PropertyMap<TDocumentType, TEntity, any>[] }): TEntity {
+        return this._changeTrackers[entity.DocumentType].enableChangeTracking(entity, options);
     }
 
     getPendingChanges() {
@@ -28,7 +28,11 @@ export class ContextChangeTrackingAdapter<TDocumentType extends string, TEntity 
             }
 
             a.add = a.add.concat(trackedData.add);
-            a.updated = a.updated.concat(trackedData.updated);
+            a.updated = {
+                deltas: { ...trackedData.updated.deltas, ...a.updated.deltas },
+                docs: { ...trackedData.updated.docs, ...a.updated.docs },
+                originals: a.updated.originals.concat(trackedData.updated.originals)
+            };
             a.removeById = a.removeById.concat(trackedData.removeById);
             a.remove = a.remove.concat(trackedData.remove);
 
@@ -72,7 +76,7 @@ export class ContextChangeTrackingAdapter<TDocumentType extends string, TEntity 
             ...updateDictionaryDocumentTypes
         ].reduce((a, v) => ({ ...a, [v]: v }), {} as { [key: string]: string });
 
-        for(const documentType in documentTypes) {
+        for (const documentType in documentTypes) {
             const removalsByDocumentType = removalDictionary[documentType];
             const addByDocumentType = addDictionary[documentType];
             const updatesByDocumentType = updateDictionary[documentType];

@@ -1,5 +1,5 @@
 import { IPreviewChanges } from "../types/common-types";
-import { ContextOptions, IDataContext, OnChangeEvent } from "../types/context-types";
+import { ContextOptions, IDataContext, IEntityUpdates, OnChangeEvent } from "../types/context-types";
 import { DbSetMap, EntityAndTag, IDbSet, IDbSetApi, SaveChangesEventData } from "../types/dbset-types";
 import { IDbRecord } from "../types/entity-types";
 import { DbSetInitializer } from './dbset/builders/DbSetInitializer';
@@ -46,7 +46,7 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
             if (dbSet) {
                 const info = dbSet.info();
 
-                return this._changeTracker.enableChangeTracking(w, info.Defaults.retrieve, info.Readonly, info.Map)
+                return this._changeTracker.enableChangeTracking(w, { defaults: info.Defaults.retrieve, readonly: info.Readonly, maps: info.Map })
             }
 
             return w
@@ -97,19 +97,28 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
         this.dbSets[info.DocumentType] = dbset;
     }
 
+    private async _makeUpdatesPristine(updates: { [key: string | number]: TEntityBase }) {
+        await Promise.all(Object.keys(updates).map(w => this._changeTracker.makePristine(updates[w])))
+    }
+
     async previewChanges(): Promise<IPreviewChanges<TDocumentType, TEntityBase>> {
         const { add, remove, updated } = await this._getModifications();
         const clone = JSON.stringify({
             add,
             remove,
             update: updated
-        });
+        } as IPreviewChanges<TDocumentType, TEntityBase>);
 
-        return JSON.parse(clone)
+        const result: IPreviewChanges<TDocumentType, TEntityBase> = JSON.parse(clone);
+
+        await this._makeUpdatesPristine(result.update.docs);
+
+        return result;
     }
 
     private async _getModifications() {
         const { add, remove, removeById, updated } = this._changeTracker.getPendingChanges();
+
         const extraRemovalsMap = removeById.reduce((a, v) => {
 
             if (a[v.DocumentType] == null) {
@@ -119,7 +128,7 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
             a[v.DocumentType].push(v.key)
 
             return a;
-        }, {} as { [key in TDocumentType]: string[] })
+        }, {} as { [key in TDocumentType]: string[] });
 
         const extraRemovalsByDocumentType = await Promise.all(Object.keys(extraRemovalsMap).map((w: TDocumentType) => this.dbPlugin.getStrict(w, ...extraRemovalsMap[w])));
         const extraRemovals = extraRemovalsByDocumentType.reduce((a, v) => a.concat(v), []);
@@ -141,7 +150,7 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
             await event(() => ({
                 adds: beforeSaveChanges.add.filter(w => w.DocumentType === documentType).map(w => this._mapChangeToEntityAndTag(w, beforeOnBeforeSaveChangesTags)),
                 removes: beforeSaveChanges.remove.filter(w => w.DocumentType === documentType).map(w => this._mapChangeToEntityAndTag(w, beforeOnBeforeSaveChangesTags)),
-                updates: beforeSaveChanges.updated.filter(w => w.DocumentType === documentType).map(w => this._mapChangeToEntityAndTag(w, beforeOnBeforeSaveChangesTags))
+                updates: Object.values(beforeSaveChanges.updated.docs).filter(w => w.DocumentType === documentType).map(w => this._mapChangeToEntityAndTag(w, beforeOnBeforeSaveChangesTags))
             }))
         }
 
@@ -150,7 +159,7 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
         await this.onBeforeSaveChanges(() => ({
             adds: beforeSaveChanges.add.map(w => this._mapChangeToEntityAndTag(w, beforeOnBeforeSaveChangesTags)),
             removes: beforeSaveChanges.remove.map(w => this._mapChangeToEntityAndTag(w, beforeOnBeforeSaveChangesTags)),
-            updates: beforeSaveChanges.updated.map(w => this._mapChangeToEntityAndTag(w, beforeOnBeforeSaveChangesTags))
+            updates: Object.values(beforeSaveChanges.updated.docs).map(w => this._mapChangeToEntityAndTag(w, beforeOnBeforeSaveChangesTags))
         }));
 
         // get tags again in case more were added in onBeforeSaveChanges
@@ -170,10 +179,11 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
             const { tags, changes } = await this._beforeSaveChanges();
 
             const { add, remove, updated } = changes;
-
+            const updatedItems = Object.values(updated.docs);
+            
             // check for readonly updates, they are not allowed
-            if (updated.length > 0) {
-                const readonlyDocumentTypes = Object.keys(updated.filter(w => this._readonlyDocumentTypes[w.DocumentType] === true).reduce((a, v) => ({ ...a, [v.DocumentType]: v.DocumentType }), {} as { [key: string]: string }));
+            if (updatedItems.length > 0) {
+                const readonlyDocumentTypes = Object.keys(updatedItems.filter(w => this._readonlyDocumentTypes[w.DocumentType] === true).reduce((a, v) => ({ ...a, [v.DocumentType]: v.DocumentType }), {} as { [key: string]: string }));
 
                 if (readonlyDocumentTypes.length > 0) {
                     throw new Error(`Cannot save readonly entities.  Document Types: ${readonlyDocumentTypes.join(', ')}`)
@@ -182,21 +192,26 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
 
             // Process removals first, so we can remove items first and then add.  Just
             // in case are are trying to remove and add the same Id
-            const modifications = [...remove, ...add, ...updated];
+            const modifications = [...remove, ...add, ...updatedItems];
 
             this._changeTracker.makePristine(...modifications);
 
-            const modificationResult = await this.dbPlugin.bulkOperations({ adds: add, removes: remove, updates: updated });
+            const modificationResult = await this.dbPlugin.bulkOperations({ adds: add, removes: remove, updates: updatedItems });
+
+            // we have a descrepancy between the updated rev and the doc and the delta, how can we fix?  Original is the only correct one
 
             // set any properties return from the database
-            this.dbPlugin.setDbGeneratedValues(modificationResult, modifications);
+            this.dbPlugin.setDbGeneratedValues(modificationResult, [...add, ...updated.originals, ...Object.values(updated.docs) as any, ...Object.values(updated.deltas) as any]);
 
-            this._changeTracker.makePristine(...modifications);
-            this._changeTracker.reinitialize(remove, add, updated);
+            this._changeTracker.makePristine(...modifications, ...updated.originals);
+            this._changeTracker.reinitialize(remove, add, updatedItems);
 
             await this._onAfterSaveChanges(changes, tags);
 
-            return modificationResult.successes_count;
+            return {
+                successes_count: modificationResult.successes_count,
+                changes
+            };
         } catch (e: any) {
             this._changeTracker.reinitialize();
 
@@ -219,7 +234,7 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
         }
     }
 
-    private async _onAfterSaveChanges(changes: { add: TEntityBase[]; remove: TEntityBase[]; updated: TEntityBase[]; }, tags: { [x: string]: unknown; }) {
+    private async _onAfterSaveChanges(changes: { add: TEntityBase[]; remove: TEntityBase[]; updated: IEntityUpdates<TDocumentType, TEntityBase>; }, tags: { [x: string]: unknown; }) {
 
         const { add, remove, updated } = changes;
 
@@ -228,14 +243,14 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
             await event(() => JSON.parse(JSON.stringify({
                 adds: add.filter(w => w.DocumentType === documentType).map(w => this._mapChangeToEntityAndTag(w, tags)),
                 removes: remove.filter(w => w.DocumentType === documentType).map(w => this._mapChangeToEntityAndTag(w, tags)),
-                updates: updated.filter(w => w.DocumentType === documentType).map(w => this._mapChangeToEntityAndTag(w, tags))
+                updates: Object.values(updated.docs).filter(w => w.DocumentType === documentType).map(w => this._mapChangeToEntityAndTag(w, tags))
             })))
         }
 
         await this.onAfterSaveChanges(() => JSON.parse(JSON.stringify({
             adds: add.map(w => this._mapChangeToEntityAndTag(w, tags)),
             removes: remove.map(w => this._mapChangeToEntityAndTag(w, tags)),
-            updates: updated.map(w => this._mapChangeToEntityAndTag(w, tags))
+            updates: Object.values(updated.docs).map(w => this._mapChangeToEntityAndTag(w, tags))
         })));
     }
 
@@ -267,7 +282,7 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
 
     hasPendingChanges() {
         const { add, remove, removeById, updated } = this._changeTracker.getPendingChanges();
-        return [add.length, remove.length, removeById.length, updated.length].some(w => w > 0);
+        return [add.length, remove.length, removeById.length, Object.values(updated.docs).length].some(w => w > 0);
     }
 
     async empty() {

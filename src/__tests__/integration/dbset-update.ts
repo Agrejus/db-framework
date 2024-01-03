@@ -36,6 +36,7 @@ describe('DbSet Update Tests', () => {
         const [linkedBook] = await secondaryContext.books.link(book!);
 
         linkedBook.author = "James DeMeuse";
+
         await secondaryContext.saveChanges();
 
         expect(linkedBook._rev.startsWith("3")).toBe(true)

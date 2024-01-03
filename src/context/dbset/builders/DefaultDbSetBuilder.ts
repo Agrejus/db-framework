@@ -25,7 +25,7 @@ export class DefaultDbSetBuilder<
 
     /**
      * Makes all entities returned from the underlying database readonly.  Entities cannot be updated, only adding or removing is available.
-     * @returns DbSetBuilder
+     * @returns DefaultDbSetBuilder
      */
     readonly() {
         this._params.readonly = true;
@@ -36,7 +36,7 @@ export class DefaultDbSetBuilder<
      * Fluent API for building the documents key.  Key will be built in the order
      * keys are added
      * @param builder Fluent API
-     * @returns DbSetBuilder
+     * @returns DefaultDbSetBuilder
      */
     keys(builder: (b: IIdBuilderBase<TDocumentType, TEntity>) => (IChainIdBuilder<TDocumentType, TEntity> | ITerminateIdBuilder<TDocumentType, TEntity>)) {
         const idBuilder = new IdBuilder<TDocumentType, TEntity>();
@@ -53,7 +53,7 @@ export class DefaultDbSetBuilder<
      * that are not nullable or to supply a default to an excluded property.  Default's will only be 
      * set when the property does not exist or is excluded
      * @param value Pick one or more properties and set their default value
-     * @returns DbSetBuilder
+     * @returns DefaultDbSetBuilder
      */
     defaults(value: DbSetPickDefaultActionOptional<TDocumentType, TEntity, TExclusions>): DefaultDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>
 
@@ -62,7 +62,7 @@ export class DefaultDbSetBuilder<
      * that are not nullable or to supply a default to an excluded property.  Default's will only be 
      * set when the property does not exist or is excluded
      * @param value Pick one or more properties and set their default value
-     * @returns DbSetBuilder
+     * @returns DefaultDbSetBuilder
      */
     defaults(value: DeepPartial<OmittedEntity<TEntity, TExclusions>>): DefaultDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>
     defaults(value: DbSetPickDefaultActionOptional<TDocumentType, TEntity, TExclusions> | DeepPartial<OmittedEntity<TEntity, TExclusions>>) {
@@ -97,7 +97,7 @@ export class DefaultDbSetBuilder<
      * and default values can be set making it easier to add an entity.  Can be called one or many times to
      * exclude one or more properties
      * @param exclusions Property Exclusions
-     * @returns DbSetBuilder
+     * @returns DefaultDbSetBuilder
      */
     exclude<T extends keyof TEntity>(...exclusions: T[]) {
         this._params.exclusions.push(...exclusions);
@@ -123,14 +123,19 @@ export class DefaultDbSetBuilder<
     /**
      * Set a filter to be used on all queries
      * @param selector 
-     * @returns DbSetBuilder
+     * @returns DefaultDbSetBuilder
      */
     filter(selector: EntitySelector<TDocumentType, TEntity>) {
         this._params.filterSelector = selector;
         return new DefaultDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>(this._onCreate, this._params, this.InstanceCreator);
     }
 
-    hasChanged(comparison: EntityComparator<TDocumentType, TEntity>) {
+    /**
+     * Returns an object of changed properties and their new values
+     * @param comparison EntityComparator
+     * @returns DefaultDbSetBuilder
+     */
+    getChanges(comparison: EntityComparator<TDocumentType, TEntity>) {
         this._params.entityComparator = comparison;
         return new DefaultDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>(this._onCreate, this._params, this.InstanceCreator); 
     }

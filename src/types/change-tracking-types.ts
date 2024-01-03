@@ -1,12 +1,7 @@
 import { DeepPartial } from "./common-types";
 import { ITrackedChanges, ITrackedData } from "./context-types";
 import { PropertyMap } from "./dbset-builder-types";
-import { DbSetMap } from "./dbset-types";
 import { IDbRecord, OmittedEntity } from "./entity-types";
-
-// export interface IChangeTrackingAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> {
-//     enableChangeTracking(entity: TEntity, defaults: DeepPartial<OmittedEntity<TEntity>>, readonly: boolean, maps: PropertyMap<TDocumentType, TEntity, any>[]): TEntity;
-// }
 
 export interface IAttachmentDictionary<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> {
     get length(): number;
@@ -18,6 +13,7 @@ export interface IAttachmentDictionary<TDocumentType extends string, TEntity ext
     remove(...items: TEntity[]): void;
     removeById(...items: (keyof TEntity)[]): void;
     filter(predicate: (value: TEntity, index: number, array: TEntity[]) => boolean): TEntity[];
+    map<T>(predicate: (value: TEntity, index: number, array: TEntity[]) => T): T[];
     concat(dictionary: IAttachmentDictionary<TDocumentType, TEntity>): IAttachmentDictionary<TDocumentType, TEntity>;
 }
 
@@ -36,21 +32,28 @@ export interface IChangeTrackingStoreData<TDocumentType extends string, TEntity 
 
 export type ChangeTrackingStoreInstanceCreator<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = new () => IChangeTrackingStore<TDocumentType, TEntity>;
 
+export type ProcessedChangesResult<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = { 
+    isDirty: boolean, 
+    deltas: DeepPartial<TEntity> | null, 
+    doc: TEntity,
+    original: TEntity
+ }
+
 export interface IDbSetChangeTracker<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> extends IChangeTrackerBase<TDocumentType, TEntity, TExclusions> {
     getTrackedData(): ITrackedData<TDocumentType, TEntity>;
     merge(from: TEntity, to: TEntity): TEntity;
     markDirty(...entities: TEntity[]): Promise<TEntity[]>;
-    isDirty(entity: TEntity): boolean;
+    processChanges(entity: TEntity): ProcessedChangesResult<TDocumentType, TEntity>;
     detach(ids: (keyof TEntity)[]): void;
     attach(data: TEntity[]): TEntity[];
     mapAndSetDefaults(entity: TEntity | OmittedEntity<TEntity, TExclusions>, maps: PropertyMap<any, any, any>[], defaults: DeepPartial<OmittedEntity<TEntity, TExclusions>>): TEntity | OmittedEntity<TEntity, TExclusions>;
     isAttached(id: keyof TEntity): boolean;
     isLinked(entity: TEntity): boolean;
+    link(foundEntities: TEntity[], attachEntities: TEntity[], defaults: DeepPartial<OmittedEntity<TEntity, TExclusions>>, readonly: boolean, maps: PropertyMap<TDocumentType, TEntity, any>[]): TEntity[];
 }
 
 export interface IChangeTrackerBase<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> {
-
-    enableChangeTracking(entity: TEntity, defaults: DeepPartial<OmittedEntity<TEntity, TExclusions>>, readonly: boolean, maps: PropertyMap<TDocumentType, TEntity, any>[]): TEntity;
+    enableChangeTracking(entity: TEntity, options?: { defaults: DeepPartial<OmittedEntity<TEntity, TExclusions>>, readonly: boolean, maps: PropertyMap<TDocumentType, TEntity, any>[] }): TEntity;
     getPendingChanges(): ITrackedChanges<TDocumentType, TEntity>;
     makePristine(...entities: TEntity[]): void;
     reinitialize(removals?: TEntity[], add?: TEntity[], updates?: TEntity[]): void;

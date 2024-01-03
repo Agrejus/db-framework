@@ -1,4 +1,4 @@
-import { IAttachmentDictionary } from "../../types/change-tracking-types";
+import { IAttachmentDictionary, ProcessedChangesResult } from "../../types/change-tracking-types";
 import { DeepPartial } from "../../types/common-types";
 import { DbFrameworkEnvironment, ITrackedChanges, ITrackedData } from "../../types/context-types";
 import { PropertyMap } from "../../types/dbset-builder-types";
@@ -12,12 +12,12 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
 
     protected abstract attachments: IAttachmentDictionary<TDocumentType, TEntity>;
 
-    abstract enableChangeTracking(entity: TEntity, defaults: DeepPartial<OmittedEntity<TEntity, TExclusions>>, readonly: boolean, maps: PropertyMap<TDocumentType, TEntity, any>[]): TEntity;
+    abstract enableChangeTracking(entity: TEntity, options?: { defaults: DeepPartial<OmittedEntity<TEntity, TExclusions>>, readonly: boolean, maps: PropertyMap<TDocumentType, TEntity, any>[] }): TEntity;
     abstract getPendingChanges(): ITrackedChanges<TDocumentType, TEntity>;
     abstract makePristine(...entities: TEntity[]): void;
     abstract merge(from: TEntity, to: TEntity): TEntity;
     abstract markDirty(...entities: TEntity[]): Promise<TEntity[]>;
-    abstract isDirty(entity: TEntity): boolean;
+    abstract processChanges(entity: TEntity): ProcessedChangesResult<TDocumentType, TEntity>;
     abstract asUntracked(...entities: TEntity[]): TEntity[];
 
     protected readonly idPropertyName: keyof TEntity;
@@ -57,20 +57,21 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
 
         const result: TEntity[] = [];
         const reselectIds: (keyof TEntity)[] = [];
+
         for (const item of data) {
             const id = item[this.idPropertyName] as keyof TEntity;
 
             const found = this.attachments.get(id)
 
             if (found != null) {
-                if (this.attachments.includes(id) === true && this.isDirty(found) === true) {
+                if (this.attachments.includes(id) === true && this.processChanges(found).isDirty === true) {
                     // if the attached item is dirty, it has changed and we issue an error, otherwise return a copy of the referenced item, not the one in the database
                     reselectIds.push(id);
                 }
 
                 result.push(found)
                 continue;
-            } 
+            }
 
             result.push(item);
             this.attachments.push(item)
@@ -108,14 +109,21 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
         return { ...mergedInstance, ...mappedInstance };
     }
 
-    protected mapInstance(entity: TEntity, maps: PropertyMap<TDocumentType, TEntity, any>[]) {
+    protected mapInstance(entity: DeepPartial<TEntity>, maps: PropertyMap<TDocumentType, TEntity, any>[]): DeepPartial<TEntity>;
+    protected mapInstance(entity: TEntity, maps: PropertyMap<TDocumentType, TEntity, any>[]): TEntity;
+    protected mapInstance(entity: TEntity | DeepPartial<TEntity>, maps: PropertyMap<TDocumentType, TEntity, any>[]): TEntity | DeepPartial<TEntity> {
 
         const result: IIndexableEntity = entity;
 
         for (const map of maps) {
-            result[map.property] = map.map(result[map.property], entity)
+
+            if (result[map.property] == null) {
+                continue;
+            }
+
+            result[map.property] = map.map(result[map.property], entity as TEntity)
         }
 
-        return result as TEntity
+        return result as TEntity | DeepPartial<TEntity>
     }
 }
