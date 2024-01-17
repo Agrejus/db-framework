@@ -1,6 +1,6 @@
 import { AdapterFactory } from '../../adapters/AdapterFactory';
 import { IDbSetFetchAdapter, IDbSetGeneralAdapter, IDbSetModificationAdapter } from '../../types/adapter-types';
-import { EntitySelector } from '../../types/common-types';
+import { DeepKeyOf, EntitySelector } from '../../types/common-types';
 import { IDbSetProps, DbSetType } from '../../types/dbset-types';
 import { IDbRecord, OmittedEntity, IDbRecordBase } from '../../types/entity-types';
 import { IDbPlugin } from '../../types/plugin-types';
@@ -133,5 +133,9 @@ export class DbSet<TDocumentType extends string, TEntity extends IDbRecord<TDocu
 
     async first() {
         return await this._fetchAdapter.first();
+    }
+
+    async pluck<TKey extends keyof TEntity>(selector: EntitySelector<TDocumentType, TEntity>, propertySelector: TKey) {
+        return await this._fetchAdapter.pluck(selector, propertySelector);
     }
 }

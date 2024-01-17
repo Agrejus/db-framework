@@ -11,6 +11,16 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
         super(props, type, changeTracker);
     }
 
+    async pluck<TKey extends keyof TEntity>(selector: EntitySelector<TDocumentType, TEntity>, propertySelector: TKey) {
+        const found = await this.find(selector);
+
+        if (found == null) {
+            throw new Error('Entity not found for pluck')
+        }
+
+        return found[propertySelector];
+    }
+
     async filter(selector: EntitySelector<TDocumentType, TEntity>) {
         const data = await this.allDataAndMakeTrackable();
 

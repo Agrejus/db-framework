@@ -2,7 +2,7 @@
 import { DataContext } from "../../src/context/DataContext";
 import { IDbRecord } from "../../src/types/entity-types";
 import { PouchDbPlugin, PouchDbRecord } from "@agrejus/db-framework-plugin-pouchdb";
-import { IDbPluginOptions } from "../../src/types/plugin-types";
+import { IDbPluginOptions, Test } from "../../src/types/plugin-types";
 import { contextBuilder } from "../../src/context/builder/context-builder";
 import { DbSetRemoteChanges } from "../../src/types/dbset-types";
 import { StatefulDataContext } from "../../src/context/StatefulDataContext";
@@ -110,6 +110,7 @@ const PerformanceDataContext = contextBuilder<DocumentTypes>()
 
 export const run = async () => {
     try {
+
         // const context = new ExternalDataContext("test-db");
         // const all = await context.computers.all();
         // console.log(all);
@@ -136,25 +137,13 @@ export const run = async () => {
         });
 
 
+        const x = await context.booksV3.first();
+
         await context.saveChanges();
 
 
-        const book = await context.books.first();
-
-        context.books.unlink(book!);
-
-        const secondBook = await context.books.first();
-        secondBook!.author = "DeMeuse"
-        await context.saveChanges();
-
-        const secondaryContext = contextFactory.createContext(ExternalDataContext, dbname);
-        const [linkedBook] = await secondaryContext.books.link(book!);
-
-        linkedBook.author = "James DeMeuse";
-
-        await secondaryContext.saveChanges();
-
-        console.log(linkedBook._rev.startsWith("3"))
+        const book = await context.books.pluck(w => w.author === "James", "author");
+       
 
     } catch (e) {
         console.log(e)

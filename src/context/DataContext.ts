@@ -180,7 +180,7 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
 
             const { add, remove, updated } = changes;
             const updatedItems = Object.values(updated.docs);
-            
+
             // check for readonly updates, they are not allowed
             if (updatedItems.length > 0) {
                 const readonlyDocumentTypes = Object.keys(updatedItems.filter(w => this._readonlyDocumentTypes[w.DocumentType] === true).reduce((a, v) => ({ ...a, [v.DocumentType]: v.DocumentType }), {} as { [key: string]: string }));
@@ -301,6 +301,29 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
 
     static isDate(value: any) {
         return Object.prototype.toString.call(value) === '[object Date]'
+    }
+
+    static isObject(item: any) {
+        return item && typeof item === 'object' && Array.isArray(item) === false;
+    }
+
+    static mergeDeep(destination: any, source: any) {
+        if (DataContext.isObject(destination) && DataContext.isObject(source)) {
+            for (const key in source) {
+                if (DataContext.isObject(source[key])) {
+
+                    if (!destination[key]) {
+                        destination[key] = {}
+                    }
+
+                    DataContext.mergeDeep(destination[key], source[key]);
+                } else {
+                    destination[key] = source[key]
+                }
+            }
+        }
+
+        return destination;
     }
 
     getDbSet(documentType: TDocumentType) {

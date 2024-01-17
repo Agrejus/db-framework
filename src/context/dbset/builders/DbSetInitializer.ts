@@ -31,7 +31,8 @@ export class DbSetInitializer<TDocumentType extends string, TEntityBase extends 
             map: [],
             filterSelector: null,
             entityComparator: null,
-            idCreator: IdBuilder.createUUID
+            idCreator: IdBuilder.createUUID,
+            enhancer: w => w
         }, DbSet);
     }
 
@@ -47,7 +48,8 @@ export class DbSetInitializer<TDocumentType extends string, TEntityBase extends 
             filterSelector: null,
             onChange: () => void (0),
             entityComparator: null,
-            idCreator: IdBuilder.createUUID
+            idCreator: IdBuilder.createUUID,
+            enhancer: w => w
         }, StatefulDbSet);
     }
 }

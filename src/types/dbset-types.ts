@@ -1,7 +1,7 @@
 import { IDbSetChangeTracker } from "./change-tracking-types";
 import { DbSetPickDefaultActionRequired, EntityComparator, EntitySelector } from "./common-types";
 import { ContextOptions, IDataContext } from "./context-types";
-import { CustomIdCreator, PropertyMap } from "./dbset-builder-types";
+import { CustomIdCreator, EntityEnhancer, PropertyMap } from "./dbset-builder-types";
 import { IDbRecord, OmittedEntity, IDbRecordBase, EntityIdKeys } from "./entity-types";
 import { IDbPlugin } from "./plugin-types";
 
@@ -40,6 +40,12 @@ export interface IDbSetEnumerable<TDocumentType extends string, TEntity extends 
      * @returns {Promise<TEntity>}
      */
     first(): Promise<TEntity | undefined>;
+
+    /**
+     * Find entity and pluck proptery from the entity
+     * @returns {Promise<TEntity>}
+     */
+    pluck<TKey extends keyof TEntity>(selector: EntitySelector<TDocumentType, TEntity>, propertySelector: TKey): Promise<TEntity[TKey]>
 }
 
 export interface IStatefulDbSet<
@@ -221,7 +227,7 @@ export type DbSetChanges<TDocumentType extends string, TEntity extends IDbRecord
 export type DbSetOnChangeEvent<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = (documentType: TDocumentType, type: DbSetChangeType, changes: DbSetChanges<TDocumentType, TEntity>) => void;
 export type DbSetRemoteOnChangeEvent<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = (documentType: TDocumentType, type: DbSetChangeType, changes: DbSetRemoteChanges<TDocumentType, TEntity>) => void
 
-export interface IDbSetProps<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> {
+export interface IDbSetProps<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity, TEnhanced extends TEntity = TEntity> {
     documentType: TDocumentType,
     context: IDataContext<TDocumentType, TEntity>,
     defaults: DbSetPickDefaultActionRequired<TDocumentType, TEntity, TExclusions>,
@@ -230,6 +236,7 @@ export interface IDbSetProps<TDocumentType extends string, TEntity extends IDbRe
     map: PropertyMap<TDocumentType, TEntity, TExclusions>[];
     filterSelector: EntitySelector<TDocumentType, TEntity> | null;
     entityComparator: EntityComparator<TDocumentType, TEntity> | null;
+    enhancer: EntityEnhancer<TDocumentType, TEntity, TEnhanced, TExclusions>
 }
 
 export type DbSetType = "default" | "stateful";

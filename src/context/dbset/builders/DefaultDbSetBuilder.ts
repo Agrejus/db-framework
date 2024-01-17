@@ -1,7 +1,7 @@
 import { DbSetPickDefaultActionOptional, DeepPartial, EntityComparator, EntitySelector } from "../../../types/common-types";
 import { IDbSet, IDbSetProps, IDbSetBase } from "../../../types/dbset-types";
 import { IDbRecord, OmittedEntity } from "../../../types/entity-types";
-import { DbSetExtender, IChainIdBuilder, IDbSetBuilderParams, IIdBuilderBase, ITerminateIdBuilder, PropertyMap } from '../../../types/dbset-builder-types';
+import { DbSetExtender, EntityEnhancer, IChainIdBuilder, IDbSetBuilderParams, IIdBuilderBase, ITerminateIdBuilder, PropertyMap } from '../../../types/dbset-builder-types';
 import { IdBuilder } from "../../builder/IdBuilder";
 
 export class DefaultDbSetBuilder<
@@ -11,6 +11,15 @@ export class DefaultDbSetBuilder<
     TResult extends IDbSet<TDocumentType, TEntity, TExclusions>,
     TParams extends IDbSetBuilderParams<TDocumentType, TEntity, TExclusions, TResult>
 > {
+
+    types: {
+        DocumentType: TDocumentType,
+        Entity: TEntity,
+        Exclusions: TExclusions,
+        Result: TResult,
+        Params: TParams
+    } = {} as any
+
     protected _onCreate: (dbset: IDbSetBase<string>) => void;
     protected _params: TParams;
     protected InstanceCreator: new (props: IDbSetProps<TDocumentType, TEntity, TExclusions>) => TResult;
@@ -21,15 +30,6 @@ export class DefaultDbSetBuilder<
         this.InstanceCreator = InstanceCreator;
         this._params = params;
         this._onCreate = onCreate;
-    }
-
-    /**
-     * Makes all entities returned from the underlying database readonly.  Entities cannot be updated, only adding or removing is available.
-     * @returns DefaultDbSetBuilder
-     */
-    readonly() {
-        this._params.readonly = true;
-        return new DefaultDbSetBuilder<TDocumentType, Readonly<TEntity>, TExclusions, IDbSet<TDocumentType, Readonly<TEntity>, TExclusions>, TParams>(this._onCreate, this._params, this.InstanceCreator);
     }
 
     /**
@@ -106,18 +106,30 @@ export class DefaultDbSetBuilder<
         return new DefaultDbSetBuilder<TDocumentType, TEntity, T | TExclusions, IDbSet<TDocumentType, TEntity, T | TExclusions>, IDbSetBuilderParams<TDocumentType, TEntity, T | TExclusions, IDbSet<TDocumentType, TEntity, T | TExclusions>>>(this._onCreate, params, instanceCreator);
     }
 
-    map<T extends keyof TEntity>(propertyMap: PropertyMap<TDocumentType, TEntity, T>) {
-        this._params.map.push(propertyMap);
-        return new DefaultDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>(this._onCreate, this._params, this.InstanceCreator);
-    }
-
-
     extend<TExtension extends IDbSet<TDocumentType, TEntity, TExclusions>>(extend: (i: new (props: IDbSetProps<TDocumentType, TEntity, TExclusions>) => TResult, args: IDbSetProps<TDocumentType, TEntity, TExclusions>) => TExtension) {
         this._params.extend.push(extend as any);
 
         const params: IDbSetBuilderParams<TDocumentType, TEntity, TExclusions, TExtension> = this._params as any;
         const instanceCreator: new (props: IDbSetProps<TDocumentType, TEntity, TExclusions>) => TExtension = this.InstanceCreator as any;
         return new DefaultDbSetBuilder<TDocumentType, TEntity, TExclusions, TExtension, IDbSetBuilderParams<TDocumentType, TEntity, TExclusions, TExtension>>(this._onCreate, params, instanceCreator);
+    }
+
+    /**
+     * Makes all entities returned from the underlying database readonly.  Entities cannot be updated, only adding or removing is available.
+     * @returns DefaultDbSetBuilder
+     */
+    readonly() {
+        this._params.readonly = true;
+        return new DefaultDbSetBuilder<TDocumentType, Readonly<TEntity>, TExclusions, IDbSet<TDocumentType, Readonly<TEntity>, TExclusions>, TParams>(this._onCreate, this._params, this.InstanceCreator);
+    }
+
+
+
+    
+
+    map<T extends keyof TEntity>(propertyMap: PropertyMap<TDocumentType, TEntity, T>) {
+        this._params.map.push(propertyMap);
+        return new DefaultDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>(this._onCreate, this._params, this.InstanceCreator);
     }
 
     /**
@@ -137,7 +149,13 @@ export class DefaultDbSetBuilder<
      */
     getChanges(comparison: EntityComparator<TDocumentType, TEntity>) {
         this._params.entityComparator = comparison;
-        return new DefaultDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>(this._onCreate, this._params, this.InstanceCreator); 
+        return new DefaultDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>(this._onCreate, this._params, this.InstanceCreator);
+    }
+
+
+    enhance<TEnhanced extends TEntity>(enhancer: EntityEnhancer<TDocumentType, TEntity, TEnhanced, TExclusions>) {
+        this._params.enhancer = enhancer;
+        return new DefaultDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>(this._onCreate, this._params, this.InstanceCreator);
     }
 
     /**
