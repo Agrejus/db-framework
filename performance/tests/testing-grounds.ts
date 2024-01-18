@@ -131,18 +131,20 @@ export const run = async () => {
         const contextFactory = new DbContextFactory();
         const dbname = contextFactory.getRandomDbName();
         const context = contextFactory.createContext(ExternalDataContext, dbname);
-        const [newBook] = await context.books.add({
-            author: "James",
-            publishDate: new Date()
-        });
+        const x = await context.cars.first();
+
+        // const [newBook] = await context.books.add({
+        //     author: "James",
+        //     publishDate: new Date()
+        // });
 
 
-        const x = await context.booksV3.first();
+        // const x = await context.booksV3.first();
 
-        await context.saveChanges();
+        // await context.saveChanges();
 
 
-        const book = await context.books.pluck(w => w.author === "James", "author");
+        // const book = await context.books.pluck(w => w.author === "James", "author");
        
 
     } catch (e) {

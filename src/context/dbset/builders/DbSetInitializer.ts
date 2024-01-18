@@ -21,35 +21,38 @@ export class DbSetInitializer<TDocumentType extends string, TEntityBase extends 
     }
 
     default<TEntity extends TEntityBase>(documentType: TEntity["DocumentType"]) {
-        return new DefaultDbSetBuilder<TEntity["DocumentType"], TEntity, TExclusions, IDbSet<TEntity["DocumentType"], TEntity, TExclusions>, IDbSetBuilderParams<TEntity["DocumentType"], TEntity, TExclusions, IDbSet<TEntity["DocumentType"], TEntity, TExclusions>>>(this.onAddDbSet, {
-            documentType,
-            context: this.context as IDataContext<TEntity["DocumentType"], TEntity>,
-            readonly: false,
-            defaults: { add: {} as any, retrieve: {} as any },
-            exclusions: [],
-            extend: [],
-            map: [],
-            filterSelector: null,
-            entityComparator: null,
-            idCreator: IdBuilder.createUUID,
-            enhancer: w => w
-        }, DbSet);
+        return new DefaultDbSetBuilder<TEntity["DocumentType"], TEntity, TExclusions>({
+            InstanceCreator: DbSet,
+            onCreate: this.onAddDbSet,
+            params: {
+                documentType,
+                context: this.context as IDataContext<TEntity["DocumentType"], TEntity>,
+                readonly: false,
+                defaults: { add: {} as any, retrieve: {} as any },
+                exclusions: [],
+                map: [],
+                filterSelector: null,
+                entityComparator: null,
+                idCreator: IdBuilder.createUUID,
+                enhancer: w => w
+            }
+        });
     }
 
-    protected _stateful<TEntity extends TEntityBase>(documentType: TEntity["DocumentType"]) {
-        return new StatefulDbSetBuilder<TEntity["DocumentType"], TEntity, TExclusions, IStatefulDbSet<TEntity["DocumentType"], TEntity, TExclusions>, IDbSetStatefulBuilderParams<TEntity["DocumentType"], TEntity, TExclusions, IStatefulDbSet<TEntity["DocumentType"], TEntity, TExclusions>>>(this.onAddDbSet, {
-            documentType,
-            context: this.context as IDataContext<TEntity["DocumentType"], TEntity>,
-            readonly: false,
-            defaults: { add: {} as any, retrieve: {} as any },
-            exclusions: [],
-            extend: [],
-            map: [],
-            filterSelector: null,
-            onChange: () => void (0),
-            entityComparator: null,
-            idCreator: IdBuilder.createUUID,
-            enhancer: w => w
-        }, StatefulDbSet);
-    }
+    // protected _stateful<TEntity extends TEntityBase>(documentType: TEntity["DocumentType"]) {
+    //     return new StatefulDbSetBuilder<TEntity["DocumentType"], TEntity, TExclusions>(this.onAddDbSet, {
+    //         documentType,
+    //         context: this.context as IDataContext<TEntity["DocumentType"], TEntity>,
+    //         readonly: false,
+    //         defaults: { add: {} as any, retrieve: {} as any },
+    //         exclusions: [],
+    //         extend: [],
+    //         map: [],
+    //         filterSelector: null,
+    //         onChange: () => void (0),
+    //         entityComparator: null,
+    //         idCreator: IdBuilder.createUUID,
+    //         enhancer: w => w
+    //     }, StatefulDbSet);
+    // }
 }

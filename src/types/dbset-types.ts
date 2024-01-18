@@ -227,7 +227,7 @@ export type DbSetChanges<TDocumentType extends string, TEntity extends IDbRecord
 export type DbSetOnChangeEvent<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = (documentType: TDocumentType, type: DbSetChangeType, changes: DbSetChanges<TDocumentType, TEntity>) => void;
 export type DbSetRemoteOnChangeEvent<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = (documentType: TDocumentType, type: DbSetChangeType, changes: DbSetRemoteChanges<TDocumentType, TEntity>) => void
 
-export interface IDbSetProps<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity, TEnhanced extends TEntity = TEntity> {
+export interface IDbSetProps<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> {
     documentType: TDocumentType,
     context: IDataContext<TDocumentType, TEntity>,
     defaults: DbSetPickDefaultActionRequired<TDocumentType, TEntity, TExclusions>,
@@ -236,7 +236,7 @@ export interface IDbSetProps<TDocumentType extends string, TEntity extends IDbRe
     map: PropertyMap<TDocumentType, TEntity, TExclusions>[];
     filterSelector: EntitySelector<TDocumentType, TEntity> | null;
     entityComparator: EntityComparator<TDocumentType, TEntity> | null;
-    enhancer: EntityEnhancer<TDocumentType, TEntity, TEnhanced, TExclusions>
+    enhancer?: EntityEnhancer<TDocumentType, TEntity>
 }
 
 export type DbSetType = "default" | "stateful";

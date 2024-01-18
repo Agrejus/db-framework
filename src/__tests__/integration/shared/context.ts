@@ -81,13 +81,7 @@ export class ExternalDataContext extends DataContext<DocumentTypes, IPouchDbReco
     booksNoKey = this.dbset().default<IBook>(DocumentTypes.BooksNoKey).exclude("status", "rejectedCount").keys(w => w.none()).create();
     notes = this.dbset().default<INote>(DocumentTypes.Notes).create();
     contacts = this.dbset().default<IContact>(DocumentTypes.Contacts).keys(w => w.add("firstName").add("lastName")).create();
-    booksV3 = this._setupSyncDbSet<IBookV3>(DocumentTypes.BooksV3).enhance((e, _) => {
-        return {
-            ...e, testfunction: () => {
-
-            }
-        };
-    }).create();
+    booksV3 = this._setupSyncDbSet<IBookV3>(DocumentTypes.BooksV3).create();
     booksV4 = this._setupSyncDbSet<IBookV3>(DocumentTypes.BooksV4).extend((Instance, props) => {
         return new class extends Instance {
             constructor() {
@@ -99,7 +93,14 @@ export class ExternalDataContext extends DataContext<DocumentTypes, IPouchDbReco
             }
         }
     }).create();
-    cars = this.dbset().default<ICar>(DocumentTypes.Cars).keys(w => w.add(x => x.manufactureDate.toISOString()).add(x => x.make).add("model")).create();
+    cars = this.dbset().default<ICar>(DocumentTypes.Cars).enhance((e) => {
+        return {
+            ...e,
+            testfunction: () => {
+                
+            }
+        };
+    }).keys(w => w.add(x => x.manufactureDate.toISOString()).add(x => x.make).add("model")).create();
     preference = this.dbset().default<IPreference>(DocumentTypes.Preference).keys(w => w.add(_ => "static")).create();
     preferencev2 = this.dbset().default<IPreference>(DocumentTypes.PreferenceV2).keys(w => w.add(() => "")).create();
     readonlyPreference = this.dbset().default<IPreference>(DocumentTypes.ReadonlyPreference).keys(w => w.add(_ => "static")).readonly().create();
