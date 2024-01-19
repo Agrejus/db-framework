@@ -1,8 +1,6 @@
-import { IDbSetChangeTracker, IContextChangeTracker } from "../../types/change-tracking-types";
-import { DeepPartial, DeepOmit, DbSetPickDefaultActionRequired } from "../../types/common-types";
+import { IDbSetChangeTracker, IContextChangeTracker, Enrichment } from "../../types/change-tracking-types";
 import { ITrackedChanges } from "../../types/context-types";
-import { PropertyMap } from "../../types/dbset-builder-types";
-import { IDbRecord, OmittedEntity } from "../../types/entity-types";
+import { IDbRecord } from "../../types/entity-types";
 
 /**
  * Uses hashing to track changes at the context level.  Useful for applications that have trouble with proxy objects
@@ -11,12 +9,19 @@ export class ContextChangeTrackingAdapter<TDocumentType extends string, TEntity 
 
     private readonly _changeTrackers: { [key: string]: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions> } = {};
 
+    readonly enrichment: Enrichment<TDocumentType, TEntity, TExclusions> = {
+        add: (entity: TEntity) => this._changeTrackers[entity.DocumentType].enrichment.add(entity),
+        retrieve: (entity: TEntity) => this._changeTrackers[entity.DocumentType].enrichment.retrieve(entity),
+        enhance: (entity: TEntity) => this._changeTrackers[entity.DocumentType].enrichment.enhance(entity),
+        map: (entity: TEntity) => this._changeTrackers[entity.DocumentType].enrichment.map(entity),
+    }
+
     registerChangeTracker(documentType: TDocumentType, tracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>) {
         this._changeTrackers[documentType] = tracker;
     }
 
-    enableChangeTracking(entity: TEntity, options?: { defaults: DeepPartial<OmittedEntity<TEntity, TExclusions>>, readonly: boolean, maps: PropertyMap<TDocumentType, TEntity, any>[] }): TEntity {
-        return this._changeTrackers[entity.DocumentType].enableChangeTracking(entity, options);
+    enableChangeTracking(entity: TEntity): TEntity {
+        return this._changeTrackers[entity.DocumentType].enableChangeTracking(entity);
     }
 
     getPendingChanges() {
@@ -42,9 +47,9 @@ export class ContextChangeTrackingAdapter<TDocumentType extends string, TEntity 
         return trackedChanges;
     }
 
-    makePristine(...entities: TEntity[]) {
+    cleanse(...entities: TEntity[]) {
         for (const item of entities) {
-            this._changeTrackers[item.DocumentType].makePristine(item);
+            this._changeTrackers[item.DocumentType].cleanse(item);
         }
     }
 

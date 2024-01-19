@@ -24,7 +24,7 @@ describe('DbSet Get Tests', () => {
         });
 
         await context.saveChanges();
-
+ 
         const all = await context.contacts.get(one._id, two._id);
 
         expect(all.length).toBe(2);

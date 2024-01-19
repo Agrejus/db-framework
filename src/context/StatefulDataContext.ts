@@ -14,7 +14,7 @@ export type OnChangeHandlerDictionary = {
 
 const onChangeHandlers: OnChangeHandlerDictionary = {};
 
-export class StatefulDataContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase, TPluginOptions extends IDbPluginOptions = IDbPluginOptions, TDbPlugin extends IDbPlugin<TDocumentType, TEntityBase, TExclusions> = IDbPlugin<TDocumentType, TEntityBase, TExclusions>> extends DataContext<TDocumentType, TEntityBase, TExclusions, TPluginOptions, TDbPlugin> {
+export abstract class StatefulDataContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase, TPluginOptions extends IDbPluginOptions = IDbPluginOptions, TDbPlugin extends IDbPlugin<TDocumentType, TEntityBase, TExclusions> = IDbPlugin<TDocumentType, TEntityBase, TExclusions>> extends DataContext<TDocumentType, TEntityBase, TExclusions, TPluginOptions, TDbPlugin> {
 
     constructor(options: TPluginOptions, Plugin: DbPluginInstanceCreator<TDocumentType, TEntityBase, TExclusions, TDbPlugin>, contextOptions: ContextOptions = { environment: "development" }) {
         super(options, Plugin, contextOptions)

@@ -2,7 +2,7 @@
 import { DataContext } from "../../src/context/DataContext";
 import { IDbRecord } from "../../src/types/entity-types";
 import { PouchDbPlugin, PouchDbRecord } from "@agrejus/db-framework-plugin-pouchdb";
-import { IDbPluginOptions, Test } from "../../src/types/plugin-types";
+import { IDbPluginOptions } from "../../src/types/plugin-types";
 import { contextBuilder } from "../../src/context/builder/context-builder";
 import { DbSetRemoteChanges } from "../../src/types/dbset-types";
 import { StatefulDataContext } from "../../src/context/StatefulDataContext";
@@ -85,6 +85,10 @@ const PerformanceDataContext = contextBuilder<DocumentTypes>()
     .createDefault((Base) => {
         return class extends Base {
 
+            contextId() {
+                return "some-name"
+            }
+
             cars = this.dbset().default<ICar>(DocumentTypes.Cars)
                 .keys(w => w.auto())
                 .create();
@@ -128,25 +132,24 @@ export const run = async () => {
         // const changes = await context.previewChanges();
         // debugger;
         // console.log(changes)
+        debugger;
         const contextFactory = new DbContextFactory();
         const dbname = contextFactory.getRandomDbName();
         const context = contextFactory.createContext(ExternalDataContext, dbname);
-        const x = await context.cars.first();
 
-        // const [newBook] = await context.books.add({
-        //     author: "James",
-        //     publishDate: new Date()
-        // });
-
-
-        // const x = await context.booksV3.first();
-
-        // await context.saveChanges();
+        const [newBook] = await context.books.add({
+            author: "James",
+            publishDate: new Date()
+        });
 
 
-        // const book = await context.books.pluck(w => w.author === "James", "author");
+        const x = await context.booksV3.first();
+
+        await context.saveChanges();
+
+
+        const book = await context.books.pluck(w => w.author === "James", "author");
        
-
     } catch (e) {
         console.log(e)
     }

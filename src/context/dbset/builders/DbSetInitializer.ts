@@ -1,6 +1,5 @@
 import { IDataContext } from "../../../types/context-types";
-import { IDbSetBuilderParams, IDbSetStatefulBuilderParams } from "../../../types/dbset-builder-types";
-import { IDbSet, IDbSetBase, IStatefulDbSet } from "../../../types/dbset-types";
+import { IDbSetBase } from "../../../types/dbset-types";
 import { IDbRecord } from "../../../types/entity-types";
 import { IDbPluginOptions } from "../../../types/plugin-types";
 import { DataContext } from "../../DataContext";
@@ -33,26 +32,27 @@ export class DbSetInitializer<TDocumentType extends string, TEntityBase extends 
                 map: [],
                 filterSelector: null,
                 entityComparator: null,
-                idCreator: IdBuilder.createUUID,
-                enhancer: w => w
+                idCreator: IdBuilder.createUUID
             }
         });
     }
 
-    // protected _stateful<TEntity extends TEntityBase>(documentType: TEntity["DocumentType"]) {
-    //     return new StatefulDbSetBuilder<TEntity["DocumentType"], TEntity, TExclusions>(this.onAddDbSet, {
-    //         documentType,
-    //         context: this.context as IDataContext<TEntity["DocumentType"], TEntity>,
-    //         readonly: false,
-    //         defaults: { add: {} as any, retrieve: {} as any },
-    //         exclusions: [],
-    //         extend: [],
-    //         map: [],
-    //         filterSelector: null,
-    //         onChange: () => void (0),
-    //         entityComparator: null,
-    //         idCreator: IdBuilder.createUUID,
-    //         enhancer: w => w
-    //     }, StatefulDbSet);
-    // }
+    protected _stateful<TEntity extends TEntityBase>(documentType: TEntity["DocumentType"]) {
+        return new StatefulDbSetBuilder<TEntity["DocumentType"], TEntity, TExclusions>({
+            InstanceCreator: StatefulDbSet,
+            onCreate: this.onAddDbSet,
+            params: {
+                documentType,
+                context: this.context as IDataContext<TEntity["DocumentType"], TEntity>,
+                readonly: false,
+                defaults: { add: {} as any, retrieve: {} as any },
+                exclusions: [],
+                map: [],
+                filterSelector: null,
+                onChange: () => void (0),
+                entityComparator: null,
+                idCreator: IdBuilder.createUUID
+            }
+        });
+    }
 }

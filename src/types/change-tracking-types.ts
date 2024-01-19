@@ -32,12 +32,12 @@ export interface IChangeTrackingStoreData<TDocumentType extends string, TEntity 
 
 export type ChangeTrackingStoreInstanceCreator<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = new () => IChangeTrackingStore<TDocumentType, TEntity>;
 
-export type ProcessedChangesResult<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = { 
-    isDirty: boolean, 
-    deltas: DeepPartial<TEntity> | null, 
+export type ProcessedChangesResult<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = {
+    isDirty: boolean,
+    deltas: DeepPartial<TEntity> | null,
     doc: TEntity,
     original: TEntity
- }
+}
 
 export interface IDbSetChangeTracker<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> extends IChangeTrackerBase<TDocumentType, TEntity, TExclusions> {
     getTrackedData(): ITrackedData<TDocumentType, TEntity>;
@@ -46,20 +46,31 @@ export interface IDbSetChangeTracker<TDocumentType extends string, TEntity exten
     processChanges(entity: TEntity): ProcessedChangesResult<TDocumentType, TEntity>;
     detach(ids: (keyof TEntity)[]): void;
     attach(data: TEntity[]): TEntity[];
-    mapAndSetDefaults(entity: TEntity | OmittedEntity<TEntity, TExclusions>, maps: PropertyMap<any, any, any>[], defaults: DeepPartial<OmittedEntity<TEntity, TExclusions>>): TEntity | OmittedEntity<TEntity, TExclusions>;
+    readonly enrichment: Enrichment<TDocumentType, TEntity, TExclusions>;
     isAttached(id: keyof TEntity): boolean;
     isLinked(entity: TEntity): boolean;
-    link(foundEntities: TEntity[], attachEntities: TEntity[], defaults: DeepPartial<OmittedEntity<TEntity, TExclusions>>, readonly: boolean, maps: PropertyMap<TDocumentType, TEntity, any>[]): TEntity[];
+    link(foundEntities: TEntity[], attachEntities: TEntity[]): TEntity[];
 }
 
 export interface IChangeTrackerBase<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> {
-    enableChangeTracking(entity: TEntity, options?: { defaults: DeepPartial<OmittedEntity<TEntity, TExclusions>>, readonly: boolean, maps: PropertyMap<TDocumentType, TEntity, any>[] }): TEntity;
+    enableChangeTracking(entity: TEntity): TEntity;
     getPendingChanges(): ITrackedChanges<TDocumentType, TEntity>;
-    makePristine(...entities: TEntity[]): void;
+    cleanse(...entities: TEntity[]): void;
     reinitialize(removals?: TEntity[], add?: TEntity[], updates?: TEntity[]): void;
     asUntracked(...entities: TEntity[]): TEntity[];
 }
 
 export interface IContextChangeTracker<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> extends IChangeTrackerBase<TDocumentType, TEntity, TExclusions> {
     registerChangeTracker(documentType: TDocumentType, tracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>): void;
+    readonly enrichment: Enrichment<TDocumentType, TEntity, TExclusions>;
+
+}
+
+export type EntityReverter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> = (entity: TEntity | OmittedEntity<TEntity, TExclusions>) => TEntity;
+
+export type Enrichment<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> = {
+    add: (entity: TEntity) => TEntity;
+    retrieve: (entity: TEntity) => TEntity;
+    map: (entity: TEntity) => TEntity;
+    enhance: (entity: TEntity) => TEntity;
 }

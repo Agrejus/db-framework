@@ -33,3 +33,6 @@ export interface IPreviewChanges<TDocumentType extends string, TEntityBase exten
     remove: IRemovalRecord<TDocumentType, TEntityBase>[];
     update: IEntityUpdates<TDocumentType, TEntityBase>
 }
+
+export type ToUnion<T> = { [K in keyof T]: K }[keyof T]
+

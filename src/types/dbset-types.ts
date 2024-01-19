@@ -1,6 +1,6 @@
 import { IDbSetChangeTracker } from "./change-tracking-types";
 import { DbSetPickDefaultActionRequired, EntityComparator, EntitySelector } from "./common-types";
-import { ContextOptions, IDataContext } from "./context-types";
+import { ContextOptions, DbFrameworkEnvironment, IDataContext } from "./context-types";
 import { CustomIdCreator, EntityEnhancer, PropertyMap } from "./dbset-builder-types";
 import { IDbRecord, OmittedEntity, IDbRecordBase, EntityIdKeys } from "./entity-types";
 import { IDbPlugin } from "./plugin-types";
@@ -204,6 +204,7 @@ export type SaveChangesEventData<TDocumentType extends string, TEntityBase exten
 export interface IDbSetApi<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase> {
     dbPlugin: IDbPlugin<TDocumentType, TEntityBase, TExclusions>;
     contextOptions: ContextOptions;
+    readonly contextId: string;
     tag(id: TEntityBase[keyof TEntityBase], value: unknown): void;
     registerOnBeforeSaveChanges: (documentType: TDocumentType, onBeforeSaveChanges: (getChanges: <T extends SaveChangesEventData<TDocumentType, TEntityBase>>() => T) => Promise<void>) => void;
     registerOnAfterSaveChanges: (documentType: TDocumentType, onAfterSaveChanges: (getChanges: <T extends SaveChangesEventData<TDocumentType, TEntityBase>>() => T) => Promise<void>) => void;
@@ -233,7 +234,7 @@ export interface IDbSetProps<TDocumentType extends string, TEntity extends IDbRe
     defaults: DbSetPickDefaultActionRequired<TDocumentType, TEntity, TExclusions>,
     readonly: boolean;
     idCreator: CustomIdCreator<TDocumentType, TEntity>;
-    map: PropertyMap<TDocumentType, TEntity, TExclusions>[];
+    map: PropertyMap<TDocumentType, TEntity, any>[];
     filterSelector: EntitySelector<TDocumentType, TEntity> | null;
     entityComparator: EntityComparator<TDocumentType, TEntity> | null;
     enhancer?: EntityEnhancer<TDocumentType, TEntity>
@@ -252,4 +253,16 @@ export interface IDataContextState<TDocumentType extends string, TEntityBase ext
     filter: (selector: EntitySelector<TDocumentType, TEntityBase>) => TEntityBase[],
     find: (selector: EntitySelector<TDocumentType, TEntityBase>) => TEntityBase | undefined,
     all: () => TEntityBase[],
+}
+
+export type ChangeTrackingOptions<
+    TDocumentType extends string,
+    TEntity extends IDbRecord<TDocumentType>,
+    TExclusions extends keyof TEntity
+> = IDbSetProps<TDocumentType, TEntity, TExclusions> & {
+    untrackedPropertyNames: string[],
+    idPropertyName: keyof TEntity,
+    documentType: TDocumentType,
+    contextName: string,
+    environment?: DbFrameworkEnvironment
 }

@@ -12,32 +12,12 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
         super(props, type, changeTracker);
     }
 
-    protected processAddition(entity: OmittedEntity<TEntity, TExclusions>) {
-        const addItem: IDbRecord<TDocumentType> = entity as any;
-        (addItem as any).DocumentType = this.documentType;
-        const id = this.getKeyFromEntity(entity as any);
-
-
-
-        if (id != undefined) {
-            (addItem as any)[this.api.dbPlugin.idPropertName] = id;
-        }
-
-        return addItem
-    }
-
-    protected processAdditionAndMakeTrackable(entity: OmittedEntity<TEntity, TExclusions>) {
-        const addItem = this.processAddition(entity);
-
-        return this.changeTracker.enableChangeTracking(addItem as TEntity, { defaults: this.defaults.add, readonly: this.isReadonly, maps: this.map });
-    }
-
     tag(value: unknown) {
         this._tag = value;
     }
 
     instance(...entities: OmittedEntity<TEntity, TExclusions>[]) {
-        return entities.map(entity => ({ ...this.processAdditionAndMakeTrackable(entity) }));
+        return entities.map(entity => ({ ...this.changeTracker.enrichment.add(entity as TEntity) }));
     }
 
     private async _add(...entities: OmittedEntity<TEntity, TExclusions>[]) {
@@ -50,8 +30,8 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
                 throw new Error('Cannot add entity that is already in the database, please modify entites by reference or attach an existing entity')
             }
 
-            const mappedEntity = this.changeTracker.mapAndSetDefaults(entity, this.map, this.defaults.add);
-            const trackableEntity = this.processAdditionAndMakeTrackable(mappedEntity);
+            const enrichedEntity = this.changeTracker.enrichment.add(entity as TEntity);
+            const trackableEntity = this.changeTracker.enableChangeTracking(enrichedEntity);
 
             this._tryAddMetaData(trackableEntity[this.api.dbPlugin.idPropertName]);
 
@@ -93,12 +73,13 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
         const result: TEntity[] = [];
 
         for (let entity of entities as any[]) {
-            const instance = entity[this.api.dbPlugin.idPropertName] != null ? entity as TEntity : { ...this.processAdditionAndMakeTrackable(entity) } as TEntity;
+            const instance = entity[this.api.dbPlugin.idPropertName] != null ? entity as TEntity : { ...this.changeTracker.enrichment.add(entity) } as TEntity;
             const id = instance[this.api.dbPlugin.idPropertName] as string;
             const found = allDictionary[id]
 
             if (found) {
-                const mergedAndTrackable = this.changeTracker.enableChangeTracking(found, { defaults: this.defaults.add, readonly: this.isReadonly, maps: this.map });
+                const enriched = this.changeTracker.enrichment.add(found);
+                const mergedAndTrackable = this.changeTracker.enableChangeTracking(enriched);
 
                 const [attached] = this.changeTracker.attach([mergedAndTrackable]);
 

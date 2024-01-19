@@ -39,11 +39,12 @@ export class DbSet<TDocumentType extends string, TEntity extends IDbRecord<TDocu
      */
     constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>) {
 
-        const context = props.context as IPrivateContext<TDocumentType, TEntity, TExclusions>;;
+        const context = props.context as IPrivateContext<TDocumentType, TEntity, TExclusions>;
+
         const api = context._getApi();
         this.plugin = api.dbPlugin;
 
-        const changeTrackingFactory = new ChangeTrackingFactory<TDocumentType, TEntity, TExclusions>(props, this.plugin.idPropertName, api.contextOptions.environment ?? "development");
+        const changeTrackingFactory = new ChangeTrackingFactory<TDocumentType, TEntity, TExclusions>(props, this.plugin.idPropertName, "contextName", api.contextOptions.environment ?? "development");
 
         this._changeTracker = changeTrackingFactory.getTracker();
 

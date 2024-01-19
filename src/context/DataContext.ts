@@ -7,9 +7,11 @@ import { DbPluginInstanceCreator, IDbPlugin, IDbPluginOptions } from '../types/p
 import { IContextChangeTracker } from "../types/change-tracking-types";
 import { ContextChangeTrackingAdapter } from '../adapters/change-tracking/ContextChangeTrackingAdapter';
 
-export class DataContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase, TPluginOptions extends IDbPluginOptions = IDbPluginOptions, TDbPlugin extends IDbPlugin<TDocumentType, TEntityBase, TExclusions> = IDbPlugin<TDocumentType, TEntityBase, TExclusions>> implements IDataContext<TDocumentType, TEntityBase> {
+export abstract class DataContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase, TPluginOptions extends IDbPluginOptions = IDbPluginOptions, TDbPlugin extends IDbPlugin<TDocumentType, TEntityBase, TExclusions> = IDbPlugin<TDocumentType, TEntityBase, TExclusions>> implements IDataContext<TDocumentType, TEntityBase> {
 
     private _tags: { [id: string]: unknown } = {}
+
+    abstract contextId(): string;
 
     protected readonly dbPlugin: TDbPlugin;
     protected dbSets: DbSetMap = {} as DbSetMap;
@@ -29,10 +31,6 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
         this._contextOptions = contextOptions;
         this.dbPlugin = new Plugin(options);
         this._changeTracker = new ContextChangeTrackingAdapter();
-
-        // master change tracker that goes through registerred functions?
-        // facade into the db sets?
-        // master adapter - register dbset adapters by document type
     }
 
     async getAllDocs() {
@@ -46,7 +44,8 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
             if (dbSet) {
                 const info = dbSet.info();
 
-                return this._changeTracker.enableChangeTracking(w, { defaults: info.Defaults.retrieve, readonly: info.Readonly, maps: info.Map })
+                const enriched = this._changeTracker.enrichment.retrieve(w);
+                return this._changeTracker.enableChangeTracking(enriched)
             }
 
             return w
@@ -64,6 +63,7 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
             tag: this._tag.bind(this),
             registerOnAfterSaveChanges: this._registerOnAfterSaveChanges.bind(this),
             registerOnBeforeSaveChanges: this._registerOnBeforeSaveChanges.bind(this),
+            contextId: this.contextId()
         }
         return api;
     }
@@ -97,8 +97,8 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
         this.dbSets[info.DocumentType] = dbset;
     }
 
-    private async _makeUpdatesPristine(updates: { [key: string | number]: TEntityBase }) {
-        await Promise.all(Object.keys(updates).map(w => this._changeTracker.makePristine(updates[w])))
+    private async _cleanseUpdateEntities(updates: { [key: string | number]: TEntityBase }) {
+        await Promise.all(Object.keys(updates).map(w => this._changeTracker.cleanse(updates[w])))
     }
 
     async previewChanges(): Promise<IPreviewChanges<TDocumentType, TEntityBase>> {
@@ -111,7 +111,7 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
 
         const result: IPreviewChanges<TDocumentType, TEntityBase> = JSON.parse(clone);
 
-        await this._makeUpdatesPristine(result.update.docs);
+        await this._cleanseUpdateEntities(result.update.docs);
 
         return result;
     }
@@ -194,7 +194,7 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
             // in case are are trying to remove and add the same Id
             const modifications = [...remove, ...add, ...updatedItems];
 
-            this._changeTracker.makePristine(...modifications);
+            this._changeTracker.cleanse(...modifications);
 
             const modificationResult = await this.dbPlugin.bulkOperations({ adds: add, removes: remove, updates: updatedItems });
 
@@ -203,7 +203,7 @@ export class DataContext<TDocumentType extends string, TEntityBase extends IDbRe
             // set any properties return from the database
             this.dbPlugin.setDbGeneratedValues(modificationResult, [...add, ...updated.originals, ...Object.values(updated.docs) as any, ...Object.values(updated.deltas) as any]);
 
-            this._changeTracker.makePristine(...modifications, ...updated.originals);
+            this._changeTracker.cleanse(...modifications, ...updated.originals);
             this._changeTracker.reinitialize(remove, add, updatedItems);
 
             await this._onAfterSaveChanges(changes, tags);

@@ -1,8 +1,7 @@
 import { IDbSetChangeTracker } from "../../types/change-tracking-types";
-import { DbSetPickDefaultActionRequired, DeepPartial } from "../../types/common-types";
 import { DbFrameworkEnvironment } from "../../types/context-types";
 import { IDbSetProps } from "../../types/dbset-types";
-import { IDbRecord, OmittedEntity } from "../../types/entity-types";
+import { IDbRecord } from "../../types/entity-types";
 import { CustomChangeTrackingAdapter } from "./CustomChangeTrackingAdapter";
 import { EntityChangeTrackingAdapter } from "./EntityChangeTrackingAdapter";
 import { ReadonlyChangeTrackingAdapter } from "./ReadonlyChangeTrackingAdapter";
@@ -12,22 +11,50 @@ export class ChangeTrackingFactory<TDocumentType extends string, TEntity extends
     private readonly _props: IDbSetProps<TDocumentType, TEntity, TExclusions>;
     private readonly _idPropertyName: keyof TEntity;
     private readonly _environment: DbFrameworkEnvironment;
+    private readonly _contextName: string;
 
-    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, idPropertyName: keyof TEntity, environment: DbFrameworkEnvironment) {
+    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, idPropertyName: keyof TEntity, contextName: string, environment: DbFrameworkEnvironment) {
         this._props = props;
         this._idPropertyName = idPropertyName;
         this._environment = environment;
+        this._contextName = contextName;
     }
 
     getTracker(): IDbSetChangeTracker<TDocumentType, TEntity, TExclusions> {
         if (this._props.readonly === true) {
-            return new ReadonlyChangeTrackingAdapter(this._idPropertyName, this._props.map, this._environment);
+            return new ReadonlyChangeTrackingAdapter({
+                ...this._props,
+                idPropertyName: this._idPropertyName,
+                environment: this._environment,
+                contextName: this._contextName,
+                untrackedPropertyNames: [
+                    EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY,
+                    EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER,
+                    EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY
+                ]
+            });
         }
 
         if (this._props.entityComparator != null) {
-            return new CustomChangeTrackingAdapter(this._idPropertyName, this._props.map, this._environment, this._props.entityComparator);
+            return new CustomChangeTrackingAdapter({
+                ...this._props,
+                idPropertyName: this._idPropertyName,
+                environment: this._environment,
+                contextName: this._contextName,
+                untrackedPropertyNames: []
+            }, this._props.entityComparator);
         }
 
-        return new EntityChangeTrackingAdapter(this._idPropertyName, this._props.map, this._environment);
+        return new EntityChangeTrackingAdapter({
+            ...this._props,
+            idPropertyName: this._idPropertyName,
+            environment: this._environment,
+            contextName: this._contextName,
+            untrackedPropertyNames: [
+                EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY,
+                EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER,
+                EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY
+            ]
+        });
     }
 }

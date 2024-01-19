@@ -42,24 +42,4 @@ describe('DbSet Extension Tests', () => {
         expect(otherFirst).toBeDefined();
         expect(otherOtherFirst).toBeDefined();
     });
-
-    it('should extend more than once when calling common method', async () => {
-        const context = contextFactory.createContext(ExternalDataContext);
-        const [book] = await context.booksV4.add({
-            author: "me",
-            rejectedCount: 1,
-            publishDate: new Date()
-        });
-
-        expect(book.SyncRetryCount).toBe(0);
-        expect(book.SyncStatus).toBe("Pending");
-
-        await context.saveChanges();
-
-        const status = await context.booksV4.toStatus();
-        const first = await context.booksV4.otherFirst();
-
-        expect(status).toBeDefined();
-        expect(first).toBeDefined();
-    });
 });

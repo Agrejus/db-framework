@@ -1,6 +1,6 @@
 import { DataContext } from "../../../context/DataContext";
 import { IDbSet } from "../../../types/dbset-types";
-import { IDbRecordBase } from "../../../types/entity-types";
+import { IDbRecord, IDbRecordBase } from "../../../types/entity-types";
 import { DocumentTypes, ISyncDocument, ISetStatus, IComputer, IBook, IBookV4, INote, IContact, IBookV3, ICar, IPreference, IPouchDbRecord } from "./types";
 import { v4 as uuidv4 } from 'uuid';
 import { DefaultDbSetBuilder } from "../../../context/dbset/builders/DefaultDbSetBuilder";
@@ -8,11 +8,17 @@ import { PouchDbPlugin } from "@agrejus/db-framework-plugin-pouchdb";
 import { IDbSetBuilderParams } from "../../../types/dbset-builder-types";
 import { ContextOptions } from "../../../types/context-types";
 import { IDbPluginOptions } from "../../../types/plugin-types";
+import { DbSetInitializer } from "../../../context/dbset/builders/DbSetInitializer";
+import { useDbSetCreator } from "../../../context/dbset/builders/DbSetCreator";
 
 const dataContextWithParamsCreator = (type: string, name?: string) => new class extends DataContext<DocumentTypes, IPouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, IPouchDbRecord<DocumentTypes>, IDbPluginOptions>> {
 
     constructor() {
         super({ dbName: name ?? `${uuidv4()}-db` }, PouchDbPlugin);
+    }
+
+    contextId(): string {
+        return "dataContextWithParamsCreator"
     }
 
     carsWithDefault = this.dbset().default<ICar>(DocumentTypes.CarsWithDefault)
@@ -26,19 +32,21 @@ const dataContextWithParamsCreator = (type: string, name?: string) => new class 
 const context = dataContextWithParamsCreator("");
 export const ExternalDbDataContextWithDefaults = context;
 
+
+
 export class ExternalDataContext extends DataContext<DocumentTypes, IPouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, IPouchDbRecord<DocumentTypes>, IDbPluginOptions>> {
 
     constructor(name: string, contextOptions: ContextOptions = { environment: "development" }) {
         super({ dbName: name.endsWith("-db") ? name : `${name}-db` }, PouchDbPlugin, contextOptions);
     }
 
-    private _setupSyncDbSet<T extends ISyncDocument<DocumentTypes>>(documentType: DocumentTypes) {
+    contextId(): string {
+        return ExternalDataContext.name
+    }
 
-        const dbset = (this.dbset().default<ISyncDocument<DocumentTypes>>(documentType)
-            .defaults({ SyncStatus: "Pending", SyncRetryCount: 0 })
-            .exclude("SyncStatus", "SyncRetryCount") as any) as DefaultDbSetBuilder<DocumentTypes, T, "SyncStatus" | "SyncRetryCount", IDbSet<DocumentTypes, T, "SyncStatus" | "SyncRetryCount">, IDbSetBuilderParams<DocumentTypes, T, "SyncStatus" | "SyncRetryCount", IDbSet<DocumentTypes, T, "SyncStatus" | "SyncRetryCount">>>;
+    private creator<TDocumentType extends string, TEntityBase extends ISyncDocument<TDocumentType>, TBuilder extends DefaultDbSetBuilder<TDocumentType, TEntityBase, "_id" | "_rev">>(builder: TBuilder) {
 
-        return dbset.extend((Instance, props) => {
+        return builder.defaults({ SyncRetryCount: 0, SyncStatus: "Pending" } as any).exclude("SyncStatus", "SyncRetryCount").create((Instance, props) => {
             return new class extends Instance {
                 constructor() {
                     super(props);
@@ -65,6 +73,7 @@ export class ExternalDataContext extends DataContext<DocumentTypes, IPouchDbReco
         });
     }
 
+
     computers = this.dbset().default<IComputer>(DocumentTypes.Computers).create();
 
     books = this.dbset().default<IBook>(DocumentTypes.Books).defaults({ status: "pending" }).exclude("status", "rejectedCount").create();
@@ -81,23 +90,12 @@ export class ExternalDataContext extends DataContext<DocumentTypes, IPouchDbReco
     booksNoKey = this.dbset().default<IBook>(DocumentTypes.BooksNoKey).exclude("status", "rejectedCount").keys(w => w.none()).create();
     notes = this.dbset().default<INote>(DocumentTypes.Notes).create();
     contacts = this.dbset().default<IContact>(DocumentTypes.Contacts).keys(w => w.add("firstName").add("lastName")).create();
-    booksV3 = this._setupSyncDbSet<IBookV3>(DocumentTypes.BooksV3).create();
-    booksV4 = this._setupSyncDbSet<IBookV3>(DocumentTypes.BooksV4).extend((Instance, props) => {
-        return new class extends Instance {
-            constructor() {
-                super(props)
-            }
+    booksV3 = this.creator<DocumentTypes, IBookV3, DefaultDbSetBuilder<DocumentTypes, IBookV3, "_id" | "_rev">>(this.dbset().default<IBookV3>(DocumentTypes.BooksV3));
 
-            otherFirst() {
-                return super.first();
-            }
-        }
-    }).create();
     cars = this.dbset().default<ICar>(DocumentTypes.Cars).enhance((e) => {
         return {
-            ...e,
             testfunction: () => {
-                
+
             }
         };
     }).keys(w => w.add(x => x.manufactureDate.toISOString()).add(x => x.make).add("model")).create();
@@ -105,7 +103,7 @@ export class ExternalDataContext extends DataContext<DocumentTypes, IPouchDbReco
     preferencev2 = this.dbset().default<IPreference>(DocumentTypes.PreferenceV2).keys(w => w.add(() => "")).create();
     readonlyPreference = this.dbset().default<IPreference>(DocumentTypes.ReadonlyPreference).keys(w => w.add(_ => "static")).readonly().create();
 
-    overrideContactsV2 = this.dbset().default<IContact>(DocumentTypes.OverrideContactsV2).keys(w => w.add("firstName").add("lastName")).extend((Instance, props) => {
+    overrideContactsV2 = this.dbset().default<IContact>(DocumentTypes.OverrideContactsV2).keys(w => w.add("firstName").add("lastName")).create((Instance, props) => {
         return new class extends Instance {
             constructor() {
                 super(props)
@@ -115,9 +113,9 @@ export class ExternalDataContext extends DataContext<DocumentTypes, IPouchDbReco
                 return super.first();
             }
         }
-    }).create();
+    });
 
-    overrideContactsV3 = this.dbset().default<IContact>(DocumentTypes.OverrideContactsV3).keys(w => w.add("firstName").add("lastName")).extend((Instance, props) => {
+    overrideContactsV3 = this.dbset().default<IContact>(DocumentTypes.OverrideContactsV3).keys(w => w.add("firstName").add("lastName")).create((Instance, props) => {
         return new class extends Instance {
             constructor() {
                 super(props)
@@ -125,28 +123,22 @@ export class ExternalDataContext extends DataContext<DocumentTypes, IPouchDbReco
 
             otherFirst() {
                 return super.first();
-            }
-        }
-    }).extend((Instance, props) => {
-        return new class extends Instance {
-            constructor() {
-                super(props)
             }
 
             otherOtherFirst() {
                 return super.first();
             }
         }
-    }).create();
+    });
 
     booksWithDefaults = this.dbset().default<IBook>(DocumentTypes.BooksWithDefaults).defaults({ status: "pending", rejectedCount: 0 }).exclude("status", "rejectedCount").create();
-    booksWithDefaultsV2 = this.dbset().default<IBook>(DocumentTypes.BooksWithDefaultsV2).defaults({ status: "pending", rejectedCount: 0 }).exclude("status", "rejectedCount").extend((Instance, props) => {
+    booksWithDefaultsV2 = this.dbset().default<IBook>(DocumentTypes.BooksWithDefaultsV2).defaults({ status: "pending", rejectedCount: 0 }).exclude("status", "rejectedCount").create((Instance, props) => {
         return new class extends Instance {
             constructor() {
                 super(props)
             }
         }
-    }).create();
+    });
     booksWithTwoDefaults = this.dbset().default<IBook>(DocumentTypes.BooksWithTwoDefaults).defaults({ add: { status: "pending", rejectedCount: 0 }, retrieve: { status: "approved", rejectedCount: -1 } }).exclude("status", "rejectedCount").create();
     booksNoDefaults = this.dbset().default<IBook>(DocumentTypes.BooksWithNoDefaults).exclude("status", "rejectedCount").create();
 
@@ -163,14 +155,18 @@ export class BooksWithOneDefaultContext extends DataContext<DocumentTypes, IPouc
         super({ dbName: name }, PouchDbPlugin);
     }
 
+    contextId(): string {
+        return BooksWithOneDefaultContext.name
+    }
+
     booksWithDefaults = this.dbset().default<IBook>(DocumentTypes.BooksWithDefaults).exclude("status", "rejectedCount").create();
-    booksWithDefaultsV2 = this.dbset().default<IBook>(DocumentTypes.BooksWithDefaultsV2).defaults({ status: "pending", rejectedCount: 0 }).exclude("status", "rejectedCount").extend((Instance, props) => {
+    booksWithDefaultsV2 = this.dbset().default<IBook>(DocumentTypes.BooksWithDefaultsV2).defaults({ status: "pending", rejectedCount: 0 }).exclude("status", "rejectedCount").create((Instance, props) => {
         return new class extends Instance {
             constructor() {
                 super(props)
             }
         }
-    }).create();
+    });
 }
 
 
@@ -178,6 +174,10 @@ export class BooksWithTwoDefaultContext extends DataContext<DocumentTypes, IPouc
 
     constructor(name: string) {
         super({ dbName: name.endsWith("-db") ? name : `${name}-db` }, PouchDbPlugin);
+    }
+
+    contextId(): string {
+        return BooksWithTwoDefaultContext.name
     }
 
     booksWithTwoDefaults = this.dbset().default<IBook>(DocumentTypes.BooksWithTwoDefaults).exclude("status", "rejectedCount").create();
@@ -218,3 +218,20 @@ export class DbContextFactory {
         await Promise.all(dbNames.map(w => this._dbs[w].destroyDatabase()));
     }
 }
+
+// export type DeepOmit<T, K extends PropertyKey> = {
+//     [P in keyof T as P extends K ? never : P]: DeepOmit<T[P], K extends `${Exclude<P, symbol>}.${infer R}` ? R : never>
+// }
+
+// // https://medium.com/xgeeks/typescript-utility-keyof-nested-object-fa3e457ef2b2
+// export type DeepKeyOf<T> = {
+//     [Key in keyof T & (string | number)]: T[Key] extends object ? `${Key}` | `${Key}.${DeepKeyOf<T[Key]>}` : `${Key}`
+// }[keyof T & (string | number)];
+
+// export type DocumentKeySelector<T> = (entity: T) => any
+// export type KeyOf<T> = keyof T | DocumentKeySelector<T>;
+// export type IdKeys<T> = KeyOf<T>[];
+// export type IdKey<T> = KeyOf<T>;
+// export type DeepPartial<T> = T extends object ? {
+//     [P in keyof T]?: DeepPartial<T[P]>;
+// } : T;
