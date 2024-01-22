@@ -78,25 +78,26 @@ describe('DbSet First Tests', () => {
 
     it('should find first entities with no defaults', async () => {
 
+        const name = contextFactory.getRandomDbName();
         await shouldFilterEntitiesWithDefaults(
-            () => contextFactory.createContextWithParams("", "my-db0"),
+            () => contextFactory.createContextWithParams("", name),
             async (dbSet, _) => { const response = await dbSet.first(); if (response) { return [response] } return [] },
             w => expect(w.length).toBe(1))
     });
 
     it('should find first entities with defaults', async () => {
-
+        const name = contextFactory.getRandomDbName();
         await shouldFilterEntitiesWithDefaults(
-            () => contextFactory.createContextWithParams("CouchDB", "my-db"),
+            () => contextFactory.createContextWithParams("CouchDB", name),
             async (dbSet, _) => { const response = await dbSet.first(); if (response) { return [response] } return [] },
             w => expect(w.length).toBe(1))
     });
 
     it('should find first entities and not find result when base filter does not match - with default', async () => {
-
+        const name = contextFactory.getRandomDbName();
         await shouldFilterEntitiesWithDefaultsAndNotMatchOnSecondQuery(
-            () => contextFactory.createContextWithParams("CouchDB", "my-db1"),
-            () => contextFactory.createContextWithParams("", "my-db1"),
+            () => contextFactory.createContextWithParams("CouchDB", name),
+            () => contextFactory.createContextWithParams("", name),
             async (dbSet, _) => { const response = await dbSet.first(); if (response) { return [response] } return [] },
             w => expect(w.length).toBe(1),
             w => expect(w.length).toBe(1),
@@ -105,10 +106,10 @@ describe('DbSet First Tests', () => {
     });
 
     it('should find first entities and not find result when base filter does not match - with no default', async () => {
-
+        const name = contextFactory.getRandomDbName();
         await shouldFilterEntitiesWithDefaultsAndNotMatchOnSecondQuery(
-            () => contextFactory.createContextWithParams("", "my-db2"),
-            () => contextFactory.createContextWithParams("CouchDB", "my-db2"),
+            () => contextFactory.createContextWithParams("", name),
+            () => contextFactory.createContextWithParams("CouchDB", name),
             async (dbSet, _) => { const response = await dbSet.first(); if (response) { return [response] } return [] },
             w => expect(w.length).toBe(1),
             w => expect(w.length).toBe(1),

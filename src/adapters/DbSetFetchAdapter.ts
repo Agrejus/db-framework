@@ -40,6 +40,7 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
     async get(...ids: string[]) {
 
         const entities = await this.api.dbPlugin.getStrict(this.documentType, ...ids);
+
         const result = entities.map(w => {
             const enriched = this.changeTracker.enrichment.retrieve(w);
             return this.changeTracker.enableChangeTracking(enriched);

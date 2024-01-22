@@ -78,7 +78,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
             const found = allDictionary[id]
 
             if (found) {
-                const enriched = this.changeTracker.enrichment.add(found);
+                const enriched = this.changeTracker.enrichment.upsert(found);
                 const mergedAndTrackable = this.changeTracker.enableChangeTracking(enriched);
 
                 const [attached] = this.changeTracker.attach([mergedAndTrackable]);

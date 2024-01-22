@@ -164,7 +164,7 @@ describe('DbSet Unlink Tests', () => {
         expect(context.hasPendingChanges()).toBe(true);
         const changeCount = await context.saveChanges();
 
-        expect(changeCount).toBe(1);
+        expect(changeCount.successes_count).toBe(1);
 
         const foundOne = await context.contacts.find(w => w.firstName === "Value One");
         const foundTwo = await context.contacts.find(w => w.firstName === "Value Two");

@@ -2,7 +2,7 @@ import { ReselectDictionary } from "../../common/ReselectDictionary";
 import { IDbSetChangeTracker, ProcessedChangesResult } from "../../types/change-tracking-types";
 import { DeepPartial } from "../../types/common-types";
 import { ITrackedChanges, IEntityUpdates } from "../../types/context-types";
-import { ChangeTrackingOptions } from "../../types/dbset-types";
+import { ChangeTrackingOptions, IDbSetProps } from "../../types/dbset-types";
 import { IDbRecord, IIndexableEntity } from "../../types/entity-types";
 import { ChangeTrackingAdapterBase } from "./ChangeTrackingAdapterBase";
 
@@ -17,9 +17,9 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
     static readonly PROXY_MARKER: string = "__isProxy";
     protected override attachments;
 
-    constructor(options: ChangeTrackingOptions<TDocumentType, TEntity, TExclusions>) {
-        super(options);
-        this.attachments = new ReselectDictionary<TDocumentType, TEntity>(options.idPropertyName)
+    constructor(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: ChangeTrackingOptions<TDocumentType, TEntity>) {
+        super(dbSetProps, changeTrackingOptions);
+        this.attachments = new ReselectDictionary<TDocumentType, TEntity>(changeTrackingOptions.idPropertyName)
     }
 
     static isProxy<T extends Object>(entities: T) {
@@ -30,6 +30,13 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
         return entities.map(w => ({ ...w } as TEntity));
     }
 
+    override reinitialize(removals: TEntity[] = [], add: TEntity[] = [], updates: TEntity[] = []): void {
+        super.reinitialize(removals, add, updates);
+
+        // move updates to attachments
+        this.attachments.push(...updates);
+    }
+
     processChanges(entity: TEntity): ProcessedChangesResult<TDocumentType, TEntity> {
 
         const indexableEntity = entity as IIndexableEntity;
@@ -37,7 +44,7 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
         const changes = indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY] as DeepPartial<TEntity>;
         const result: ProcessedChangesResult<TDocumentType, TEntity> = {
             isDirty,
-            deltas: isDirty === false ? null : { ...changes, [this.options.idPropertyName]: entity[this.options.idPropertyName] },
+            deltas: isDirty === false ? null : { ...changes, [this.changeTrackingOptions.idPropertyName]: entity[this.changeTrackingOptions.idPropertyName] },
             doc: entity,
             original: entity
         };
@@ -58,7 +65,7 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
             })
             .reduce((a, v) => {
 
-                const id = v.doc[this.options.idPropertyName] as string | number;
+                const id = v.doc[this.changeTrackingOptions.idPropertyName] as string | number;
                 a.docs[id] = v.doc;
                 a.deltas[id] = v.deltas;
                 a.originals.push(v.original);
@@ -85,7 +92,7 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
                     return true;
                 }
 
-                if (property !== EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY && entity[this.options.idPropertyName] != null) {
+                if (property !== EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY && entity[this.changeTrackingOptions.idPropertyName] != null) {
                     const originalValue = indexableEntity[key];
 
                     // if values are the same, do nothing
@@ -103,7 +110,7 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
 
                     if (indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY][key] != null) {
 
-                        if (indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY][key] === value) {
+                        if (indexableEntity[EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY][key] === value) {
                             // we are changing the value back to the original value, remove the change
                             delete indexableEntity[EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY][key];
                             delete indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY][key];
@@ -168,7 +175,7 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
 
     link(found: TEntity[]) {
         const result = found.map(w => {
-            const enriched = this.enrichment.add(w);
+            const enriched = this.enrichment.upsert(w);
             return this.enableChangeTracking(enriched);
         });
         return this.attach(result);

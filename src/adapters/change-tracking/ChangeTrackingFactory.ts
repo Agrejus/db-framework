@@ -22,8 +22,7 @@ export class ChangeTrackingFactory<TDocumentType extends string, TEntity extends
 
     getTracker(): IDbSetChangeTracker<TDocumentType, TEntity, TExclusions> {
         if (this._props.readonly === true) {
-            return new ReadonlyChangeTrackingAdapter({
-                ...this._props,
+            return new ReadonlyChangeTrackingAdapter(this._props, {
                 idPropertyName: this._idPropertyName,
                 environment: this._environment,
                 contextName: this._contextName,
@@ -36,8 +35,7 @@ export class ChangeTrackingFactory<TDocumentType extends string, TEntity extends
         }
 
         if (this._props.entityComparator != null) {
-            return new CustomChangeTrackingAdapter({
-                ...this._props,
+            return new CustomChangeTrackingAdapter(this._props, {
                 idPropertyName: this._idPropertyName,
                 environment: this._environment,
                 contextName: this._contextName,
@@ -45,8 +43,7 @@ export class ChangeTrackingFactory<TDocumentType extends string, TEntity extends
             }, this._props.entityComparator);
         }
 
-        return new EntityChangeTrackingAdapter({
-            ...this._props,
+        return new EntityChangeTrackingAdapter(this._props, {
             idPropertyName: this._idPropertyName,
             environment: this._environment,
             contextName: this._contextName,

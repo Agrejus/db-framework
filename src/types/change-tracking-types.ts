@@ -70,6 +70,7 @@ export type EntityReverter<TDocumentType extends string, TEntity extends IDbReco
 
 export type Enrichment<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> = {
     add: (entity: TEntity) => TEntity;
+    upsert: (entity: TEntity) => TEntity;
     retrieve: (entity: TEntity) => TEntity;
     map: (entity: TEntity) => TEntity;
     enhance: (entity: TEntity) => TEntity;

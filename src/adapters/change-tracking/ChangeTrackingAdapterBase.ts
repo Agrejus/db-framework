@@ -1,8 +1,7 @@
 import { Enrichment, IAttachmentDictionary, ProcessedChangesResult } from "../../types/change-tracking-types";
 import { ITrackedChanges, ITrackedData } from "../../types/context-types";
-import { EntityEnhancer } from "../../types/dbset-builder-types";
-import { ChangeTrackingOptions } from "../../types/dbset-types";
-import { IDbRecord, IdRemoval, OmittedEntity } from "../../types/entity-types";
+import { ChangeTrackingOptions, IDbSetProps } from "../../types/dbset-types";
+import { IDbRecord, IdRemoval } from "../../types/entity-types";
 import { memoryCache } from '../../cache/MemoryCache';
 import { IChangeTrackingCache } from '../../types/memory-cache-types';
 
@@ -22,13 +21,15 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
 
     readonly enrichment: Enrichment<TDocumentType, TEntity, TExclusions>;
 
-    protected readonly options: ChangeTrackingOptions<TDocumentType, TEntity, TExclusions>;
+    protected readonly changeTrackingOptions: ChangeTrackingOptions<TDocumentType, TEntity>;
+    protected readonly dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>;
     protected readonly changeTrackingId: string;
 
-    constructor(options: ChangeTrackingOptions<TDocumentType, TEntity, TExclusions>) {
-        this.options = options;
+    constructor(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: ChangeTrackingOptions<TDocumentType, TEntity>) {
+        this.changeTrackingOptions = changeTrackingOptions;
+        this.dbSetProps = dbSetProps;
 
-        this.changeTrackingId = `${this.options.contextName}-${this.options.documentType}`
+        this.changeTrackingId = `${this.changeTrackingOptions.contextName}-${this.dbSetProps.documentType}`
 
         // compose enrichers
         this.enrichment = this._composeEnrichers();
@@ -40,6 +41,7 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
             retrieve: () => void (0),
             enhance: () => void (0),
             map: () => void (0),
+            upsert: () => void (0)
         }
 
         const cache = memoryCache.get<IChangeTrackingCache<TDocumentType, TEntity, TExclusions>>(this.changeTrackingId);
@@ -48,31 +50,31 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
             return cache.enrichment
         }
 
-        // id enricher
-        const idEnricher = (entity: TEntity) => {
-            return { ...entity, [this.options.idPropertyName]: this.options.idCreator(entity) } as TEntity;
-        }
-
         // document type enricher
-        const documentTypeEnricher = (entity: TEntity) => {
-            return { ...entity, DocumentType: this.options.documentType } as TEntity;
-        }
+        const documentTypeEnricher = ((entity: TEntity) => {
+            return { ...entity, DocumentType: this.dbSetProps.documentType } as TEntity;
+        }).bind(this)
+
+        // id enricher
+        const idEnricher = ((entity: TEntity) => {
+            return { ...entity, [this.changeTrackingOptions.idPropertyName]: this.dbSetProps.idCreator(entity) } as TEntity;
+        }).bind(this)
 
         // default enrich first
-        const defaultAddEnricher = (entity: TEntity) => {
-            return { ...this.options.defaults.add, ...entity } as TEntity;
-        }
+        const defaultAddEnricher = ((entity: TEntity) => {
+            return { ...this.dbSetProps.defaults.add, ...entity } as TEntity;
+        }).bind(this)
 
-        const defaultRetrieveEnricher = (entity: TEntity) => {
-            return { ...this.options.defaults.retrieve, ...entity } as TEntity;
-        }
+        const defaultRetrieveEnricher = ((entity: TEntity) => {
+            return { ...this.dbSetProps.defaults.retrieve, ...entity } as TEntity;
+        }).bind(this)
 
         const mapEnrichers: ((entity: TEntity) => TEntity)[] = [];
         const enhancementEnrichers: ((entity: TEntity) => TEntity)[] = [];
 
         // add mappings
-        if (this.options.map.length > 0) {
-            const propertyMapEnrichers = this.options.map.map(w => (entity: TEntity) => {
+        if (this.dbSetProps.map.length > 0) {
+            const propertyMapEnrichers = this.dbSetProps.map.map(w => (entity: TEntity) => {
                 const preTransformedValue = (entity)[w.property as keyof TEntity];
                 const value = Object.prototype.toString.call(preTransformedValue) === '[object Date]' ? preTransformedValue : w.map(preTransformedValue as any, entity)
 
@@ -83,17 +85,21 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
         }
 
         // add enhancers last
-        if (this.options.enhancer != null) {
-            enhancementEnrichers.push(this.options.enhancer)
+        if (this.dbSetProps.enhancer != null) {
+            enhancementEnrichers.push((w: TEntity) => {
+                return { ...this.dbSetProps.enhancer(w), ...w }
+            })
         }
 
-        const add = [idEnricher, documentTypeEnricher, defaultAddEnricher, ...mapEnrichers, ...enhancementEnrichers];
+        const add = [documentTypeEnricher, idEnricher, defaultAddEnricher, ...mapEnrichers, ...enhancementEnrichers];
+        const upsert = [defaultAddEnricher, ...mapEnrichers, ...enhancementEnrichers];
         const retrieve = [defaultRetrieveEnricher, ...mapEnrichers, ...enhancementEnrichers];
 
         enrichment.add = (entity) => add.reduce((a, v) => v(a), entity);
         enrichment.retrieve = (entity) => retrieve.reduce((a, v) => v(a), entity);
         enrichment.map = (entity) => mapEnrichers.reduce((a, v) => v(a), entity);
         enrichment.enhance = (entity) => enhancementEnrichers.reduce((a, v) => v(a), entity);
+        enrichment.upsert = (entity) => upsert.reduce((a, v) => v(a), entity);
 
         memoryCache.put<IChangeTrackingCache<TDocumentType, TEntity, TExclusions>>(this.changeTrackingId, { enrichment });
 
@@ -105,7 +111,7 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
     }
 
     isLinked(entity: TEntity) {
-        return this.attachments.get(entity[this.options.idPropertyName] as keyof TEntity) === entity;
+        return this.attachments.get(entity[this.changeTrackingOptions.idPropertyName] as keyof TEntity) === entity;
     }
 
     reinitialize(removals: TEntity[] = [], add: TEntity[] = [], updates: TEntity[] = []) {
@@ -129,7 +135,7 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
         const reselectIds: (keyof TEntity)[] = [];
 
         for (const item of data) {
-            const id = item[this.options.idPropertyName] as keyof TEntity;
+            const id = item[this.changeTrackingOptions.idPropertyName] as keyof TEntity;
 
             const found = this.attachments.get(id)
 
@@ -147,8 +153,8 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
             this.attachments.push(item)
         }
 
-        if (reselectIds.length > 0 && this.options.environment === "development") {
-            console.warn(`Reselect Error.  Data has been reselected and changed between operations.  Entities should not be changed and then reselected, Db Framework functions return a copy of the entity that should be used in all operations.  Reselecting an item can lead to unwanted and missed changes. - Ids: ${reselectIds.join(', ')}`);
+        if (reselectIds.length > 0 && this.changeTrackingOptions.environment === "development") {
+            console.warn(`Reselect Warning.  Data has been reselected and changed between operations.  Entities should not be changed and then reselected, Db Framework functions return a copy of the entity that should be used in all operations.  Reselecting an item can lead to unwanted and missed changes. - Ids: ${reselectIds.join(', ')}`);
         }
 
         return result;
@@ -165,27 +171,38 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
         return result;
     }
 
-    cleanse(entity: TEntity | OmittedEntity<TEntity, TExclusions>) {
+    cleanse(...entities: TEntity[]) {
 
-        if (this.options.enhancer == null) {
-            return entity;
+        if (entities.length === 0) {
+            return;
         }
 
         const cache = memoryCache.get<IChangeTrackingCache<TDocumentType, TEntity, TExclusions>>(this.changeTrackingId);
 
-        if (cache != null) {
-            return cache.reverter(entity)
+        if (cache != null && cache.reverter != null) {
+            for (const item of entities) {
+                cache.reverter(item)
+            }
+            return;
         }
 
-        debugger;
-        const enhanced = this.options.enhancer(entity as TEntity);
-        const added = Object.keys(enhanced);
-        const strip = `const { ${[...added, ...this.options.untrackedPropertyNames].join(', ')}, ...result  } = entity; return result;`;
+        const untrackedProperties = [...this.changeTrackingOptions.untrackedPropertyNames];
 
-        const reverter = Function("entity", strip) as (entity: TEntity | OmittedEntity<TEntity, TExclusions>) => TEntity;
+        if (this.dbSetProps.enhancer != null) {
+            const entity = entities[0]
+            const enhanced = this.dbSetProps.enhancer(entity as TEntity);
+            const added = Object.keys(enhanced);
+            untrackedProperties.push(...added);
+        }
+
+        const strip = `${untrackedProperties.map(w => `delete entity.${w}`).join(';\r\n')} \r\nreturn entity;`;
+
+        const reverter = Function("entity", strip) as (entity: TEntity) => TEntity;
 
         memoryCache.put<IChangeTrackingCache<TDocumentType, TEntity, TExclusions>>(this.changeTrackingId, { reverter })
 
-        return reverter(entity)
+        for (const item of entities) {
+            reverter(item)
+        }
     }
-}
+}   

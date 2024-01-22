@@ -10,6 +10,7 @@ import { DbContextFactory, ExternalDataContext } from "../../src/__tests__/integ
 import { faker } from "@faker-js/faker";
 import PouchDB from 'pouchdb';
 import { performance } from "perf_hooks";
+import { shouldFilterEntitiesWithDefaults } from "../../src/__tests__/integration/shared/common-tests";
 
 enum DocumentTypes {
     Notes = "Notes",
@@ -114,7 +115,11 @@ const PerformanceDataContext = contextBuilder<DocumentTypes>()
 
 export const run = async () => {
     try {
-
+        const contextFactory = new DbContextFactory();
+        await shouldFilterEntitiesWithDefaults(
+            () => contextFactory.createContextWithParams("CouchDB", "my-db"),
+            (dbSet, _, added) => dbSet.get(added._id),
+            w => expect(w.length).toBe(1))
         // const context = new ExternalDataContext("test-db");
         // const all = await context.computers.all();
         // console.log(all);
@@ -132,26 +137,43 @@ export const run = async () => {
         // const changes = await context.previewChanges();
         // debugger;
         // console.log(changes)
-        debugger;
-        const contextFactory = new DbContextFactory();
-        const dbname = contextFactory.getRandomDbName();
-        const context = contextFactory.createContext(ExternalDataContext, dbname);
+        // debugger;
+        // const contextFactory = new DbContextFactory();
+        // const dbname = contextFactory.getRandomDbName();
+        // const context = contextFactory.createContext(ExternalDataContext, dbname);
 
-        const [newBook] = await context.books.add({
-            author: "James",
-            publishDate: new Date()
-        });
+        // const context2 = contextFactory.createContext(ExternalDataContext, dbname);
+
+        // const [newBook] = await context.books.add({
+        //     author: "James",
+        //     publishDate: new Date()
+        // });
+
+        // const [newBook2] = await context.books.add({
+        //     author: "James2",
+        //     publishDate: new Date()
+        // });
 
 
-        const x = await context.booksV3.first();
+        // const x = await context.booksV3.first();
+        // const y = await context2.booksV3.first();
 
-        await context.saveChanges();
+        // await context.saveChanges();
 
 
-        const book = await context.books.pluck(w => w.author === "James", "author");
+        // const found = await context.books.find(w => w.author === "James");
+
+        // if (found != null) {
+        //     console.log(await found.getTest())
+
+        // }
+
+        // const author = await context.books.pluck(w => w.author === "James", "someProperty");
+
+        // console.log(author)
        
     } catch (e) {
-        console.log(e)
+        console.error(e)
     }
 
 }

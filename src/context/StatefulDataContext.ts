@@ -37,7 +37,7 @@ export abstract class StatefulDataContext<TDocumentType extends string, TEntityB
         const handlers = Object.values<ChangeHandler>(onChangeHandlers[documentType] ?? {});
 
         for (const handler of handlers) {
-            handler(data);
+            setTimeout(() => handler(data), 0);
         }
     }
 

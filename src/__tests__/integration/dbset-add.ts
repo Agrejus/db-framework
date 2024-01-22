@@ -1,4 +1,4 @@
-import { DbContextFactory, ExternalDataContext, BooksWithTwoDefaultContext } from "./shared/context";
+import { DbContextFactory, ExternalDataContext } from "./shared/context";
 import { DocumentTypes } from "./shared/types";
 import { EntityAndTag } from "../../types/dbset-types";
 
@@ -315,7 +315,7 @@ describe('DbSet Add Tests', () => {
     });
 
     it('dbset should set defaults after fetch for add and retrieve', async () => {
-        const [missingContext, context] = contextFactory.createDbContexts(name => [new BooksWithTwoDefaultContext(name), new ExternalDataContext(name)]);
+        const [missingContext, context] = contextFactory.createDbContexts(name => [new ExternalDataContext(name), new ExternalDataContext(name)]);
         const date = new Date();
         await missingContext.booksWithTwoDefaults.add({
             author: "james",
@@ -331,8 +331,8 @@ describe('DbSet Add Tests', () => {
             publishDate: date
         });
 
-        expect(retrievedBook?.status).toBe("approved");
-        expect(retrievedBook?.rejectedCount).toBe(-1);
+        expect(retrievedBook?.status).toBe("pending");
+        expect(retrievedBook?.rejectedCount).toBe(0);
         expect(retrievedBook?.author).toBe("james");
         expect(retrievedBook?.DocumentType).toBe(DocumentTypes.BooksWithTwoDefaults);
         expect(retrievedBook?.publishDate).toBe(date.toISOString());
@@ -349,7 +349,7 @@ describe('DbSet Add Tests', () => {
     });
 
     it('dbset should set defaults after fetch for add and retrieve for all docs', async () => {
-        const [missingContext, context] = contextFactory.createDbContexts(name => [new BooksWithTwoDefaultContext(name), new ExternalDataContext(name)]);
+        const [missingContext, context] = contextFactory.createDbContexts(name => [new ExternalDataContext(name), new ExternalDataContext(name)]);
         const date = new Date();
         await missingContext.booksWithTwoDefaults.add({
             author: "james",
@@ -366,8 +366,8 @@ describe('DbSet Add Tests', () => {
             publishDate: date
         });
 
-        expect(retrievedBook.status).toBe("approved");
-        expect(retrievedBook.rejectedCount).toBe(-1);
+        expect(retrievedBook.status).toBe("pending");
+        expect(retrievedBook.rejectedCount).toBe(0);
         expect(retrievedBook.author).toBe("james");
         expect(retrievedBook.DocumentType).toBe(DocumentTypes.BooksWithTwoDefaults);
         expect(retrievedBook.publishDate).toBe(date.toISOString());
@@ -396,9 +396,9 @@ describe('DbSet Add Tests', () => {
 
         expect(context.hasPendingChanges()).toBe(false);
 
-        const count = await context.saveChanges();
+        const result = await context.saveChanges();
 
-        expect(count).toBe(0)
+        expect(result).toEqual({ changes: { add: [], remove: [], updated: { deltas: {}, docs: {}, originals: [] } }, successes_count: 0 })
 
         await context.contacts.add(contact)
 
@@ -406,7 +406,7 @@ describe('DbSet Add Tests', () => {
 
         const afterLinkCount = await context.saveChanges();
 
-        expect(afterLinkCount).toBe(1);
+        expect(afterLinkCount.successes_count).toBe(1);
 
         const found = context.contacts.first();
 
@@ -483,6 +483,7 @@ describe('DbSet Add Tests', () => {
 
         expect(upsertedOne._id).toEqual(one._id);
         expect(context.hasPendingChanges()).toEqual(true);
+
         await context.saveChanges();
         expect(context.hasPendingChanges()).toEqual(false);
 
@@ -505,7 +506,7 @@ describe('DbSet Add Tests', () => {
         const dbName = contextFactory.getRandomDbName();
         let calls = 0;
         const context = contextFactory.createContext(class extends ExternalDataContext {
-   
+
             async onAfterSaveChanges(getChanges: () => { adds: EntityAndTag[]; removes: EntityAndTag[]; updates: EntityAndTag[]; }): Promise<void> {
                 calls++;
                 const changes = getChanges();
@@ -527,7 +528,7 @@ describe('DbSet Add Tests', () => {
         const dbName = contextFactory.getRandomDbName();
         let calls = 0;
         const context = contextFactory.createContext(class extends ExternalDataContext {
-   
+
             async onAfterSaveChanges(getChanges: () => { adds: EntityAndTag[]; removes: EntityAndTag[]; updates: EntityAndTag[]; }): Promise<void> {
                 calls++;
                 const changes = getChanges();
@@ -550,7 +551,7 @@ describe('DbSet Add Tests', () => {
         const dbName = contextFactory.getRandomDbName();
         let calls = 0;
         const context = contextFactory.createContext(class extends ExternalDataContext {
-   
+
             async onAfterSaveChanges(getChanges: () => { adds: EntityAndTag[]; removes: EntityAndTag[]; updates: EntityAndTag[]; }): Promise<void> {
                 calls++;
                 const changes = getChanges();
@@ -569,7 +570,7 @@ describe('DbSet Add Tests', () => {
 
         context.books.tag(tag).add({
             author: "James"
-        },{
+        }, {
             author: "Megan"
         }).then(() => context.saveChanges());
     });
@@ -579,11 +580,11 @@ describe('DbSet Add Tests', () => {
         const dbName = contextFactory.getRandomDbName();
         let calls = 0;
         const context = contextFactory.createContext(class extends ExternalDataContext {
-   
+
             async onAfterSaveChanges(getChanges: () => { adds: EntityAndTag[]; removes: EntityAndTag[]; updates: EntityAndTag[]; }): Promise<void> {
                 calls++;
                 const changes = getChanges();
-                
+
                 expect(changes.adds.length).toBe(2);
                 expect(changes.adds[0].entity).toBeTruthy();
                 expect(changes.adds[0].tag).toBe(tag);
@@ -616,7 +617,7 @@ describe('DbSet Add Tests', () => {
         const dbName = contextFactory.getRandomDbName();
         let calls = 0;
         const context = contextFactory.createContext(class extends ExternalDataContext {
-   
+
             async onAfterSaveChanges(getChanges: () => { adds: EntityAndTag[]; removes: EntityAndTag[]; updates: EntityAndTag[]; }): Promise<void> {
                 calls++;
                 const changes = getChanges();

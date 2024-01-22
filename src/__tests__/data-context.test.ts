@@ -49,6 +49,10 @@ describe('data context', () => {
         constructor(name: string, contextOptions: ContextOptions = { changeTrackingType: "entity" }) {
             super({ dbName: name.endsWith("-db") ? name : `${name}-db` }, PouchDbPlugin, contextOptions);
         }
+        
+        contextId() {
+            return ExternalDataContext.name
+        }
 
         async empty() {
             for (let dbset of this) {
@@ -327,6 +331,7 @@ describe('data context', () => {
         expect(contacts.length).toBe(1);
 
         contact.firstName = "Changed";
+
         contact.firstName = "James";
 
         expect(context.hasPendingChanges()).toBe(false);

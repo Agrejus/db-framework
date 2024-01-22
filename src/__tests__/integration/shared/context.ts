@@ -10,6 +10,7 @@ import { ContextOptions } from "../../../types/context-types";
 import { IDbPluginOptions } from "../../../types/plugin-types";
 import { DbSetInitializer } from "../../../context/dbset/builders/DbSetInitializer";
 import { useDbSetCreator } from "../../../context/dbset/builders/DbSetCreator";
+import { performance } from "perf_hooks";
 
 const dataContextWithParamsCreator = (type: string, name?: string) => new class extends DataContext<DocumentTypes, IPouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, IPouchDbRecord<DocumentTypes>, IDbPluginOptions>> {
 
@@ -29,8 +30,8 @@ const dataContextWithParamsCreator = (type: string, name?: string) => new class 
         .create();
 }
 
-const context = dataContextWithParamsCreator("");
-export const ExternalDbDataContextWithDefaults = context;
+// const context = dataContextWithParamsCreator("");
+// export const ExternalDbDataContextWithDefaults = context;
 
 
 
@@ -76,7 +77,14 @@ export class ExternalDataContext extends DataContext<DocumentTypes, IPouchDbReco
 
     computers = this.dbset().default<IComputer>(DocumentTypes.Computers).create();
 
-    books = this.dbset().default<IBook>(DocumentTypes.Books).defaults({ status: "pending" }).exclude("status", "rejectedCount").create();
+    books = this.dbset()
+        .default<IBook>(DocumentTypes.Books)
+        .defaults({ status: "pending" })
+        .exclude("status", "rejectedCount")
+        .enhance((w) => ({
+            someProperty: w.author
+        }))
+        .create();
     booksWithDateMapped = this.dbset().default<IBookV4>(DocumentTypes.BooksWithDateMapped)
         .defaults({ status: "pending" })
         .exclude("status", "rejectedCount")
@@ -170,18 +178,18 @@ export class BooksWithOneDefaultContext extends DataContext<DocumentTypes, IPouc
 }
 
 
-export class BooksWithTwoDefaultContext extends DataContext<DocumentTypes, IPouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, IPouchDbRecord<DocumentTypes>, IDbPluginOptions>> {
+// export class BooksWithTwoDefaultContext extends DataContext<DocumentTypes, IPouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, IPouchDbRecord<DocumentTypes>, IDbPluginOptions>> {
 
-    constructor(name: string) {
-        super({ dbName: name.endsWith("-db") ? name : `${name}-db` }, PouchDbPlugin);
-    }
+//     constructor(name: string) {
+//         super({ dbName: name.endsWith("-db") ? name : `${name}-db` }, PouchDbPlugin);
+//     }
 
-    contextId(): string {
-        return BooksWithTwoDefaultContext.name
-    }
+//     contextId(): string {
+//         return BooksWithTwoDefaultContext.name
+//     }
 
-    booksWithTwoDefaults = this.dbset().default<IBook>(DocumentTypes.BooksWithTwoDefaults).exclude("status", "rejectedCount").create();
-}
+//     booksWithTwoDefaults = this.dbset().default<IBook>(DocumentTypes.BooksWithTwoDefaults).exclude("status", "rejectedCount").create();
+// }
 
 export class DbContextFactory {
 
@@ -197,7 +205,9 @@ export class DbContextFactory {
 
     createContext<T extends typeof ExternalDataContext>(Context: T, dbname?: string, type?: string) {
         const name = dbname ?? `${uuidv4()}-db`;
+        const s = performance.now();
         const result = new Context(name);
+        console.log(performance.now() - s)
         this._dbs[name] = result;
         return result;
     }

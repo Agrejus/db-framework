@@ -14,6 +14,7 @@ export class ContextChangeTrackingAdapter<TDocumentType extends string, TEntity 
         retrieve: (entity: TEntity) => this._changeTrackers[entity.DocumentType].enrichment.retrieve(entity),
         enhance: (entity: TEntity) => this._changeTrackers[entity.DocumentType].enrichment.enhance(entity),
         map: (entity: TEntity) => this._changeTrackers[entity.DocumentType].enrichment.map(entity),
+        upsert: (entity: TEntity) => this._changeTrackers[entity.DocumentType].enrichment.upsert(entity),
     }
 
     registerChangeTracker(documentType: TDocumentType, tracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>) {

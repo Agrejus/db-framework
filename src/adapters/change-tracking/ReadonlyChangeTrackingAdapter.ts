@@ -1,7 +1,7 @@
 import { ReselectDictionary } from "../../common/ReselectDictionary";
 import { IDbSetChangeTracker, ProcessedChangesResult } from "../../types/change-tracking-types";
 import { ITrackedChanges } from "../../types/context-types";
-import { ChangeTrackingOptions } from "../../types/dbset-types";
+import { ChangeTrackingOptions, IDbSetProps } from "../../types/dbset-types";
 import { IDbRecord } from "../../types/entity-types";
 import { EntityChangeTrackingAdapter } from "./EntityChangeTrackingAdapter";
 
@@ -12,9 +12,9 @@ export class ReadonlyChangeTrackingAdapter<TDocumentType extends string, TEntity
 
     protected override attachments;
 
-    constructor(options: ChangeTrackingOptions<TDocumentType, TEntity, TExclusions>) {
-        super(options);
-        this.attachments = new ReselectDictionary<TDocumentType, TEntity>(options.idPropertyName)
+    constructor(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: ChangeTrackingOptions<TDocumentType, TEntity>) {
+        super(dbSetProps, changeTrackingOptions);
+        this.attachments = new ReselectDictionary<TDocumentType, TEntity>(changeTrackingOptions.idPropertyName)
     }
 
     override asUntracked(...entities: TEntity[]) {

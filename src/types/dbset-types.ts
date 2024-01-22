@@ -257,12 +257,10 @@ export interface IDataContextState<TDocumentType extends string, TEntityBase ext
 
 export type ChangeTrackingOptions<
     TDocumentType extends string,
-    TEntity extends IDbRecord<TDocumentType>,
-    TExclusions extends keyof TEntity
-> = IDbSetProps<TDocumentType, TEntity, TExclusions> & {
+    TEntity extends IDbRecord<TDocumentType>
+> =  {
     untrackedPropertyNames: string[],
     idPropertyName: keyof TEntity,
-    documentType: TDocumentType,
     contextName: string,
     environment?: DbFrameworkEnvironment
 }

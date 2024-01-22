@@ -33,6 +33,7 @@ describe('DbSet Update Tests', () => {
         await context.saveChanges();
 
         const secondaryContext = contextFactory.createContext(ExternalDataContext, dbname);
+
         const [linkedBook] = await secondaryContext.books.link(book!);
 
         linkedBook.author = "James DeMeuse";

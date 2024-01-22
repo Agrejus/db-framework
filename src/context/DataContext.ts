@@ -42,8 +42,6 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
             const dbSet = this.dbSets[w.DocumentType] as (IDbSet<TDocumentType, TEntityBase, any> | undefined);
 
             if (dbSet) {
-                const info = dbSet.info();
-
                 const enriched = this._changeTracker.enrichment.retrieve(w);
                 return this._changeTracker.enableChangeTracking(enriched)
             }
@@ -198,13 +196,11 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
 
             const modificationResult = await this.dbPlugin.bulkOperations({ adds: add, removes: remove, updates: updatedItems });
 
-            // we have a descrepancy between the updated rev and the doc and the delta, how can we fix?  Original is the only correct one
-
             // set any properties return from the database
             this.dbPlugin.setDbGeneratedValues(modificationResult, [...add, ...updated.originals, ...Object.values(updated.docs) as any, ...Object.values(updated.deltas) as any]);
 
             this._changeTracker.cleanse(...modifications, ...updated.originals);
-            this._changeTracker.reinitialize(remove, add, updatedItems);
+            this._changeTracker.reinitialize(remove, add, updated.originals);
 
             await this._onAfterSaveChanges(changes, tags);
 
