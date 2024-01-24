@@ -198,8 +198,8 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
 
             // set any properties return from the database
             this.dbPlugin.setDbGeneratedValues(modificationResult, [...add, ...updated.originals, ...Object.values(updated.docs) as any, ...Object.values(updated.deltas) as any]);
-
             this._changeTracker.cleanse(...modifications, ...updated.originals);
+            modifications.forEach(w => this._changeTracker.enrichment.enhance(w)); // cleanse removes enhanced properties, let's re-add them, beneficial for props that depend on db updated values
             this._changeTracker.reinitialize(remove, add, updated.originals);
 
             await this._onAfterSaveChanges(changes, tags);

@@ -52,21 +52,39 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
 
         // document type enricher
         const documentTypeEnricher = ((entity: TEntity) => {
-            return { ...entity, DocumentType: this.dbSetProps.documentType } as TEntity;
+            (entity as any).DocumentType = this.dbSetProps.documentType;
+            return entity;
         }).bind(this)
 
         // id enricher
         const idEnricher = ((entity: TEntity) => {
-            return { ...entity, [this.changeTrackingOptions.idPropertyName]: this.dbSetProps.idCreator(entity) } as TEntity;
+
+            (entity as any)[this.changeTrackingOptions.idPropertyName] = this.dbSetProps.idCreator(entity)
+
+            return entity;
         }).bind(this)
 
         // default enrich first
         const defaultAddEnricher = ((entity: TEntity) => {
-            return { ...this.dbSetProps.defaults.add, ...entity } as TEntity;
+
+            // make this faster!
+            const keys = Object.keys(this.dbSetProps.defaults.add);
+
+            for (const key of keys) {
+                (entity as any)[key] = (this.dbSetProps.defaults.add as any)[key];
+            }
+
+            return entity;
         }).bind(this)
 
         const defaultRetrieveEnricher = ((entity: TEntity) => {
-            return { ...this.dbSetProps.defaults.retrieve, ...entity } as TEntity;
+            const keys = Object.keys(this.dbSetProps.defaults.retrieve);
+
+            for (const key of keys) {
+                (entity as any)[key] = (this.dbSetProps.defaults.retrieve as any)[key];
+            }
+
+            return entity;
         }).bind(this)
 
         const mapEnrichers: ((entity: TEntity) => TEntity)[] = [];
@@ -76,9 +94,11 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
         if (this.dbSetProps.map.length > 0) {
             const propertyMapEnrichers = this.dbSetProps.map.map(w => (entity: TEntity) => {
                 const preTransformedValue = (entity)[w.property as keyof TEntity];
-                const value = Object.prototype.toString.call(preTransformedValue) === '[object Date]' ? preTransformedValue : w.map(preTransformedValue as any, entity)
+                const value: any = Object.prototype.toString.call(preTransformedValue) === '[object Date]' ? preTransformedValue : w.map(preTransformedValue as any, entity);
 
-                return { ...entity, [w.property]: value } as TEntity;
+                (entity as any)[w.property] = value;
+
+                return entity;
             });
 
             mapEnrichers.push(...propertyMapEnrichers)
@@ -87,7 +107,18 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
         // add enhancers last
         if (this.dbSetProps.enhancer != null) {
             enhancementEnrichers.push((w: TEntity) => {
-                return { ...this.dbSetProps.enhancer(w), ...w }
+
+                const enhanced = this.dbSetProps.enhancer(w);
+                const keys = Object.keys(enhanced);
+
+                for (const key of keys) {
+                    (w as any)[key] = (enhanced as any)[key];
+                    if (this.changeTrackingOptions.untrackedPropertyNames.has(key) === false) {
+                        this.changeTrackingOptions.untrackedPropertyNames.add(key)
+                    }
+                }
+
+                return w;
             })
         }
 

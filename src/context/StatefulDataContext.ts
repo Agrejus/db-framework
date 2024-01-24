@@ -9,9 +9,14 @@ import { StatefulDbSetInitializer } from './dbset/builders/StatefulDbSetInitiali
 
 export type ChangeHandler = <TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>>(data: DbSetChanges<TDocumentType, TEntityBase>) => void
 export type OnChangeHandlerDictionary = {
-    [key: string]: { [key: string]: ChangeHandler }
+    [documentType: string]: {
+        [eventId: string]: {
+            documentType: string;
+            filter?: (entity: any) => boolean;
+            hander: ChangeHandler;
+        }
+    }
 }
-
 const onChangeHandlers: OnChangeHandlerDictionary = {};
 
 export abstract class StatefulDataContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase, TPluginOptions extends IDbPluginOptions = IDbPluginOptions, TDbPlugin extends IDbPlugin<TDocumentType, TEntityBase, TExclusions> = IDbPlugin<TDocumentType, TEntityBase, TExclusions>> extends DataContext<TDocumentType, TEntityBase, TExclusions, TPluginOptions, TDbPlugin> {
@@ -34,24 +39,57 @@ export abstract class StatefulDataContext<TDocumentType extends string, TEntityB
 
     protected fireChangeEvents(documentType: TDocumentType, data: DbSetChanges<TDocumentType, TEntityBase>) {
 
-        const handlers = Object.values<ChangeHandler>(onChangeHandlers[documentType] ?? {});
+        const items = Object.values<{ documentType: string, filter?: (entity: any) => boolean, hander: ChangeHandler }>(onChangeHandlers[documentType] ?? {});
 
-        for (const handler of handlers) {
-            setTimeout(() => handler(data), 0);
+        for (const item of items) {
+            setTimeout(() => {
+
+                if (item.filter != null) {
+                    const adds = data.adds.filter(item.filter);
+                    const all = data.all.filter(item.filter);
+                    const removes = data.removes.filter(item.filter);
+                    const updates = data.updates.filter(item.filter);
+
+                    if (adds.length > 0 || all.length > 0 || removes.length > 0 || updates.length > 0) {
+                        item.hander({ adds, all, removes, updates })
+                    }
+                    return
+                }
+
+                item.hander(data)
+            }, 0);
         }
     }
 
-    addChangeEventListener(documentType: TDocumentType, callback: ChangeHandler) {
+    addChangeEventListener(documentType: TDocumentType, callback: ChangeHandler): () => void;
+    addChangeEventListener(documentType: TDocumentType, filter: (entities: TEntityBase[]) => boolean, callback: ChangeHandler): () => void;
+    addChangeEventListener(documentType: TDocumentType, filterOrCallback: ((entities: TEntityBase[]) => boolean) | ChangeHandler, callback?: ChangeHandler) {
         const id = generateRandomId();
 
         if (onChangeHandlers[documentType] == null) {
             onChangeHandlers[documentType] = {}
         }
 
-        onChangeHandlers[documentType][id] = callback;
+        if (callback == null) {
+
+            onChangeHandlers[documentType][id] = {
+                documentType,
+                hander: filterOrCallback as ChangeHandler,
+            }
+
+            return () => {
+                delete onChangeHandlers[id];
+            }
+        }
+
+        onChangeHandlers[documentType][id] = {
+            documentType,
+            filter: filterOrCallback as ((entities: TEntityBase[]) => boolean),
+            hander: callback as ChangeHandler,
+        }
 
         return () => {
-            delete onChangeHandlers[documentType][id];
+            delete onChangeHandlers[id];
         }
     }
 

@@ -22,15 +22,18 @@ export class ChangeTrackingFactory<TDocumentType extends string, TEntity extends
 
     getTracker(): IDbSetChangeTracker<TDocumentType, TEntity, TExclusions> {
         if (this._props.readonly === true) {
+
+            const untrackedPropertyNames = new Set<string>([
+                EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY,
+                EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER,
+                EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY
+            ]);
+
             return new ReadonlyChangeTrackingAdapter(this._props, {
                 idPropertyName: this._idPropertyName,
                 environment: this._environment,
                 contextName: this._contextName,
-                untrackedPropertyNames: [
-                    EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY,
-                    EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER,
-                    EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY
-                ]
+                untrackedPropertyNames
             });
         }
 
@@ -39,19 +42,21 @@ export class ChangeTrackingFactory<TDocumentType extends string, TEntity extends
                 idPropertyName: this._idPropertyName,
                 environment: this._environment,
                 contextName: this._contextName,
-                untrackedPropertyNames: []
+                untrackedPropertyNames: new Set<string>()
             }, this._props.entityComparator);
         }
+
+        const untrackedPropertyNames = new Set<string>([
+            EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY,
+            EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER,
+            EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY
+        ]);
 
         return new EntityChangeTrackingAdapter(this._props, {
             idPropertyName: this._idPropertyName,
             environment: this._environment,
             contextName: this._contextName,
-            untrackedPropertyNames: [
-                EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY,
-                EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER,
-                EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY
-            ]
+            untrackedPropertyNames
         });
     }
 }

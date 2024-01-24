@@ -227,6 +227,7 @@ describe('DbSet Add Tests', () => {
         expect(book._id).toBeDefined();
         expect(book._rev).toBeDefined();
 
+        expect(book.someProperty).toBe(book.author);
         expect(book.author).toBe("James DeMeuse");
         expect(book.publishDate).toBeDefined();
         expect(book.status).toBe("pending");

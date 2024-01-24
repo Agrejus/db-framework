@@ -259,7 +259,7 @@ export type ChangeTrackingOptions<
     TDocumentType extends string,
     TEntity extends IDbRecord<TDocumentType>
 > =  {
-    untrackedPropertyNames: string[],
+    untrackedPropertyNames: Set<string>,
     idPropertyName: keyof TEntity,
     contextName: string,
     environment?: DbFrameworkEnvironment

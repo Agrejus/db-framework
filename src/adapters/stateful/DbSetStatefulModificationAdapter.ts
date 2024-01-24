@@ -1,4 +1,4 @@
-import { DbSetChangeType, DbSetOnChangeEvent, DbSetType, EntityAndTag, IStoreDbSetProps, SaveChangesEventData } from "../../types/dbset-types";
+import { DbSetChangeType, DbSetOnChangeEvent, DbSetType, IStoreDbSetProps, SaveChangesEventData } from "../../types/dbset-types";
 import { IDbRecord, OmittedEntity } from "../../types/entity-types";
 import { DbSetModificationAdapter } from "../DbSetModificationAdapter";
 import { CacheDataStore } from '../../cache/CacheDataStore';
