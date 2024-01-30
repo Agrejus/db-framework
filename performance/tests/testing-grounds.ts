@@ -120,7 +120,7 @@ export const run = async () => {
         // const context = new ExternalDataContext("test-db");
         // const all = await context.computers.all();
         // console.log(all);
-        // debugger;
+
 
         // const [contact] = await context.computers.add({
         //     cores: 8,
@@ -130,12 +130,12 @@ export const run = async () => {
         // await context.saveChanges();
 
         // contact.name = "TEst";
-        // debugger;
+
         // const changes = await context.previewChanges();
-        // debugger;
+
         // console.log(changes)
-        // debugger;
-        debugger;
+
+
         const contextFactory = new DbContextFactory();
         const dbname = contextFactory.getRandomDbName();
         const context = contextFactory.createContext(ExternalDataContext, dbname);
