@@ -25,8 +25,8 @@ export class ReselectDictionary<TDocumentType extends string, TEntity extends ID
     concat(dictionary: IAttachmentDictionary<TDocumentType, TEntity>): IAttachmentDictionary<TDocumentType, TEntity> {
         const result = new ReselectDictionary<TDocumentType, TEntity>(this._key);
 
-        result.push(...this.all());
-        result.push(...dictionary.all());
+        result.put(...this.all());
+        result.put(...dictionary.all());
 
         return result;
     }
@@ -41,7 +41,7 @@ export class ReselectDictionary<TDocumentType extends string, TEntity extends ID
         return this._data[key] != null;
     }
 
-    push(...items: TEntity[]) {
+    put(...items: TEntity[]) {
         for (let i = 0; i < items.length; i++) {
             const item = items[i];
             const key: keyof TEntity = items[i][this._key] as any;

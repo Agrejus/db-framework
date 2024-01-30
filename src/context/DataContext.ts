@@ -6,6 +6,7 @@ import { DbSetInitializer } from './dbset/builders/DbSetInitializer';
 import { DbPluginInstanceCreator, IDbPlugin, IDbPluginOptions } from '../types/plugin-types';
 import { IContextChangeTracker } from "../types/change-tracking-types";
 import { ContextChangeTrackingAdapter } from '../adapters/change-tracking/ContextChangeTrackingAdapter';
+import { performance } from "perf_hooks";
 
 export abstract class DataContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase, TPluginOptions extends IDbPluginOptions = IDbPluginOptions, TDbPlugin extends IDbPlugin<TDocumentType, TEntityBase, TExclusions> = IDbPlugin<TDocumentType, TEntityBase, TExclusions>> implements IDataContext<TDocumentType, TEntityBase> {
 
@@ -96,7 +97,7 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
     }
 
     private async _cleanseUpdateEntities(updates: { [key: string | number]: TEntityBase }) {
-        await Promise.all(Object.keys(updates).map(w => this._changeTracker.cleanse(updates[w])))
+        await Promise.all(Object.keys(updates).map(w => this._changeTracker.enrichment.strip(updates[w])))
     }
 
     async previewChanges(): Promise<IPreviewChanges<TDocumentType, TEntityBase>> {
@@ -130,11 +131,10 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
 
         const extraRemovalsByDocumentType = await Promise.all(Object.keys(extraRemovalsMap).map((w: TDocumentType) => this.dbPlugin.getStrict(w, ...extraRemovalsMap[w])));
         const extraRemovals = extraRemovalsByDocumentType.reduce((a, v) => a.concat(v), []);
-        const formattedDeletions = this.dbPlugin.formatDeletions(...remove, ...extraRemovals);
 
         return {
             add,
-            remove: formattedDeletions,
+            remove: [...remove, ...extraRemovals],
             updated
         }
     }
@@ -174,8 +174,7 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
     async saveChanges() {
         try {
 
-            const { tags, changes } = await this._beforeSaveChanges();
-
+            const { tags, changes } = await this._beforeSaveChanges();           
             const { add, remove, updated } = changes;
             const updatedItems = Object.values(updated.docs);
 
@@ -187,26 +186,37 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
                     throw new Error(`Cannot save readonly entities.  Document Types: ${readonlyDocumentTypes.join(', ')}`)
                 }
             }
+            
+            // strip updates/adds and process removals
+            const strippedAdds = add.map(this._changeTracker.enrichment.strip);
+            const strippedUpdates = updatedItems.map(this._changeTracker.enrichment.strip);
+            const formattedRemovals = remove.map(this._changeTracker.enrichment.remove);
 
-            // Process removals first, so we can remove items first and then add.  Just
-            // in case are are trying to remove and add the same Id
-            const modifications = [...remove, ...add, ...updatedItems];
+            // perform operation on the database
+            const modificationResult = await this.dbPlugin.bulkOperations({ adds: strippedAdds, removes: formattedRemovals, updates: strippedUpdates });
 
-            this._changeTracker.cleanse(...modifications);
+            // map generated values and other enrichments
+            const persistedAdds = strippedAdds.map(this._changeTracker.enrichment.composers.persisted(modificationResult));
+            const persistedUpdates = strippedUpdates.map(this._changeTracker.enrichment.composers.persisted(modificationResult));
 
-            const modificationResult = await this.dbPlugin.bulkOperations({ adds: add, removes: remove, updates: updatedItems });
+            // set updated results
+            const updatedDocs = persistedUpdates.reduce((a, v) => ({ ...a, [v[this.dbPlugin.idPropertyName] as string | number]: v }), {})
 
-            // set any properties return from the database
-            this.dbPlugin.setDbGeneratedValues(modificationResult, [...add, ...updated.originals, ...Object.values(updated.docs) as any, ...Object.values(updated.deltas) as any]);
-            this._changeTracker.cleanse(...modifications, ...updated.originals);
-            modifications.forEach(w => this._changeTracker.enrichment.enhance(w)); // cleanse removes enhanced properties, let's re-add them, beneficial for props that depend on db updated values
-            this._changeTracker.reinitialize(remove, add, updated.originals);
+            this._changeTracker.reinitialize(formattedRemovals, persistedAdds, persistedUpdates);
 
             await this._onAfterSaveChanges(changes, tags);
 
             return {
                 successes_count: modificationResult.successes_count,
-                changes
+                changes: {
+                    add: persistedAdds,
+                    remove: formattedRemovals,
+                    updated: {
+                        docs: updatedDocs,
+                        deltas: updated.deltas,
+                        originals: updated.originals
+                    }
+                }
             };
         } catch (e: any) {
             this._changeTracker.reinitialize();
@@ -223,7 +233,7 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
 
     private _mapChangeToEntityAndTag(entity: TEntityBase, tags: { [x: string]: unknown; }): EntityAndTag<TEntityBase> {
 
-        const id = entity[this.dbPlugin.idPropertName] as string;
+        const id = entity[this.dbPlugin.idPropertyName] as string;
         return {
             entity,
             tag: tags[id]

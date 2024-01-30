@@ -83,7 +83,7 @@ const PerformanceDataContext = contextBuilder<DocumentTypes>()
     .useBaseRecord<PouchDbRecord<DocumentTypes>>()
     .useExclusions()
     .usePlugin({ dbName: "performance-db" }, PouchDbPlugin)
-    .createDefault((Base) => {
+    .createDefault("createDefault", (Base) => {
         return class extends Base {
 
             contextId() {
@@ -115,11 +115,8 @@ const PerformanceDataContext = contextBuilder<DocumentTypes>()
 
 export const run = async () => {
     try {
-        const contextFactory = new DbContextFactory();
-        await shouldFilterEntitiesWithDefaults(
-            () => contextFactory.createContextWithParams("CouchDB", "my-db"),
-            (dbSet, _, added) => dbSet.get(added._id),
-            w => expect(w.length).toBe(1))
+        //const contextFactory = new DbContextFactory();
+
         // const context = new ExternalDataContext("test-db");
         // const all = await context.computers.all();
         // console.log(all);
@@ -138,39 +135,52 @@ export const run = async () => {
         // debugger;
         // console.log(changes)
         // debugger;
-        // const contextFactory = new DbContextFactory();
-        // const dbname = contextFactory.getRandomDbName();
-        // const context = contextFactory.createContext(ExternalDataContext, dbname);
+        debugger;
+        const contextFactory = new DbContextFactory();
+        const dbname = contextFactory.getRandomDbName();
+        const context = contextFactory.createContext(ExternalDataContext, dbname);
 
-        // const context2 = contextFactory.createContext(ExternalDataContext, dbname);
+        const s1 = performance.now();
 
-        // const [newBook] = await context.books.add({
-        //     author: "James",
-        //     publishDate: new Date()
-        // });
+        for(let i = 0; i < 1000; i++) {
+            await context.books.add({
+                author: faker.random.word(),
+                publishDate: faker.date.between('2010-01-01', '2024-01-01')
+            });
+        }
 
-        // const [newBook2] = await context.books.add({
-        //     author: "James2",
-        //     publishDate: new Date()
-        // });
+        console.log('adds', performance.now() - s1)
 
 
         // const x = await context.booksV3.first();
         // const y = await context2.booksV3.first();
 
-        // await context.saveChanges();
+        const s = performance.now();
+        const saved = await context.saveChanges();
+        console.log(performance.now() - s)
+        console.log(saved)
+       
 
+        for(let i = 0; i < 1000; i++) {
+            await context.books.add({
+                author: faker.random.word(),
+                publishDate: faker.date.between('2010-01-01', '2024-01-01')
+            });
+        }
 
-        // const found = await context.books.find(w => w.author === "James");
+        const s2 = performance.now();
+        const saved2 = await context.saveChanges();
+        console.log(performance.now() - s2)
 
-        // if (found != null) {
-        //     console.log(await found.getTest())
+        const found = await context.books.find(w => w.author === "James");
 
-        // }
+        if (found != null) {
+            console.log(found.someProperty)
+        }
 
-        // const author = await context.books.pluck(w => w.author === "James", "someProperty");
+        const author = await context.books.pluck(w => w.author === "James", "someProperty");
 
-        // console.log(author)
+        console.log(author)
        
     } catch (e) {
         console.error(e)

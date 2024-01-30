@@ -21,7 +21,7 @@ export interface IBulkOperationsResponse {
 
 export type DbPluginOperations = "add";
 export interface IDbPlugin<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase = never> {
-    readonly idPropertName: keyof TEntityBase;
+    readonly idPropertyName: keyof TEntityBase;
     readonly types: { exclusions: TExclusions }
     destroy(): Promise<void>;
     all(payload?: IQueryParams<TDocumentType>): Promise<TEntityBase[]>;
@@ -32,8 +32,8 @@ export interface IDbPlugin<TDocumentType extends string, TEntityBase extends IDb
     prepareDetachments(...entities: TEntityBase[]): { ok: boolean, errors: string[], docs: TEntityBase[] }
     prepareAttachments(...entities: TEntityBase[]): Promise<{ ok: boolean, errors: string[], docs: TEntityBase[] }>;
     isOperationAllowed(entity: TEntityBase, operation: DbPluginOperations): boolean;
-    formatDeletions(...entities: TEntityBase[]): TEntityBase[];
-    setDbGeneratedValues(response: IBulkOperationsResponse, entities: TEntityBase[]): void;
+    enrichRemoval(entity: TEntityBase): TEntityBase;
+    enrichGenerated(response: IBulkOperationsResponse, entity: TEntityBase): TEntityBase;
 }
 
 export type IDbPluginOptions = {

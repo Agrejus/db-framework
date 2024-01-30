@@ -4,6 +4,7 @@ import { DeepPartial, EntityComparator } from "../../types/common-types";
 import { ITrackedChanges, IEntityUpdates } from "../../types/context-types";
 import { ChangeTrackingOptions, IDbSetProps } from "../../types/dbset-types";
 import { IDbRecord } from "../../types/entity-types";
+import { IDbPlugin } from "../../types/plugin-types";
 import { ChangeTrackingAdapterBase } from "./ChangeTrackingAdapterBase";
 
 /**
@@ -16,21 +17,21 @@ export class CustomChangeTrackingAdapter<TDocumentType extends string, TEntity e
     private _comparator: EntityComparator<TDocumentType, TEntity>;
     private _dirtyMarkers: { [key in keyof TEntity]: true } = {} as any;
 
-    constructor(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: ChangeTrackingOptions<TDocumentType, TEntity>, comparator: EntityComparator<TDocumentType, TEntity>) {
-        super(dbSetProps, changeTrackingOptions);
-        this.attachments = new ReselectDictionary<TDocumentType, TEntity>(changeTrackingOptions.idPropertyName);
-        this._originals = new ReselectDictionary<TDocumentType, TEntity>(changeTrackingOptions.idPropertyName);
+    constructor(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: ChangeTrackingOptions<TDocumentType, TEntity>, dbPlugin: IDbPlugin<TDocumentType, TEntity, TExclusions>, comparator: EntityComparator<TDocumentType, TEntity>) {
+        super(dbSetProps, changeTrackingOptions, dbPlugin);
+        this.attachments = new ReselectDictionary<TDocumentType, TEntity>(dbPlugin.idPropertyName);
+        this._originals = new ReselectDictionary<TDocumentType, TEntity>(dbPlugin.idPropertyName);
         this._comparator = comparator;
     }
 
     link(foundEntities: TEntity[], attachEntities: TEntity[]): TEntity[] {
         const attachedEntitiesMap = attachEntities.reduce((a, v) => {
-            const id = v[this.changeTrackingOptions.idPropertyName] as string | number;
+            const id = v[this.dbPlugin.idPropertyName] as string | number;
 
             return { ...a, [id]: v }
         }, {} as { [key: string | number]: TEntity })
         const result = foundEntities.map(w => {
-            const id = w[this.changeTrackingOptions.idPropertyName] as string | number;
+            const id = w[this.dbPlugin.idPropertyName] as string | number;
 
             return {
                 ...this.enrichment.add(w),
@@ -47,13 +48,13 @@ export class CustomChangeTrackingAdapter<TDocumentType extends string, TEntity e
 
     processChanges(entity: TEntity): ProcessedChangesResult<TDocumentType, TEntity> {
 
-        const id = entity[this.changeTrackingOptions.idPropertyName] as keyof TEntity;
+        const id = entity[this.dbPlugin.idPropertyName] as keyof TEntity;
         const original = this._originals.get(id);
 
         if (this._dirtyMarkers[id] === true || original == null) {
             return {
                 isDirty: true,
-                deltas: { ...entity, [this.changeTrackingOptions.idPropertyName]: id } as DeepPartial<TEntity>,
+                deltas: { ...entity, [this.dbPlugin.idPropertyName]: id } as DeepPartial<TEntity>,
                 doc: entity,
                 original: entity
             }; // mark as dirty so we save it
@@ -64,7 +65,7 @@ export class CustomChangeTrackingAdapter<TDocumentType extends string, TEntity e
 
         return {
             isDirty,
-            deltas: { ...deltas, [this.changeTrackingOptions.idPropertyName]: original[this.changeTrackingOptions.idPropertyName] },
+            deltas: { ...deltas, [this.dbPlugin.idPropertyName]: original[this.dbPlugin.idPropertyName] },
             doc: entity,
             original: entity
         }
@@ -73,7 +74,7 @@ export class CustomChangeTrackingAdapter<TDocumentType extends string, TEntity e
     private _pushOriginals(...data: TEntity[]) {
         const clonedItems = JSON.parse(JSON.stringify(data)) as TEntity[];
         const clonedAndMappedItems = clonedItems.map(w => this.enrichment.map(w) as TEntity);
-        this._originals.push(...clonedAndMappedItems)
+        this._originals.put(...clonedAndMappedItems)
     }
 
     override reinitialize(removals: TEntity[] = [], add: TEntity[] = [], updates: TEntity[] = []): void {
@@ -81,7 +82,7 @@ export class CustomChangeTrackingAdapter<TDocumentType extends string, TEntity e
 
         this._dirtyMarkers = {} as any;
 
-        this._originals = new ReselectDictionary<TDocumentType, TEntity>(this.changeTrackingOptions.idPropertyName);
+        this._originals = new ReselectDictionary<TDocumentType, TEntity>(this.dbPlugin.idPropertyName);
         this._pushOriginals(...this.attachments.all())
     }
 
@@ -105,12 +106,12 @@ export class CustomChangeTrackingAdapter<TDocumentType extends string, TEntity e
             })
             .reduce((a, v) => {
 
-                const id = v.doc[this.changeTrackingOptions.idPropertyName] as string | number;
+                const id = v.doc[this.dbPlugin.idPropertyName] as string | number;
                 a.docs[id] = v.doc;
                 a.deltas[id] = v.deltas;
-                a.originals.push(v.original);
+                a.originals[id] = v.original;
                 return a;
-            }, { deltas: {}, docs: {}, originals: [] } as IEntityUpdates<TDocumentType, TEntity>);
+            }, { deltas: {}, docs: {}, originals: {} } as IEntityUpdates<TDocumentType, TEntity>);
 
         return {
             add,
@@ -135,7 +136,7 @@ export class CustomChangeTrackingAdapter<TDocumentType extends string, TEntity e
     async markDirty(...entities: TEntity[]) {
 
         for (const item of entities) {
-            const id = item[this.changeTrackingOptions.idPropertyName] as keyof TEntity;
+            const id = item[this.dbPlugin.idPropertyName] as keyof TEntity;
             this._dirtyMarkers[id] = true
         }
 

@@ -13,7 +13,7 @@ export class DbSetStatefulModificationAdapter<TDocumentType extends string, TEnt
     constructor(props: IStoreDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType, changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>) {
         super(props, type, changeTracker);
         this._onChange = props.onChange
-        this._store = new CacheDataStore<TDocumentType, TEntity>(this.api.dbPlugin.idPropertName);
+        this._store = new CacheDataStore<TDocumentType, TEntity>(this.api.dbPlugin.idPropertyName);
     }
 
     protected override async onAfterSaveChanges(getChanges: () => SaveChangesEventData<TDocumentType, TEntity>) {

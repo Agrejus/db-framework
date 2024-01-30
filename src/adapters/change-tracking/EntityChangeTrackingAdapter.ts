@@ -4,6 +4,7 @@ import { DeepPartial } from "../../types/common-types";
 import { ITrackedChanges, IEntityUpdates } from "../../types/context-types";
 import { ChangeTrackingOptions, IDbSetProps } from "../../types/dbset-types";
 import { IDbRecord, IIndexableEntity } from "../../types/entity-types";
+import { IDbPlugin } from "../../types/plugin-types";
 import { ChangeTrackingAdapterBase } from "./ChangeTrackingAdapterBase";
 
 /**
@@ -17,9 +18,9 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
     static readonly PROXY_MARKER: string = "__isProxy";
     protected override attachments;
 
-    constructor(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: ChangeTrackingOptions<TDocumentType, TEntity>) {
-        super(dbSetProps, changeTrackingOptions);
-        this.attachments = new ReselectDictionary<TDocumentType, TEntity>(changeTrackingOptions.idPropertyName)
+    constructor(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: ChangeTrackingOptions<TDocumentType, TEntity>, dbPlugin: IDbPlugin<TDocumentType, TEntity, TExclusions>) {
+        super(dbSetProps, changeTrackingOptions, dbPlugin);
+        this.attachments = new ReselectDictionary<TDocumentType, TEntity>(dbPlugin.idPropertyName)
     }
 
     static isProxy<T extends Object>(entities: T) {
@@ -34,7 +35,7 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
         super.reinitialize(removals, add, updates);
 
         // move updates to attachments
-        this.attachments.push(...updates);
+        this.attachments.put(...updates);
     }
 
     processChanges(entity: TEntity): ProcessedChangesResult<TDocumentType, TEntity> {
@@ -44,7 +45,7 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
         const changes = indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY] as DeepPartial<TEntity>;
         const result: ProcessedChangesResult<TDocumentType, TEntity> = {
             isDirty,
-            deltas: isDirty === false ? null : { ...changes, [this.changeTrackingOptions.idPropertyName]: entity[this.changeTrackingOptions.idPropertyName] },
+            deltas: isDirty === false ? null : { ...changes, [this.dbPlugin.idPropertyName]: entity[this.dbPlugin.idPropertyName] },
             doc: entity,
             original: entity
         };
@@ -65,12 +66,13 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
             })
             .reduce((a, v) => {
 
-                const id = v.doc[this.changeTrackingOptions.idPropertyName] as string | number;
+                const id = v.doc[this.dbPlugin.idPropertyName] as string | number;
                 a.docs[id] = v.doc;
                 a.deltas[id] = v.deltas;
-                a.originals.push(v.original);
+                a.originals[id] = v.original;
+
                 return a;
-            }, { deltas: {}, docs: {}, originals: [] } as IEntityUpdates<TDocumentType, TEntity>);
+            }, { deltas: {}, docs: {}, originals: {} } as IEntityUpdates<TDocumentType, TEntity>);
 
         return {
             add,
@@ -92,7 +94,7 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
                     return true;
                 }
 
-                if (property !== EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY && entity[this.changeTrackingOptions.idPropertyName] != null) {
+                if (property !== EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY && entity[this.dbPlugin.idPropertyName] != null) {
                     const originalValue = indexableEntity[key];
 
                     // if values are the same, do nothing

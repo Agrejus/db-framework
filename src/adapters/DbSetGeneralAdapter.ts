@@ -58,7 +58,7 @@ export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends I
                 throw new Error(`Entities to be unlinked have errors.  Errors: \r\n${errors}`)
             }
 
-            const ids = response.docs.map(w => w[this.api.dbPlugin.idPropertName]) as (keyof TEntity)[]
+            const ids = response.docs.map(w => w[this.api.dbPlugin.idPropertyName]) as (keyof TEntity)[]
             this.changeTracker.detach(ids);
         }
     }
@@ -79,10 +79,10 @@ export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends I
 
         const response = await this.api.dbPlugin.prepareAttachments(...entities);
 
-        const alreadyAttached = entities.filter(w => this.changeTracker.isAttached(w[this.api.dbPlugin.idPropertName] as keyof TEntity) === true);
+        const alreadyAttached = entities.filter(w => this.changeTracker.isAttached(w[this.api.dbPlugin.idPropertyName] as keyof TEntity) === true);
 
         if (alreadyAttached.length > 0 && this.api.contextOptions.environment !== "production") {
-            console.warn(`DB Framework Warning - Linked entities are already linked.  Ids: ${alreadyAttached.map(w => w[this.api.dbPlugin.idPropertName]).join(', ')}`)
+            console.warn(`DB Framework Warning - Linked entities are already linked.  Ids: ${alreadyAttached.map(w => w[this.api.dbPlugin.idPropertyName]).join(', ')}`)
         }
 
         if (response.ok === false) {

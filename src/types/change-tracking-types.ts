@@ -1,12 +1,12 @@
 import { DeepPartial } from "./common-types";
 import { ITrackedChanges, ITrackedData } from "./context-types";
-import { PropertyMap } from "./dbset-builder-types";
 import { IDbRecord, OmittedEntity } from "./entity-types";
+import { IBulkOperationsResponse } from "./plugin-types";
 
 export interface IAttachmentDictionary<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> {
     get length(): number;
     all(): TEntity[];
-    push(...items: TEntity[]): void;
+    put(...items: TEntity[]): void;
     includes(key: keyof TEntity): boolean;
     get(id: keyof TEntity): TEntity | undefined;
     has(id: keyof TEntity): boolean;
@@ -55,7 +55,6 @@ export interface IDbSetChangeTracker<TDocumentType extends string, TEntity exten
 export interface IChangeTrackerBase<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> {
     enableChangeTracking(entity: TEntity): TEntity;
     getPendingChanges(): ITrackedChanges<TDocumentType, TEntity>;
-    cleanse(...entities: TEntity[]): void;
     reinitialize(removals?: TEntity[], add?: TEntity[], updates?: TEntity[]): void;
     asUntracked(...entities: TEntity[]): TEntity[];
 }
@@ -66,12 +65,21 @@ export interface IContextChangeTracker<TDocumentType extends string, TEntity ext
 
 }
 
-export type EntityReverter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> = (entity: TEntity | OmittedEntity<TEntity, TExclusions>) => TEntity;
-
 export type Enrichment<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> = {
     add: (entity: TEntity) => TEntity;
     upsert: (entity: TEntity) => TEntity;
     retrieve: (entity: TEntity) => TEntity;
     map: (entity: TEntity) => TEntity;
     enhance: (entity: TEntity) => TEntity;
+    strip: (entity: TEntity) => TEntity;
+    remove: (entity: TEntity) => TEntity;
+    composers: {
+        persisted: (generatedData: IBulkOperationsResponse) => (entity: TEntity) => TEntity;
+    }
+}
+
+export type EnrichmentCreatorProps<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = {
+    untrackedPropertyNames: Set<string>
+    idPropertyName: keyof TEntity;
+    changeTrackingId: string;
 }

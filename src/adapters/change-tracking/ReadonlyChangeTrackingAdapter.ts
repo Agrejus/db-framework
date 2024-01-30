@@ -3,6 +3,7 @@ import { IDbSetChangeTracker, ProcessedChangesResult } from "../../types/change-
 import { ITrackedChanges } from "../../types/context-types";
 import { ChangeTrackingOptions, IDbSetProps } from "../../types/dbset-types";
 import { IDbRecord } from "../../types/entity-types";
+import { IDbPlugin } from "../../types/plugin-types";
 import { EntityChangeTrackingAdapter } from "./EntityChangeTrackingAdapter";
 
 /**
@@ -12,9 +13,9 @@ export class ReadonlyChangeTrackingAdapter<TDocumentType extends string, TEntity
 
     protected override attachments;
 
-    constructor(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: ChangeTrackingOptions<TDocumentType, TEntity>) {
-        super(dbSetProps, changeTrackingOptions);
-        this.attachments = new ReselectDictionary<TDocumentType, TEntity>(changeTrackingOptions.idPropertyName)
+    constructor(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: ChangeTrackingOptions<TDocumentType, TEntity>, dbPlugin: IDbPlugin<TDocumentType, TEntity, TExclusions>) {
+        super(dbSetProps, changeTrackingOptions, dbPlugin);
+        this.attachments = new ReselectDictionary<TDocumentType, TEntity>(dbPlugin.idPropertyName)
     }
 
     override asUntracked(...entities: TEntity[]) {
@@ -43,7 +44,7 @@ export class ReadonlyChangeTrackingAdapter<TDocumentType extends string, TEntity
             add,
             remove: [],
             removeById: [],
-            updated: { deltas: {}, docs: {}, originals: [] }
+            updated: { deltas: {}, docs: {}, originals: {} }
         }
     }
 

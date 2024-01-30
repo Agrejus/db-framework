@@ -1,6 +1,7 @@
 import { IDbSetChangeTracker, IContextChangeTracker, Enrichment } from "../../types/change-tracking-types";
 import { ITrackedChanges } from "../../types/context-types";
 import { IDbRecord } from "../../types/entity-types";
+import { IBulkOperationsResponse } from "../../types/plugin-types";
 
 /**
  * Uses hashing to track changes at the context level.  Useful for applications that have trouble with proxy objects
@@ -15,6 +16,11 @@ export class ContextChangeTrackingAdapter<TDocumentType extends string, TEntity 
         enhance: (entity: TEntity) => this._changeTrackers[entity.DocumentType].enrichment.enhance(entity),
         map: (entity: TEntity) => this._changeTrackers[entity.DocumentType].enrichment.map(entity),
         upsert: (entity: TEntity) => this._changeTrackers[entity.DocumentType].enrichment.upsert(entity),
+        strip: (entity: TEntity) => this._changeTrackers[entity.DocumentType].enrichment.strip(entity),
+        remove: (entity: TEntity) => this._changeTrackers[entity.DocumentType].enrichment.remove(entity),
+        composers: {
+            persisted: (generatedData: IBulkOperationsResponse) => (entity: TEntity) => this._changeTrackers[entity.DocumentType].enrichment.composers.persisted(generatedData)(entity),
+        }
     }
 
     registerChangeTracker(documentType: TDocumentType, tracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>) {
@@ -37,7 +43,7 @@ export class ContextChangeTrackingAdapter<TDocumentType extends string, TEntity 
             a.updated = {
                 deltas: { ...trackedData.updated.deltas, ...a.updated.deltas },
                 docs: { ...trackedData.updated.docs, ...a.updated.docs },
-                originals: a.updated.originals.concat(trackedData.updated.originals)
+                originals: { ...trackedData.updated.originals, ...a.updated.originals }
             };
             a.removeById = a.removeById.concat(trackedData.removeById);
             a.remove = a.remove.concat(trackedData.remove);
@@ -46,12 +52,6 @@ export class ContextChangeTrackingAdapter<TDocumentType extends string, TEntity 
         }, {} as ITrackedChanges<TDocumentType, TEntity>);
 
         return trackedChanges;
-    }
-
-    cleanse(...entities: TEntity[]) {
-        for (const item of entities) {
-            this._changeTrackers[item.DocumentType].cleanse(item);
-        }
     }
 
     private _toDictionary(data?: TEntity[]) {

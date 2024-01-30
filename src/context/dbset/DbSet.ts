@@ -44,7 +44,7 @@ export class DbSet<TDocumentType extends string, TEntity extends IDbRecord<TDocu
         const api = context._getApi();
         this.plugin = api.dbPlugin;
 
-        const changeTrackingFactory = new ChangeTrackingFactory<TDocumentType, TEntity, TExclusions>(props, this.plugin.idPropertName, "contextName", api.contextOptions.environment ?? "development");
+        const changeTrackingFactory = new ChangeTrackingFactory<TDocumentType, TEntity, TExclusions>(props, this.plugin, api.contextId, api.contextOptions.environment ?? "development");
 
         this._changeTracker = changeTrackingFactory.getTracker();
 

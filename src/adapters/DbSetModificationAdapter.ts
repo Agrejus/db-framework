@@ -33,7 +33,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
             const enrichedEntity = this.changeTracker.enrichment.add(entity as TEntity);
             const trackableEntity = this.changeTracker.enableChangeTracking(enrichedEntity);
 
-            this._tryAddMetaData(trackableEntity[this.api.dbPlugin.idPropertName]);
+            this._tryAddMetaData(trackableEntity[this.api.dbPlugin.idPropertyName]);
 
             add.push(trackableEntity);
 
@@ -67,14 +67,14 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
         const all = await this.getAllData();
         const allDictionary: { [key: string]: TEntity } = all.reduce((a, v) => {
 
-            const id = v[this.api.dbPlugin.idPropertName] as string;
+            const id = v[this.api.dbPlugin.idPropertyName] as string;
             return { ...a, [id]: v }
         }, {})
         const result: TEntity[] = [];
 
         for (let entity of entities as any[]) {
-            const instance = entity[this.api.dbPlugin.idPropertName] != null ? entity as TEntity : { ...this.changeTracker.enrichment.add(entity) } as TEntity;
-            const id = instance[this.api.dbPlugin.idPropertName] as string;
+            const instance = entity[this.api.dbPlugin.idPropertyName] != null ? entity as TEntity : { ...this.changeTracker.enrichment.add(entity) } as TEntity;
+            const id = instance[this.api.dbPlugin.idPropertyName] as string;
             const found = allDictionary[id]
 
             if (found) {
@@ -92,7 +92,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
                     throw e;
                 }
 
-                const mergedId = attached[this.api.dbPlugin.idPropertName];
+                const mergedId = attached[this.api.dbPlugin.idPropertyName];
                 this._tryAddMetaData(mergedId);
 
                 result.push(attached)
@@ -140,14 +140,14 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
         const data = this.changeTracker.getTrackedData();
         const { remove } = data;
 
-        const ids = remove.map(w => w[this.api.dbPlugin.idPropertName]);
+        const ids = remove.map(w => w[this.api.dbPlugin.idPropertyName]);
         const indexableEntity = entity as IIndexableEntity;
 
-        if (ids.includes(indexableEntity[this.api.dbPlugin.idPropertName as string])) {
-            throw new Error(`Cannot remove entity with same id more than once.  id: ${indexableEntity[this.api.dbPlugin.idPropertName as string]}`)
+        if (ids.includes(indexableEntity[this.api.dbPlugin.idPropertyName as string])) {
+            throw new Error(`Cannot remove entity with same id more than once.  id: ${indexableEntity[this.api.dbPlugin.idPropertyName as string]}`)
         }
 
-        this._tryAddMetaData(entity[this.api.dbPlugin.idPropertName]);
+        this._tryAddMetaData(entity[this.api.dbPlugin.idPropertyName]);
         remove.push(entity as any);
     }
 

@@ -61,7 +61,7 @@ export interface ITrackedData<TDocumentType extends string, TEntityBase extends 
 export type IEntityUpdates<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> = {
     docs: { [key: string | number]: TEntityBase; };
     deltas: { [key: string | number]: DeepPartial<TEntityBase>; };
-    originals: TEntityBase[];
+    originals: { [key: string | number]: TEntityBase; };
 }
 
 export interface ITrackedChanges<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> {
