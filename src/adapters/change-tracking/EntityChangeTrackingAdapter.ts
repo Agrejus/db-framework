@@ -1,7 +1,7 @@
-import { ReselectDictionary } from "../../common/ReselectDictionary";
+import { List } from "../../common/List";
 import { IDbSetChangeTracker, ProcessedChangesResult } from "../../types/change-tracking-types";
 import { DeepPartial } from "../../types/common-types";
-import { ITrackedChanges, IEntityUpdates } from "../../types/context-types";
+import { ITrackedChanges, IEntityUpdates, IProcessedUpdates } from "../../types/context-types";
 import { ChangeTrackingOptions, IDbSetProps } from "../../types/dbset-types";
 import { IDbRecord, IIndexableEntity } from "../../types/entity-types";
 import { IDbPlugin } from "../../types/plugin-types";
@@ -20,7 +20,7 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
 
     constructor(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: ChangeTrackingOptions<TDocumentType, TEntity>, dbPlugin: IDbPlugin<TDocumentType, TEntity, TExclusions>) {
         super(dbSetProps, changeTrackingOptions, dbPlugin);
-        this.attachments = new ReselectDictionary<TDocumentType, TEntity>(dbPlugin.idPropertyName)
+        this.attachments = new List<TEntity>(dbPlugin.idPropertyName)
     }
 
     static isProxy<T extends Object>(entities: T) {
@@ -54,13 +54,13 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
 
     getPendingChanges(): ITrackedChanges<TDocumentType, TEntity> {
         const changes = this.getTrackedData();
-        const { add, remove, removeById, attach } = changes;
+        const { adds, removes, removesById, attachments } = changes;
 
-        const updated = attach
+        const updates = attachments
             .map(w => this.processChanges(w))
             .filter(w => w.isDirty === true)
             .map(w => {
-                w.deltas = this.enrichment.map(w.deltas as TEntity) as DeepPartial<TEntity>;
+                w.deltas = w.deltas;
                 w.doc = { ...w.doc, ...w.deltas }; // write mapping changes to the main doc,
                 return w;
             })
@@ -72,17 +72,17 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
                 a.originals[id] = v.original;
 
                 return a;
-            }, { deltas: {}, docs: {}, originals: {} } as IEntityUpdates<TDocumentType, TEntity>);
+            }, { deltas: {}, docs: {}, originals: {} } as IProcessedUpdates<TDocumentType, TEntity>);
 
         return {
-            add,
-            remove,
-            removeById,
-            updated
+            adds,
+            removes,
+            removesById,
+            updates
         }
     }
 
-    enableChangeTracking(entity: TEntity) {
+    private _enableChangeTracking(entity: TEntity) {
         const proxyHandler: ProxyHandler<TEntity> = {
             set: (entity, property, value) => {
 
@@ -148,6 +148,10 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
         return new Proxy(entity, proxyHandler as any) as TEntity
     }
 
+    enableChangeTracking(...entities: TEntity[]) {
+        return entities.map(w => this._enableChangeTracking(w))
+    }
+
     merge(from: TEntity, to: TEntity) {
         const options = { skip: [EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY, EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY, EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER] };
 
@@ -170,16 +174,17 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
         }
 
         return entities.map(w => {
-            (w as IIndexableEntity)[EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER] = true; 7
+            (w as IIndexableEntity)[EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER] = true;
             return w;
         });
     }
 
     link(found: TEntity[]) {
         const result = found.map(w => {
-            const enriched = this.enrichment.upsert(w);
-            return this.enableChangeTracking(enriched);
+            const enriched = this.enrichment.link(w);
+            const [tracked] = this.enableChangeTracking(enriched);
+            return tracked;
         });
-        return this.attach(result);
+        return this.attach(...result);
     }
 }

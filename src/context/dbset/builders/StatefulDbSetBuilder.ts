@@ -1,5 +1,5 @@
 import { DbSetPickDefaultActionOptional, DeepPartial, EntityComparator, EntitySelector, ToUnion } from "../../../types/common-types";
-import { IChainIdBuilder, IDbSetStatefulBuilderParams, IIdBuilderBase, ITerminateIdBuilder, PropertyMap } from "../../../types/dbset-builder-types";
+import { Deserializer, IChainIdBuilder, IDbSetStatefulBuilderParams, IIdBuilderBase, ITerminateIdBuilder, Serializer } from "../../../types/dbset-builder-types";
 import { DbSetRemoteOnChangeEvent } from "../../../types/dbset-types";
 import { IDbRecord, OmittedEntity } from "../../../types/entity-types";
 import { BaseDbSetBuilder } from "./base/BaseDbSetBuilder";
@@ -34,8 +34,12 @@ export class StatefulDbSetBuilder<TDocumentType extends string, TEntity extends 
         return super._readonly(StatefulDbSetBuilder<TDocumentType, Readonly<TEntity>, TExclusions>)
     }
 
-    map<T extends keyof TEntity>(propertyMap: PropertyMap<TDocumentType, TEntity, T>) {
-        return super._map(propertyMap, StatefulDbSetBuilder<TDocumentType, TEntity, TExclusions>)
+    serialize(serializer: Serializer<TDocumentType, TEntity>) {
+        return super._serialize(serializer, StatefulDbSetBuilder<TDocumentType, TEntity, TExclusions>)
+    }
+    
+    deserialize(deserializer: Deserializer<TDocumentType, TEntity>) {
+        return super._deserialize(deserializer, StatefulDbSetBuilder<TDocumentType, TEntity, TExclusions>)
     }
 
     filter(selector: EntitySelector<TDocumentType, TEntity>) {

@@ -2,7 +2,7 @@ import { IDbRecord } from '../types/entity-types';
 import { DbSetPickDefaultActionRequired, EntitySelector } from '../types/common-types';
 import { IPrivateContext } from '../types/context-types';
 import { DbSetType, IDbSetApi, IDbSetProps, SaveChangesEventData } from '../types/dbset-types';
-import { CustomIdCreator, EntityEnhancer, PropertyMap } from '../types/dbset-builder-types';
+import { CustomIdCreator, EntityEnhancer } from '../types/dbset-builder-types';
 import { IDbSetChangeTracker } from '../types/change-tracking-types';
 
 export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> {
@@ -12,7 +12,7 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
     protected context: IPrivateContext<TDocumentType, TEntity, TExclusions>;
     protected api: IDbSetApi<TDocumentType, TEntity, TExclusions>;
     protected isReadonly: boolean;
-    protected map: PropertyMap<TDocumentType, TEntity, any>[];
+    //protected map: SerializationMap<TDocumentType, TEntity, any>[];
     protected filterSelector: EntitySelector<TDocumentType, TEntity> | null;
     protected type: DbSetType;
     protected changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>;
@@ -25,7 +25,7 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
         this.defaults = props.defaults;
         this.isReadonly = props.readonly;
         this.idCreator = props.idCreator;
-        this.map = props.map;
+        //this.map = props.map;
         this.filterSelector = props.filterSelector;
         this.enhancer = props.enhancer;
 
@@ -44,7 +44,8 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
         // process the mappings when we make the item trackable.  We are essentially prepping the entity
         const result = data.map(w => {
             const enriched = this.changeTracker.enrichment.retrieve(w);
-            return this.changeTracker.enableChangeTracking(enriched);
+            const [tracked] = this.changeTracker.enableChangeTracking(enriched);
+            return tracked;
         });
 
         return this.filterResult(result);
@@ -68,7 +69,7 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
 
         await this.onAfterDataFetched(result);
 
-        const attached = this.changeTracker.attach(result);
+        const attached = this.changeTracker.attach(...result);
 
         return this.filterResult(attached);
     }

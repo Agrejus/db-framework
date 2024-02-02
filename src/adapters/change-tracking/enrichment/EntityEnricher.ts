@@ -4,7 +4,7 @@ import { ChangeTrackingOptions, IDbSetProps } from "../../../types/dbset-types";
 import { IDbRecord } from "../../../types/entity-types";
 import { IChangeTrackingCache } from "../../../types/memory-cache-types";
 import { IBulkOperationsResponse, IDbPlugin } from "../../../types/plugin-types";
-import { defaultAddEnrichmentCreator, defaultRetrieveEnrichmentCreator, documentTypeEnrichmentCreator, enhancementEnrichmentCreator, idEnrichmentCreator, mapEnrichmentCreator, stripEnrichmentCreator } from "./enrichers";
+import { defaultAddEnrichmentCreator, defaultRetrieveEnrichmentCreator, documentTypeEnrichmentCreator, enhancementEnrichmentCreator, idEnrichmentCreator, deserializerEnrichmentCreator, serializerEnrichmentCreator, stripEnrichmentCreator } from "./enrichers";
 
 export class EntityEnricher<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> {
 
@@ -22,13 +22,15 @@ export class EntityEnricher<TDocumentType extends string, TEntity extends IDbRec
 
     compose() {
         const enrichment: Enrichment<TDocumentType, TEntity, TExclusions> = {
-            add: () => ({} as any),
+            create: () => ({} as any),
             retrieve: () => ({} as any),
             enhance: () => ({} as any),
-            map: () => ({} as any),
+            deserialize: () => ({} as any),
             upsert: () => ({} as any),
-            strip: () => ({} as any),
+            prepare: () => ({} as any),
             remove: () => ({} as any),
+            link: () => ({} as any),
+            serialize: () => ({} as any),
             composers: {
                 persisted: () => ({} as any)
             }
@@ -53,32 +55,37 @@ export class EntityEnricher<TDocumentType extends string, TEntity extends IDbRec
         const [idEnricher] = idEnrichmentCreator(this._dbSetProps, props);
 
         // default enrich add
-        const [defaultAddEnricher] = defaultAddEnrichmentCreator(this._dbSetProps, props);
+        const defaultAddEnrichers = defaultAddEnrichmentCreator(this._dbSetProps, props);
 
         // default enrich retrieve
-        const [defaultRetrieveEnricher] = defaultRetrieveEnrichmentCreator(this._dbSetProps, props);
+        const defaultRetrieveEnrichers = defaultRetrieveEnrichmentCreator(this._dbSetProps, props);
 
-        const [stripEnricher] = stripEnrichmentCreator(this._dbSetProps, props);
+        const stripEnrichers = stripEnrichmentCreator(this._dbSetProps, props);
 
-        const mapEnrichers = mapEnrichmentCreator(this._dbSetProps, props);
-        const [enhancementEnricher] = enhancementEnrichmentCreator(this._dbSetProps, props);
+        const deserializationEnrichers = deserializerEnrichmentCreator(this._dbSetProps, props);
+        const serializationEnrichers = serializerEnrichmentCreator(this._dbSetProps, props);
+        const enhancementEnrichers = enhancementEnrichmentCreator(this._dbSetProps, props);
         const removalEnricher = this._dbPlugin.enrichRemoval;
         const generatedEnricher = this._dbPlugin.enrichGenerated;
 
 
-        const add = [documentTypeEnricher, idEnricher, defaultAddEnricher, ...mapEnrichers, enhancementEnricher];
-        const upsert = [defaultAddEnricher, ...mapEnrichers, enhancementEnricher];
-        const retrieve = [defaultRetrieveEnricher, ...mapEnrichers, enhancementEnricher];
+        const create = [documentTypeEnricher, idEnricher, ...defaultAddEnrichers, ...enhancementEnrichers];
+        const upsert = [...defaultAddEnrichers, ...deserializationEnrichers, ...enhancementEnrichers];
+        const link = [...defaultAddEnrichers, ...enhancementEnrichers];
+        const retrieve = [...deserializationEnrichers, ...defaultRetrieveEnrichers, ...enhancementEnrichers];
+        const prepare = [...stripEnrichers, ...serializationEnrichers]
 
-        enrichment.add = (entity) => add.reduce((a, v) => v(a), entity);
+        enrichment.create = (entity) => create.reduce((a, v) => v(a), entity);
         enrichment.retrieve = (entity) => retrieve.reduce((a, v) => v(a), entity);
-        enrichment.map = (entity) => mapEnrichers.reduce((a, v) => v(a), entity);
-        enrichment.enhance = enhancementEnricher;
+        enrichment.deserialize = (entity) => deserializationEnrichers.reduce((a, v) => v(a), entity);
+        enrichment.serialize = (entity) => serializationEnrichers.reduce((a, v) => v(a), entity);
+        enrichment.enhance = (entity) => enhancementEnrichers.reduce((a, v) => v(a), entity);
         enrichment.upsert = (entity) => upsert.reduce((a, v) => v(a), entity);
-        enrichment.strip = stripEnricher;
+        enrichment.prepare = (entity) => prepare.reduce((a, v) => v(a), entity);
         enrichment.remove = removalEnricher;
+        enrichment.link = (entity) => link.reduce((a, v) => v(a), entity);
         enrichment.composers = {
-            persisted: (response: IBulkOperationsResponse) => (entity: TEntity) => [...mapEnrichers, enhancementEnricher].reduce((a, v) => v(a), generatedEnricher(response, entity))
+            persisted: (response: IBulkOperationsResponse) => (entity: TEntity) => [...deserializationEnrichers, ...enhancementEnrichers].reduce((a, v) => v(a), generatedEnricher(response, entity))
         }
 
         memoryCache.put<IChangeTrackingCache<TDocumentType, TEntity, TExclusions>>(this._changeTrackingId, { enrichment });

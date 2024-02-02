@@ -1,7 +1,7 @@
-import { ReselectDictionary } from "../../common/ReselectDictionary";
-import { IAttachmentDictionary, IDbSetChangeTracker, ProcessedChangesResult } from "../../types/change-tracking-types";
+import { List } from "../../common/List";
+import { IList, IDbSetChangeTracker, ProcessedChangesResult } from "../../types/change-tracking-types";
 import { DeepPartial, EntityComparator } from "../../types/common-types";
-import { ITrackedChanges, IEntityUpdates } from "../../types/context-types";
+import { ITrackedChanges, IProcessedUpdates } from "../../types/context-types";
 import { ChangeTrackingOptions, IDbSetProps } from "../../types/dbset-types";
 import { IDbRecord } from "../../types/entity-types";
 import { IDbPlugin } from "../../types/plugin-types";
@@ -13,14 +13,14 @@ import { ChangeTrackingAdapterBase } from "./ChangeTrackingAdapterBase";
 export class CustomChangeTrackingAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> extends ChangeTrackingAdapterBase<TDocumentType, TEntity, TExclusions> implements IDbSetChangeTracker<TDocumentType, TEntity, TExclusions> {
 
     protected override attachments;
-    private _originals: IAttachmentDictionary<TDocumentType, TEntity>;
+    private _originals: IList<TEntity>;
     private _comparator: EntityComparator<TDocumentType, TEntity>;
     private _dirtyMarkers: { [key in keyof TEntity]: true } = {} as any;
 
     constructor(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: ChangeTrackingOptions<TDocumentType, TEntity>, dbPlugin: IDbPlugin<TDocumentType, TEntity, TExclusions>, comparator: EntityComparator<TDocumentType, TEntity>) {
         super(dbSetProps, changeTrackingOptions, dbPlugin);
-        this.attachments = new ReselectDictionary<TDocumentType, TEntity>(dbPlugin.idPropertyName);
-        this._originals = new ReselectDictionary<TDocumentType, TEntity>(dbPlugin.idPropertyName);
+        this.attachments = new List<TEntity>(dbPlugin.idPropertyName);
+        this._originals = new List<TEntity>(dbPlugin.idPropertyName);
         this._comparator = comparator;
     }
 
@@ -34,12 +34,12 @@ export class CustomChangeTrackingAdapter<TDocumentType extends string, TEntity e
             const id = w[this.dbPlugin.idPropertyName] as string | number;
 
             return {
-                ...this.enrichment.add(w),
+                ...this.enrichment.create(w),
                 ...attachedEntitiesMap[id]
             };
         });
 
-        return this.attach(result);
+        return this.attach(...result);
     }
 
     asUntracked(...entities: TEntity[]) {
@@ -73,7 +73,7 @@ export class CustomChangeTrackingAdapter<TDocumentType extends string, TEntity e
 
     private _pushOriginals(...data: TEntity[]) {
         const clonedItems = JSON.parse(JSON.stringify(data)) as TEntity[];
-        const clonedAndMappedItems = clonedItems.map(w => this.enrichment.map(w) as TEntity);
+        const clonedAndMappedItems = clonedItems.map(w => this.enrichment.deserialize(w) as TEntity);
         this._originals.put(...clonedAndMappedItems)
     }
 
@@ -82,25 +82,25 @@ export class CustomChangeTrackingAdapter<TDocumentType extends string, TEntity e
 
         this._dirtyMarkers = {} as any;
 
-        this._originals = new ReselectDictionary<TDocumentType, TEntity>(this.dbPlugin.idPropertyName);
+        this._originals = new List<TEntity>(this.dbPlugin.idPropertyName);
         this._pushOriginals(...this.attachments.all())
     }
 
-    override attach(data: TEntity[]) {
+    override attach(...data: TEntity[]) {
         this._pushOriginals(...data);
-        return super.attach(data);
+        return super.attach(...data);
     }
 
     getPendingChanges(): ITrackedChanges<TDocumentType, TEntity> {
 
         const changes = this.getTrackedData();
-        const { add, remove, removeById, attach } = changes;
+        const { adds, removes, removesById, attachments } = changes;
 
-        const updated = attach
+        const updates = attachments
             .map(w => this.processChanges(w))
             .filter(w => w.isDirty === true)
             .map(w => {
-                w.deltas = this.enrichment.map(w.deltas as TEntity) as DeepPartial<TEntity>;
+                w.deltas = w.deltas;
                 w.doc = { ...w.doc, ...w.deltas }; // write mapping changes to the main doc
                 return w;
             })
@@ -111,18 +111,18 @@ export class CustomChangeTrackingAdapter<TDocumentType extends string, TEntity e
                 a.deltas[id] = v.deltas;
                 a.originals[id] = v.original;
                 return a;
-            }, { deltas: {}, docs: {}, originals: {} } as IEntityUpdates<TDocumentType, TEntity>);
+            }, { deltas: {}, docs: {}, originals: {} } as IProcessedUpdates<TDocumentType, TEntity>);
 
         return {
-            add,
-            remove,
-            removeById,
-            updated
+            adds,
+            removes,
+            removesById,
+            updates
         }
     }
 
-    enableChangeTracking(entity: TEntity) {
-        return entity
+    enableChangeTracking(...entities: TEntity[]) {
+        return entities
     }
 
     merge(from: TEntity, to: TEntity) {

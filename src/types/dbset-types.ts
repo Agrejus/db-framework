@@ -1,8 +1,8 @@
 import { IDbSetChangeTracker } from "./change-tracking-types";
 import { DbSetPickDefaultActionRequired, EntityComparator, EntitySelector } from "./common-types";
 import { ContextOptions, DbFrameworkEnvironment, IDataContext } from "./context-types";
-import { CustomIdCreator, EntityEnhancer, PropertyMap } from "./dbset-builder-types";
-import { IDbRecord, OmittedEntity, IDbRecordBase, EntityIdKeys } from "./entity-types";
+import { CustomIdCreator, Deserializer, EntityEnhancer, Serializer } from "./dbset-builder-types";
+import { IDbRecord, OmittedEntity, IDbRecordBase } from "./entity-types";
 import { IDbPlugin } from "./plugin-types";
 
 export type IDbSetTypes<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> = {
@@ -72,6 +72,10 @@ export interface IDbSet<
 > extends IDbSetEnumerable<TDocumentType, TEntity> {
 
     get types(): IDbSetTypes<TDocumentType, TEntity, TExclusions>;
+
+    serialize(...entities: TEntity[]): any[];
+
+    deserialize(...entities: any[]): TEntity[];
 
     /**
      * Add a tag to the transaction (one or more entites from add/remove/upsert) and make available for onAfterSaveChanges or onBeforeSaveChanges.
@@ -213,7 +217,6 @@ export interface IDbSetApi<TDocumentType extends string, TEntityBase extends IDb
 export interface IDbSetInfo<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> {
     DocumentType: TDocumentType,
     Defaults: DbSetPickDefaultActionRequired<TDocumentType, TEntity, TExclusions>,
-    Map: PropertyMap<TDocumentType, TEntity, any>[];
     Readonly: boolean;
     ChangeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>
 }
@@ -234,10 +237,11 @@ export interface IDbSetProps<TDocumentType extends string, TEntity extends IDbRe
     defaults: DbSetPickDefaultActionRequired<TDocumentType, TEntity, TExclusions>,
     readonly: boolean;
     idCreator: CustomIdCreator<TDocumentType, TEntity>;
-    map: PropertyMap<TDocumentType, TEntity, any>[];
     filterSelector: EntitySelector<TDocumentType, TEntity> | null;
     entityComparator: EntityComparator<TDocumentType, TEntity> | null;
-    enhancer?: EntityEnhancer<TDocumentType, TEntity>
+    serializer: Serializer<TDocumentType, TEntity> | null;
+    deserializer: Deserializer<TDocumentType, TEntity> | null;
+    enhancer?: EntityEnhancer<TDocumentType, TEntity>;
 }
 
 export type DbSetType = "default" | "stateful";

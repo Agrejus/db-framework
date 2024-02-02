@@ -21,13 +21,17 @@
     "typescript",
     "web",
     "indexeddb",
-    "electron"
+    "electron",
+    "data access layer",
+    "entities",
+    "entity framework",
+    "database"
   ],
   "files": [
     "dist"
   ],
   "devDependencies": {
-    "@agrejus/db-framework-plugin-pouchdb": "file:../db-framework-plugin-pouchdb",
+    "@agrejus/db-framework-plugin-pouchdb": "file:./plugins/pouchdb",
     "@babel/preset-env": "^7.18.0",
     "@babel/preset-typescript": "^7.17.12",
     "@faker-js/faker": "^7.1.0",

@@ -1,0 +1,25 @@
+-- Merging decision tree log ---
+manifest
+ADDED from C:\Repos\capacitor-utilities\android\src\main\AndroidManifest.xml:2:3-4:14
+INJECTED from C:\Repos\capacitor-utilities\android\src\main\AndroidManifest.xml:2:3-4:14
+INJECTED from C:\Repos\capacitor-utilities\android\src\main\AndroidManifest.xml:2:3-4:14
+	package
+		ADDED from C:\Repos\capacitor-utilities\android\src\main\AndroidManifest.xml:3:7-68
+		INJECTED from C:\Repos\capacitor-utilities\android\src\main\AndroidManifest.xml
+		INJECTED from C:\Repos\capacitor-utilities\android\src\main\AndroidManifest.xml
+	xmlns:android
+		ADDED from C:\Repos\capacitor-utilities\android\src\main\AndroidManifest.xml:2:13-71
+uses-sdk
+INJECTED from C:\Repos\capacitor-utilities\android\src\main\AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from C:\Repos\capacitor-utilities\android\src\main\AndroidManifest.xml
+INJECTED from C:\Repos\capacitor-utilities\android\src\main\AndroidManifest.xml
+INJECTED from C:\Repos\capacitor-utilities\android\src\main\AndroidManifest.xml
+INJECTED from C:\Repos\capacitor-utilities\android\src\main\AndroidManifest.xml
+	android:targetSdkVersion
+		INJECTED from C:\Repos\capacitor-utilities\android\src\main\AndroidManifest.xml
+		ADDED from C:\Repos\capacitor-utilities\android\src\main\AndroidManifest.xml
+		INJECTED from C:\Repos\capacitor-utilities\android\src\main\AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from C:\Repos\capacitor-utilities\android\src\main\AndroidManifest.xml
+		ADDED from C:\Repos\capacitor-utilities\android\src\main\AndroidManifest.xml
+		INJECTED from C:\Repos\capacitor-utilities\android\src\main\AndroidManifest.xml

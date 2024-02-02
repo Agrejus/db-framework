@@ -1,6 +1,6 @@
 import { DbSetPickDefaultActionOptional, DeepPartial, EntityComparator, EntitySelector, ToUnion } from "../../../types/common-types";
 import { IDbRecord, OmittedEntity } from "../../../types/entity-types";
-import { IChainIdBuilder, IIdBuilderBase, ITerminateIdBuilder, PropertyMap } from '../../../types/dbset-builder-types';
+import { IChainIdBuilder, IIdBuilderBase, ITerminateIdBuilder, Serializer, Deserializer } from '../../../types/dbset-builder-types';
 import { BaseDbSetBuilder } from "./base/BaseDbSetBuilder";
 
 export class DefaultDbSetBuilder<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> extends BaseDbSetBuilder<TDocumentType, TEntity, TExclusions> {
@@ -23,8 +23,12 @@ export class DefaultDbSetBuilder<TDocumentType extends string, TEntity extends I
         return super._readonly(DefaultDbSetBuilder<TDocumentType, Readonly<TEntity>, TExclusions>)
     }
 
-    map<T extends keyof TEntity>(propertyMap: PropertyMap<TDocumentType, TEntity, T>) {
-        return super._map(propertyMap, DefaultDbSetBuilder<TDocumentType, TEntity, TExclusions>)
+    serialize(serializer: Serializer<TDocumentType, TEntity>) {
+        return super._serialize(serializer, DefaultDbSetBuilder<TDocumentType, TEntity, TExclusions>)
+    }
+    
+    deserialize(deserializer: Deserializer<TDocumentType, TEntity>) {
+        return super._deserialize(deserializer, DefaultDbSetBuilder<TDocumentType, TEntity, TExclusions>)
     }
 
     filter(selector: EntitySelector<TDocumentType, TEntity>) {

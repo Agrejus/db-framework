@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="camera_container" type="id"/>
+    <string name="my_string">Just a simple string</string>
+    <style name="CameraPreviewTheme" parent="android:Theme.Light">
+    <item name="android:windowIsFloating">true</item>  
+    <item name="android:windowCloseOnTouchOutside">false</item>  
+    <item name="android:colorBackgroundCacheHint">@null</item>  
+    <item name="android:backgroundDimEnabled">false</item>  
+  </style>
+</resources>

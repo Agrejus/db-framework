@@ -1,6 +1,6 @@
 import { memoryCache } from '../../../cache/MemoryCache';
 import { EnrichmentCreatorProps } from '../../../types/change-tracking-types';
-import { ChangeTrackingOptions, IDbSetProps } from '../../../types/dbset-types';
+import { IDbSetProps } from '../../../types/dbset-types';
 import { IDbRecord } from '../../../types/entity-types';
 import { IChangeTrackingCache } from '../../../types/memory-cache-types';
 
@@ -20,35 +20,22 @@ export const defaultRetrieveEnrichmentCreator = <TDocumentType extends string, T
     return [(entity: TEntity) => ({ ...dbSetProps.defaults.retrieve, ...entity } as TEntity)];
 }
 
-export const deleteEnrichmentCreator = <TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity>(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: EnrichmentCreatorProps<TDocumentType, TEntity>) => {
-    return [(entity: TEntity) => {
+export const serializerEnrichmentCreator = <TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity>(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: EnrichmentCreatorProps<TDocumentType, TEntity>) => {
 
-        const result : TEntity = { 
-            
-            _deleted: true, 
-            [changeTrackingOptions.idPropertyName]: entity[changeTrackingOptions.idPropertyName],
-
-        } as any
-        return result;
-    }];
-}
-
-export const mapEnrichmentCreator = <TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity>(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: EnrichmentCreatorProps<TDocumentType, TEntity>) => {
-    const mapEnrichers: ((entity: TEntity) => TEntity)[] = [];
-
-    // add mappings
-    if (dbSetProps.map.length > 0) {
-        const propertyMapEnrichers = dbSetProps.map.map(w => (entity: TEntity) => {
-            const preTransformedValue = (entity)[w.property as keyof TEntity];
-            const value = Object.prototype.toString.call(preTransformedValue) === '[object Date]' ? preTransformedValue : w.map(preTransformedValue as any, entity)
-
-            return { ...entity, [w.property]: value } as TEntity;
-        });
-
-        mapEnrichers.push(...propertyMapEnrichers)
+    if (dbSetProps.serializer == null) {
+        return [];
     }
 
-    return mapEnrichers;
+    return [(entity: TEntity) => ({ ...dbSetProps.serializer({ ...entity }) } as TEntity)];
+}
+
+export const deserializerEnrichmentCreator = <TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity>(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: EnrichmentCreatorProps<TDocumentType, TEntity>) => {
+
+    if (dbSetProps.deserializer == null) {
+        return [];
+    }
+
+    return [(entity: TEntity) => ({ ...dbSetProps.deserializer({ ...entity }) } as TEntity)];
 }
 
 export const enhancementEnrichmentCreator = <TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity>(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: EnrichmentCreatorProps<TDocumentType, TEntity>) => {
@@ -81,9 +68,11 @@ export const stripEnrichmentCreator = <TDocumentType extends string, TEntity ext
             untrackedProperties.push(...added);
         }
 
-        const stripRaw = `const { ${untrackedProperties.join(', ')}, ...result  } = entity; return result;`;
+        let strip = Function("entity", `return entity;`) as (entity: TEntity) => TEntity;
 
-        const strip = Function("entity", stripRaw) as (entity: TEntity) => TEntity;
+        if (untrackedProperties.length > 0) {
+            strip = Function("entity", `const { ${untrackedProperties.join(', ')}, ...result  } = entity; return result;`) as (entity: TEntity) => TEntity;
+        }
 
         memoryCache.put<IChangeTrackingCache<TDocumentType, TEntity, TExclusions>>(changeTrackingOptions.changeTrackingId, { strip })
 

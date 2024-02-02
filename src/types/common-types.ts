@@ -1,3 +1,4 @@
+import { ReadOnlyList } from "../common/ReadOnlyList";
 import { IEntityUpdates } from "./context-types";
 import { IDbRecord, OmittedEntity, IRemovalRecord } from "./entity-types";
 
@@ -28,11 +29,17 @@ export type EntityComparator<TDocumentType extends string, TEntity extends IDbRe
 
 export type DeepReadOnly<T> = { readonly [key in keyof T]: DeepReadOnly<T[key]> };
 
-export interface IPreviewChanges<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> {
-    add: TEntityBase[];
-    remove: IRemovalRecord<TDocumentType, TEntityBase>[];
-    update: IEntityUpdates<TDocumentType, TEntityBase>
+export interface Changes<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> {
+    adds: ReadOnlyList<TEntityBase>;
+    removes: ReadOnlyList<IRemovalRecord<TDocumentType, TEntityBase>>;
+    updates: IEntityUpdates<TDocumentType, TEntityBase>
+}
+
+export interface SaveResult<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> extends Changes<TDocumentType, TEntityBase> {
+    successes_count: number;
 }
 
 export type ToUnion<T> = { [K in keyof T]: K }[keyof T]
+
+export type IDictionary<T> = { [key: string | number]: T };
 

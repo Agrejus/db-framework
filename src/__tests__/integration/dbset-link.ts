@@ -209,14 +209,16 @@ describe('DbSet Link Tests', () => {
 
         updated.firstName = "UPDATE ME";
 
-        await context.saveChanges();
+        expect(context.hasPendingChanges()).toBe(true);
+        const { updates } = await context.saveChanges();
+        const [foundUpdate] = updates.docs.match(updated)
 
         const secondContext = contextFactory.createContext(ExternalDataContext, dbname);
 
-        expect(contact._rev).not.toBe(updated._rev);
+        expect(contact._rev).not.toBe(foundUpdate?._rev);
 
         const [linkedContact] = await secondContext.contacts.link(contact);
 
-        expect(linkedContact._rev).toBe(updated._rev);
+        expect(linkedContact._rev).toBe(foundUpdate?._rev);
     });
 });

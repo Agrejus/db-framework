@@ -27,13 +27,13 @@ describe('DbSet Upsert Tests', () => {
         });
 
         expect(context.hasPendingChanges()).toBe(true);
-        await context.saveChanges();
-
+        const { adds } = await context.saveChanges();
+        const [found] = adds.match(one)
         expect(context.hasPendingChanges()).toBe(false);
 
         const [foundOne] = await context.contacts.all();
 
-        expect(foundOne).toEqual(one);
+        expect(foundOne).toEqual(found!);
 
         const [two] = await context.contacts.upsert({
             firstName: "James",
@@ -43,15 +43,16 @@ describe('DbSet Upsert Tests', () => {
         });
 
         expect(context.hasPendingChanges()).toBe(true);
-        await context.saveChanges();
+        const { updates } = await context.saveChanges();
+        const [found2] = updates.docs.match(two)
         expect(context.hasPendingChanges()).toBe(false);
 
         const [foundTwo] = await context.contacts.all();
 
-        expect(foundTwo).toEqual(two);
+        expect(foundTwo).toEqual(found2);
 
-        expect(EntityChangeTrackingAdapter.isProxy(one)).toBe(true);
-        expect(EntityChangeTrackingAdapter.isProxy(two)).toBe(true)
+        expect(EntityChangeTrackingAdapter.isProxy(foundOne!)).toBe(true);
+        expect(EntityChangeTrackingAdapter.isProxy(found2!)).toBe(true)
     });
 
 
@@ -139,60 +140,56 @@ describe('DbSet Upsert Tests', () => {
 
     it('should upsert with auto generated id', async () => {
 
-        try {
-            const dbname = contextFactory.getRandomDbName()
-            const context = contextFactory.createContext(ExternalDataContext, dbname);
+        const dbname = contextFactory.getRandomDbName()
+        const context = contextFactory.createContext(ExternalDataContext, dbname);
 
-            const all = await context.notesWithMapping.all();
+        const all = await context.notesWithMapping.all();
 
-            expect(all.length).toBe(0);
+        expect(all.length).toBe(0);
 
-            const [one] = await context.notesWithMapping.upsert({
-                contents: "some contents",
-                createdDate: new Date(),
-                userId: "some user"
-            });
+        const [one] = await context.notesWithMapping.upsert({
+            contents: "some contents",
+            createdDate: new Date(),
+            userId: "some user"
+        });
 
-            expect(context.hasPendingChanges()).toBe(true);
-            await context.saveChanges();
-            expect(context.hasPendingChanges()).toBe(false);
+        expect(context.hasPendingChanges()).toBe(true);
+        await context.saveChanges();
+        expect(context.hasPendingChanges()).toBe(false);
 
-            const [two] = await context.notesWithMapping.upsert({
-                contents: "some contents",
-                createdDate: new Date(),
-                userId: "some user"
-            });
+        const [two] = await context.notesWithMapping.upsert({
+            contents: "some contents",
+            createdDate: new Date(),
+            userId: "some user"
+        });
 
-            expect(context.hasPendingChanges()).toBe(true);
-            await context.saveChanges();
-            expect(context.hasPendingChanges()).toBe(false);
+        expect(context.hasPendingChanges()).toBe(true);
+        await context.saveChanges();
+        expect(context.hasPendingChanges()).toBe(false);
 
-            const allAfterAdd = await context.notesWithMapping.all();
-            expect(allAfterAdd.length).toBe(2);
+        const allAfterAdd = await context.notesWithMapping.all();
+        expect(allAfterAdd.length).toBe(2);
 
-            const foundOne = await context.notesWithMapping.find(w => w._id === one._id);
+        const foundOne = await context.notesWithMapping.find(w => w._id === one._id);
 
-            expect(foundOne).toBeDefined();
+        expect(foundOne).toBeDefined();
 
-            const [upsertedOne] = await context.notesWithMapping.upsert({
-                _id: one._id,
-                contents: "changed contents",
-                createdDate: new Date(),
-                userId: "changed user"
-            });
+        const [upsertedOne] = await context.notesWithMapping.upsert({
+            _id: one._id,
+            contents: "changed contents",
+            createdDate: new Date(),
+            userId: "changed user"
+        });
 
-            expect(upsertedOne._id).toBe(one._id);
-            expect(context.hasPendingChanges()).toBe(true);
-            await context.saveChanges();
-            expect(context.hasPendingChanges()).toBe(false);
+        expect(upsertedOne._id).toBe(one._id);
+        expect(context.hasPendingChanges()).toBe(true);
+        await context.saveChanges();
+        expect(context.hasPendingChanges()).toBe(false);
 
-            const foundUpsertOne = await context.notesWithMapping.find(w => w._id === one._id);
+        const foundUpsertOne = await context.notesWithMapping.find(w => w._id === one._id);
 
-            expect({ ...upsertedOne, createdDate: upsertedOne.createdDate }).toEqual({ ...foundUpsertOne });
-            expect(foundUpsertOne?.contents).toBe("changed contents");
-            expect(foundUpsertOne?.userId).toBe("changed user");
-        } catch (e) {
-            expect(e).not.toBeDefined()
-        }
+        expect(upsertedOne.createdDate).toEqual(foundUpsertOne?.createdDate)
+        expect(foundUpsertOne?.contents).toBe("changed contents");
+        expect(foundUpsertOne?.userId).toBe("changed user");
     });
 });

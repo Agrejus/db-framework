@@ -1,7 +1,7 @@
 import { DbSetPickDefaultActionOptional, DeepPartial, EntityComparator, EntitySelector, ToUnion } from "../../../../types/common-types";
 import { IDbSet, IDbSetProps, IDbSetBase } from "../../../../types/dbset-types";
 import { IDbRecord, OmittedEntity } from "../../../../types/entity-types";
-import { DbSetExtender, IChainIdBuilder, IDbSetBuilderParams, IIdBuilderBase, ITerminateIdBuilder, PropertyMap } from '../../../../types/dbset-builder-types';
+import { DbSetExtender, IChainIdBuilder, IDbSetBuilderParams, IIdBuilderBase, ITerminateIdBuilder, Serializer, Deserializer } from '../../../../types/dbset-builder-types';
 import { IdBuilder } from "../../../builder/IdBuilder";
 
 type DefaultDbSetBuilderOptions<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity, TParams extends IDbSetBuilderParams<TDocumentType, TEntity, TExclusions>> = {
@@ -92,8 +92,17 @@ export class BaseDbSetBuilder<TDocumentType extends string, TEntity extends IDbR
         });
     }
 
-    protected _map<T extends keyof TEntity, TResult>(propertyMap: PropertyMap<TDocumentType, TEntity, T>, InstanceCreator: DbSetBuilderInstanceCreator<TDocumentType, TEntity, TExclusions, TParams, TResult>) {
-        this._params.map.push(propertyMap);
+    protected _deserialize<TResult>(deserializer: Deserializer<TDocumentType, TEntity>, InstanceCreator: DbSetBuilderInstanceCreator<TDocumentType, TEntity, TExclusions, TParams, TResult>) {
+        this._params.deserializer = deserializer;
+        return new InstanceCreator({
+            InstanceCreator: this.InstanceCreator,
+            onCreate: this._onCreate,
+            params: this._params
+        });
+    }
+
+    protected _serialize<TResult>(serializer: Serializer<TDocumentType, TEntity>, InstanceCreator: DbSetBuilderInstanceCreator<TDocumentType, TEntity, TExclusions, TParams, TResult>) {
+        this._params.serializer = serializer;
         return new InstanceCreator({
             InstanceCreator: this.InstanceCreator,
             onCreate: this._onCreate,

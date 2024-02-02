@@ -17,25 +17,27 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
     }
 
     instance(...entities: OmittedEntity<TEntity, TExclusions>[]) {
-        return entities.map(entity => ({ ...this.changeTracker.enrichment.add(entity as TEntity) }));
+        return entities.map(entity => ({ ...this.changeTracker.enrichment.create(entity as TEntity) }));
     }
 
     private async _add(...entities: OmittedEntity<TEntity, TExclusions>[]) {
         const data = this.changeTracker.getTrackedData();
-        const { add } = data;
+        const { adds } = data;
 
         const result = entities.map(entity => {
 
-            if (this.api.dbPlugin.isOperationAllowed(entity as any, "add") === false) {
-                throw new Error('Cannot add entity that is already in the database, please modify entites by reference or attach an existing entity')
+            const canAddEntityResult = this.api.dbPlugin.isOperationAllowed(entity as any, "add");
+
+            if (canAddEntityResult.ok === false) {
+                throw new Error(canAddEntityResult.error ?? 'Cannot add entity')
             }
 
-            const enrichedEntity = this.changeTracker.enrichment.add(entity as TEntity);
-            const trackableEntity = this.changeTracker.enableChangeTracking(enrichedEntity);
+            const enrichedEntity = this.changeTracker.enrichment.create(entity as TEntity);
+            const [trackableEntity] = this.changeTracker.enableChangeTracking(enrichedEntity);
 
             this._tryAddMetaData(trackableEntity[this.api.dbPlugin.idPropertyName]);
 
-            add.push(trackableEntity);
+            adds.push(trackableEntity);
 
             return trackableEntity;
         });
@@ -73,15 +75,14 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
         const result: TEntity[] = [];
 
         for (let entity of entities as any[]) {
-            const instance = entity[this.api.dbPlugin.idPropertyName] != null ? entity as TEntity : { ...this.changeTracker.enrichment.add(entity) } as TEntity;
+            const instance = entity[this.api.dbPlugin.idPropertyName] != null ? entity as TEntity : this.changeTracker.enrichment.create(entity) as TEntity;
             const id = instance[this.api.dbPlugin.idPropertyName] as string;
             const found = allDictionary[id]
 
             if (found) {
                 const enriched = this.changeTracker.enrichment.upsert(found);
-                const mergedAndTrackable = this.changeTracker.enableChangeTracking(enriched);
-
-                const [attached] = this.changeTracker.attach([mergedAndTrackable]);
+                const [mergedAndTrackable] = this.changeTracker.enableChangeTracking(enriched);
+                const [attached] = this.changeTracker.attach(mergedAndTrackable);
 
                 try {
                     this.changeTracker.merge(entity, attached);
@@ -138,29 +139,35 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
 
     private async _remove(entity: TEntity) {
         const data = this.changeTracker.getTrackedData();
-        const { remove } = data;
+        const { removes } = data;
 
-        const ids = remove.map(w => w[this.api.dbPlugin.idPropertyName]);
+        const ids = removes.map(w => w[this.api.dbPlugin.idPropertyName]);
         const indexableEntity = entity as IIndexableEntity;
 
         if (ids.includes(indexableEntity[this.api.dbPlugin.idPropertyName as string])) {
             throw new Error(`Cannot remove entity with same id more than once.  id: ${indexableEntity[this.api.dbPlugin.idPropertyName as string]}`)
         }
 
+        const canAddEntityResult = this.api.dbPlugin.isOperationAllowed(entity, "remove");
+
+        if (canAddEntityResult.ok === false) {
+            throw new Error(canAddEntityResult.error ?? 'Cannot remove entity')
+        }
+
         this._tryAddMetaData(entity[this.api.dbPlugin.idPropertyName]);
-        remove.push(entity as any);
+        removes.push(entity as any);
     }
 
     protected async _removeById(id: string) {
         const data = this.changeTracker.getTrackedData();
-        const { removeById } = data;
+        const { removesById } = data;
 
-        if (removeById.map(w => w.key).includes(id)) {
+        if (removesById.map(w => w.key).includes(id)) {
             throw new Error(`Cannot remove entity with same id more than once.  id: ${id}`)
         }
 
         this._tryAddMetaData(id as any);
 
-        removeById.push({ key: id, DocumentType: this.documentType });
+        removesById.push({ key: id, DocumentType: this.documentType });
     }
 }

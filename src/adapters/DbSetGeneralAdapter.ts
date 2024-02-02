@@ -27,7 +27,6 @@ export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends I
             DocumentType: this.documentType,
             Defaults: this.defaults,
             Readonly: this.isReadonly,
-            Map: this.map,
             ChangeTracker: this.changeTracker,
         }
 
@@ -69,10 +68,11 @@ export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends I
 
     linkUnsafe(...entites: TEntity[]) {
         const result = entites.map(w => {
-            const enriched = this.changeTracker.enrichment.add(w);
-            return this.changeTracker.enableChangeTracking(enriched)
+            const enriched = this.changeTracker.enrichment.create(w);
+            const [tracked] = this.changeTracker.enableChangeTracking(enriched);
+            return tracked;
         });
-        return this.changeTracker.attach(result);
+        return this.changeTracker.attach(...result);
     }
 
     async link(...entities: TEntity[]) {

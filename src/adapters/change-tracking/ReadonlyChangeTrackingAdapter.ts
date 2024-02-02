@@ -1,4 +1,4 @@
-import { ReselectDictionary } from "../../common/ReselectDictionary";
+import { List } from "../../common/List";
 import { IDbSetChangeTracker, ProcessedChangesResult } from "../../types/change-tracking-types";
 import { ITrackedChanges } from "../../types/context-types";
 import { ChangeTrackingOptions, IDbSetProps } from "../../types/dbset-types";
@@ -15,7 +15,7 @@ export class ReadonlyChangeTrackingAdapter<TDocumentType extends string, TEntity
 
     constructor(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: ChangeTrackingOptions<TDocumentType, TEntity>, dbPlugin: IDbPlugin<TDocumentType, TEntity, TExclusions>) {
         super(dbSetProps, changeTrackingOptions, dbPlugin);
-        this.attachments = new ReselectDictionary<TDocumentType, TEntity>(dbPlugin.idPropertyName)
+        this.attachments = new List<TEntity>(dbPlugin.idPropertyName)
     }
 
     override asUntracked(...entities: TEntity[]) {
@@ -31,20 +31,20 @@ export class ReadonlyChangeTrackingAdapter<TDocumentType extends string, TEntity
         }
     }
 
-    override attach(data: TEntity[]) {
+    override attach(...data: TEntity[]) {
         return data;
     }
 
     override getPendingChanges(): ITrackedChanges<TDocumentType, TEntity> {
 
         const changes = this.getTrackedData();
-        const { add } = changes;
+        const { adds } = changes;
 
         return {
-            add,
-            remove: [],
-            removeById: [],
-            updated: { deltas: {}, docs: {}, originals: {} }
+            adds,
+            removes: [],
+            removesById: [],
+            updates: { deltas: {}, docs: {}, originals: {} }
         }
     }
 

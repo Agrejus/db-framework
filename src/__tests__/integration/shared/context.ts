@@ -1,15 +1,11 @@
 import { DataContext } from "../../../context/DataContext";
-import { IDbSet } from "../../../types/dbset-types";
-import { IDbRecord, IDbRecordBase } from "../../../types/entity-types";
+import { IDbRecordBase } from "../../../types/entity-types";
 import { DocumentTypes, ISyncDocument, ISetStatus, IComputer, IBook, IBookV4, INote, IContact, IBookV3, ICar, IPreference, IPouchDbRecord } from "./types";
 import { v4 as uuidv4 } from 'uuid';
 import { DefaultDbSetBuilder } from "../../../context/dbset/builders/DefaultDbSetBuilder";
 import { PouchDbPlugin } from "@agrejus/db-framework-plugin-pouchdb";
-import { IDbSetBuilderParams } from "../../../types/dbset-builder-types";
 import { ContextOptions } from "../../../types/context-types";
 import { IDbPluginOptions } from "../../../types/plugin-types";
-import { DbSetInitializer } from "../../../context/dbset/builders/DbSetInitializer";
-import { useDbSetCreator } from "../../../context/dbset/builders/DbSetCreator";
 import { performance } from "perf_hooks";
 
 const dataContextWithParamsCreator = (type: string, name?: string) => new class extends DataContext<DocumentTypes, IPouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, IPouchDbRecord<DocumentTypes>, IDbPluginOptions>> {
@@ -30,11 +26,6 @@ const dataContextWithParamsCreator = (type: string, name?: string) => new class 
         .create();
 }
 
-// const context = dataContextWithParamsCreator("");
-// export const ExternalDbDataContextWithDefaults = context;
-
-
-
 export class ExternalDataContext extends DataContext<DocumentTypes, IPouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, IPouchDbRecord<DocumentTypes>, IDbPluginOptions>> {
 
     constructor(name: string, contextOptions: ContextOptions = { environment: "development" }) {
@@ -43,6 +34,10 @@ export class ExternalDataContext extends DataContext<DocumentTypes, IPouchDbReco
 
     contextId(): string {
         return ExternalDataContext.name
+    }
+
+    getRaw(id: string) {
+        return this.dbPlugin.doWork(w => w.get(id));
     }
 
     private creator<TDocumentType extends string, TEntityBase extends ISyncDocument<TDocumentType>, TBuilder extends DefaultDbSetBuilder<TDocumentType, TEntityBase, "_id" | "_rev">>(builder: TBuilder) {
@@ -88,8 +83,24 @@ export class ExternalDataContext extends DataContext<DocumentTypes, IPouchDbReco
     booksWithDateMapped = this.dbset().default<IBookV4>(DocumentTypes.BooksWithDateMapped)
         .defaults({ status: "pending" })
         .exclude("status", "rejectedCount")
-        .map({ property: "publishDate", map: w => !!w ? new Date(w) : undefined })
-        .map({ property: "createdDate", map: w => new Date(w) })
+        .serialize(w => {
+            const result = w as any;
+
+            if (w.publishDate != null) {
+                result.publishDate = w.publishDate.toISOString();
+            }
+
+            result.createdDate = w.createdDate.toISOString();
+
+            return result
+        })
+        .deserialize((w) => {
+            
+            w.publishDate = w.publishDate == null ? null : new Date(w.publishDate);
+            w.createdDate = new Date(w.createdDate);
+
+            return w
+        })
         .create();
     booksWithOn = this.dbset().default<IBook>(DocumentTypes.BooksWithOn).exclude("status", "rejectedCount").create();
 
@@ -154,7 +165,20 @@ export class ExternalDataContext extends DataContext<DocumentTypes, IPouchDbReco
 
 
 
-    notesWithMapping = this.dbset().default<INote>(DocumentTypes.NotesWithMapping).map({ property: "createdDate", map: w => new Date(w) }).create();
+    notesWithMapping = this.dbset().default<INote>(DocumentTypes.NotesWithMapping)
+        .serialize((w) => {
+            const result = w as any;
+
+            result.createdDate = w.createdDate.toISOString();;
+
+            return result;
+        })
+        .deserialize((w) => {
+            w.createdDate = new Date(w.createdDate);
+
+            return w;
+        })
+        .create();
 }
 
 export class BooksWithOneDefaultContext extends DataContext<DocumentTypes, IPouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, IPouchDbRecord<DocumentTypes>, IDbPluginOptions>> {

@@ -28,7 +28,7 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
 
         await this.onAfterDataFetched(result);
 
-        const attached = this.changeTracker.attach(result)
+        const attached = this.changeTracker.attach(...result)
 
         return attached;
     }
@@ -43,13 +43,14 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
 
         const result = entities.map(w => {
             const enriched = this.changeTracker.enrichment.retrieve(w);
-            return this.changeTracker.enableChangeTracking(enriched);
+            const [tracked] = this.changeTracker.enableChangeTracking(enriched);
+            return tracked;
         });
         const filteredResult = this.filterResult(result)
         await this.onAfterDataFetched(filteredResult);
 
         if (filteredResult.length > 0) {
-            return this.changeTracker.attach(filteredResult)
+            return this.changeTracker.attach(...filteredResult)
         }
 
         return filteredResult;
@@ -65,7 +66,7 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
 
             await this.onAfterDataFetched([result]);
 
-            const [attached] = this.changeTracker.attach([result]);
+            const [attached] = this.changeTracker.attach(result);
 
             return attached;
         }
@@ -81,7 +82,7 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
 
             await this.onAfterDataFetched([result]);
 
-            const [attached] = this.changeTracker.attach([result]);
+            const [attached] = this.changeTracker.attach(result);
 
             return attached;
         }

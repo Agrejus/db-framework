@@ -11,13 +11,15 @@ export class ContextChangeTrackingAdapter<TDocumentType extends string, TEntity 
     private readonly _changeTrackers: { [key: string]: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions> } = {};
 
     readonly enrichment: Enrichment<TDocumentType, TEntity, TExclusions> = {
-        add: (entity: TEntity) => this._changeTrackers[entity.DocumentType].enrichment.add(entity),
+        create: (entity: TEntity) => this._changeTrackers[entity.DocumentType].enrichment.create(entity),
         retrieve: (entity: TEntity) => this._changeTrackers[entity.DocumentType].enrichment.retrieve(entity),
         enhance: (entity: TEntity) => this._changeTrackers[entity.DocumentType].enrichment.enhance(entity),
-        map: (entity: TEntity) => this._changeTrackers[entity.DocumentType].enrichment.map(entity),
+        deserialize: (entity: TEntity) => this._changeTrackers[entity.DocumentType].enrichment.deserialize(entity),
         upsert: (entity: TEntity) => this._changeTrackers[entity.DocumentType].enrichment.upsert(entity),
-        strip: (entity: TEntity) => this._changeTrackers[entity.DocumentType].enrichment.strip(entity),
+        prepare: (entity: TEntity) => this._changeTrackers[entity.DocumentType].enrichment.prepare(entity),
         remove: (entity: TEntity) => this._changeTrackers[entity.DocumentType].enrichment.remove(entity),
+        link: (entity: TEntity) => this._changeTrackers[entity.DocumentType].enrichment.link(entity),
+        serialize: (entity: TEntity) => this._changeTrackers[entity.DocumentType].enrichment.serialize(entity),
         composers: {
             persisted: (generatedData: IBulkOperationsResponse) => (entity: TEntity) => this._changeTrackers[entity.DocumentType].enrichment.composers.persisted(generatedData)(entity),
         }
@@ -27,8 +29,26 @@ export class ContextChangeTrackingAdapter<TDocumentType extends string, TEntity 
         this._changeTrackers[documentType] = tracker;
     }
 
-    enableChangeTracking(entity: TEntity): TEntity {
-        return this._changeTrackers[entity.DocumentType].enableChangeTracking(entity);
+    enableChangeTracking(...entities: TEntity[]): TEntity[] {
+        const grouped = entities.reduce((a, v) => {
+
+            if (a[v.DocumentType] == null) {
+                a[v.DocumentType] = [];
+            }
+
+            a[v.DocumentType].push(v);
+
+            return a;
+        }, {} as {[key: string | number]: TEntity[]});
+
+        const documentTypes = Object.keys(grouped);
+
+        return documentTypes.reduce((a, v) => {
+            const items = grouped[v]
+            const trackedEntities = this._changeTrackers[v].enableChangeTracking(...items);
+
+            return [...a, ...trackedEntities]
+        }, [] as TEntity[]);
     }
 
     getPendingChanges() {
@@ -39,14 +59,14 @@ export class ContextChangeTrackingAdapter<TDocumentType extends string, TEntity 
                 return trackedData;
             }
 
-            a.add = a.add.concat(trackedData.add);
-            a.updated = {
-                deltas: { ...trackedData.updated.deltas, ...a.updated.deltas },
-                docs: { ...trackedData.updated.docs, ...a.updated.docs },
-                originals: { ...trackedData.updated.originals, ...a.updated.originals }
+            a.adds = a.adds.concat(trackedData.adds);
+            a.updates = {
+                deltas: { ...trackedData.updates.deltas, ...a.updates.deltas },
+                docs: { ...trackedData.updates.docs, ...a.updates.docs },
+                originals: { ...trackedData.updates.originals, ...a.updates.originals }
             };
-            a.removeById = a.removeById.concat(trackedData.removeById);
-            a.remove = a.remove.concat(trackedData.remove);
+            a.removesById = a.removesById.concat(trackedData.removesById);
+            a.removes = a.removes.concat(trackedData.removes);
 
             return a;
         }, {} as ITrackedChanges<TDocumentType, TEntity>);

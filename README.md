@@ -34,6 +34,7 @@
     - [Filter](#query_data_filter)
     - [Find](#query_data_find)
     - [First](#query_data_first)
+    - [Pluck](#query_data_pluck)
     - [Get All Documents](#query_data_get_all_docs)
 - [Change Tracking](#change_tracking)
     - [Default Change Tracking](#default_change_tracking)
@@ -73,20 +74,52 @@
     - [Entity Tagging](#entity_tagging)
     - [History Tracking](#history_tracking)
 - [Default DbSet](#default_dbset)
-    - [Builder API](#test)
-        - [DbSet](#test)
-    - [Methods](#test)
-        - [DbSet](#test)
-    - [Fields](#test)
-        - [Types](#test)
-    - [Customization](#test)
+    - [Builder API](#default_dbset_builder_api)
+        - [keys()](#default_dbset_builder_api_keys)
+        - [defaults()](#default_dbset_builder_api_defaults)
+        - [exclude()](#default_dbset_builder_api_exclude)
+        - [readonly()](#default_dbset_builder_api_readonly)
+        - [serialize()](#default_dbset_builder_api_serialize)
+        - [deserialize()](#default_dbset_builder_api_deserialize)
+        - [filter()](#default_dbset_builder_api_filter)
+        - [getChanges()](#default_dbset_builder_api_get_changes)
+        - [enhance()](#default_dbset_builder_api_enhance)
+        - [create()](#default_dbset_builder_api_create)
+    - [Methods](#default_dbset_methods)
+        - [info()](#default_dbset_methods_info)
+        - [tag()](#default_dbset_methods_tag)
+        - [instance()](#default_dbset_methods_instance)
+        - [add()](#default_dbset_methods_add)
+        - [upsert()](#default_dbset_methods_upsert)
+        - [remove()](#default_dbset_methods_remove)
+        - [empty()](#default_dbset_methods_empty)
+        - [all()](#default_dbset_methods_all)
+        - [filter()](#default_dbset_methods_filter)
+        - [isMatch()](#default_dbset_methods_is_match)
+        - [match()](#default_dbset_methods_match)
+        - [get()](#default_dbset_methods_get)
+        - [find()](#default_dbset_methods_find)
+        - [unlink()](#default_dbset_methods_unlink)
+        - [markDirty()](#default_dbset_methods_mark_dirty)
+        - [link()](#default_dbset_methods_link)
+        - [linkUnsafe()](#default_dbset_methods_link_unsafe)
+        - [isLinked()](#default_dbset_methods_is_linked)
+        - [first()](#default_dbset_methods_first)
+        - [pluck()](#default_dbset_methods_pluck)
+        - [serialize()](#default_dbset_methods_serialize)
+        - [deserialize()](#default_dbset_methods_deserialize)
+    - [Fields](#default_dbset_fields)
+        - [types](#default_dbset_fields_types)
 - [Stateful DbSet](#stateful_dbset)
-    - [Builder API](#test)
-        - [DbSet](#test)
-    - [Methods](#test)
-        - [DbSet](#test)
+    - [Builder API](#stateful_dbset_builder_api)
+        - [onChange()](#stateful_dbset_builder_api_on_change)
+    - [Methods](#stateful_dbset_builder_api_methods)
+        - [hydrate()](#stateful_dbset_builder_api_methods_hydrate)
+    - [Fields](#stateful_dbset_builder_api_fields)
+        - [state](#stateful_dbset_builder_api_fields_state)
 - [Change Log](./changelog.md)
 - [Authors](#authors)
+- [Examples](https://github.com/agrejus/db-framework/tree/main/examples)
 
 ## About <a name = "about"></a>
 Db Framework is a TypeScript first ORM desiged to wrap existing database frameworks such as PouchDB to augment its functionality.  Db Framework aims to take the headaches out of other ORMs and provide repeatable processes for CRUD operations with minimal code.  Inspired by .NET's Entity Framework, Db Framework operates the same way and tries to keep method names as close as possible.
@@ -99,6 +132,8 @@ Why it's great:
 - Can create plugins to use with any database
 - Fast, uses bulk operations for all data manipulation
 - Works in NodeJS and all modern browsers
+
+Everything in Db Framework is done in functional transactions, meaning, developers should always use the result of the function that was executed, not a previous result from a different function.  All functions return a new instance of an entity to be acted upon or changed and then saved.
 
 ## Getting Started <a name = "getting_started"></a>
 Getting started with Db Framework is very easy and fast.  Create your models, document types, declare your DbSet and profit!  To get started, first install DB Framework
@@ -260,6 +295,8 @@ DbSet method to return all data matching the selector function.  Data only perta
 DbSet method to return the first entity matching the selector function.  Data only pertains to the calling DbSet.
 ### `.first(): Promise<TEntity | undefined>` <a name = "query_data_first"></a>
 DbSet method to return the first entity.  Data only pertains to the calling DbSet.
+### `.pluck<TKey extends keyof TEntity>(selector: (entity: TEntity, index?: number, array?: TEntity[]) => boolean, propertySelector: TKey): Promise<TEntity[TKey]>` <a name = "query_data_pluck"></a>
+DbSet method to find an entity and return (pluck) a property from the found entity.
 ### `.getAllDocs(): Promise<TEntity[]>` <a name = "query_data_get_all_docs"></a>
 Data Context method to return all data in the database.
 
@@ -276,7 +313,7 @@ Uses [Proxy object](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Refe
 
 
 ### Custom Change Tracking <a name = "custom_change_tracking"></a>
-Uses a custom [user defined comparator](#default_dbset_builder_has_changed) function to track changes in entities.  Changes are stored at the context level, not the entity.  If an entity is passed from one context to another via [linking](#dbset_link), changes are lost and the object needs to be [marked dirty](#dbset_mark_dirty) to recognize changes have been made.  This form of change tracking is great because all objects are plain old JavaScript objects that can be easily serialized.
+Uses a custom [user defined comparator](#default_dbset_builder_get_changes) function to track changes in entities.  Changes are stored at the context level, not the entity.  If an entity is passed from one context to another via [linking](#dbset_link), changes are lost and the object needs to be [marked dirty](#dbset_mark_dirty) to recognize changes have been made.  This form of change tracking is great because all objects are plain old JavaScript objects that can be easily serialized.
 - Pros:
     - Entities are plain JavaScript objects
 - Cons:
@@ -300,22 +337,27 @@ DB Framework can work with a variety of different data stores through the use of
 ### Memory Plugin <a name = "data_context_save_changes"></a>
 Saves all underlying changes to memory.  Must be called, otherwise no changes will be saved.  Returns count of entities saved.
 
-**Package:** [@agrejus/db-framework-plugin-memory](https://www.npmjs.com/package/@agrejus/db-framework-plugin-memory)
+**Package:** [@agrejus/db-framework-plugin-memory](https://github.com/agrejus/db-framework/tree/main/plugins/memory)
 
 ### PouchDB Plugin <a name = "data_context_save_changes"></a>
 Saves all underlying changes to the adapter defined in the PouchDB plugin.  Must be called, otherwise no changes will be saved.  Returns count of entities saved.
 
-**Package:** [@agrejus/db-framework-plugin-pouchdb](https://www.npmjs.com/package/@agrejus/db-framework-plugin-pouchdb)
+**Package:** [@agrejus/db-framework-plugin-pouchdb](https://github.com/agrejus/db-framework/tree/main/plugins/pouchdb)
 
 ### Local Storage Plugin <a name = "data_context_save_changes"></a>
 Saves all underlying changes to local storage.  Must be called, otherwise no changes will be saved.  Returns count of entities saved.
 
-**Package:** [@agrejus/db-framework-plugin-local-storage](https://www.npmjs.com/package/@agrejus/db-framework-plugin-local-storage)
+**Package:** [@agrejus/db-framework-plugin-local-storage](https://github.com/agrejus/db-framework/tree/main/plugins/localstorage)
 
 ### CapacitorJS Realm Plugin <a name = "capacitorjs-realm-plugin"></a>
-Saves all underlying changes to local storage.  Must be called, otherwise no changes will be saved.  Returns count of entities saved.
+Saves all underlying changes to local Realm.  Must be called, otherwise no changes will be saved.  Returns count of entities saved.
 
-**Package:** [@agrejus/db-framework-plugin-local-storage](https://www.npmjs.com/package/@agrejus/db-framework-plugin-local-storage)
+**Package:** [@agrejus/db-framework-plugin-capacitor-realm](https://github.com/agrejus/db-framework/tree/main/plugins/capacitor-realm)
+
+### CapacitorJS Sqlite Plugin <a name = "capacitorjs-sqlite-plugin"></a>
+Saves all underlying changes to Sqlite.  Must be called, otherwise no changes will be saved.  Returns count of entities saved.
+
+**Package:** [@agrejus/db-framework-plugin-capacitor-sqlite3](https://github.com/agrejus/db-framework/tree/main/plugins/capacitor-sqlite3)
 
 ### Custom Database Plugin <a name = "database_plugins_custom"></a>
 With DB Framework, developers can create their own custom plugins by implementing `IDbPlugin`.  Below is the interface with explanations on how to implement each method of the interface.
@@ -875,8 +917,9 @@ Logging can be added to the data context and db sets as well though the exposed 
 Logging can be added to the data context and db sets as well though the exposed API's
 
 ## Default DbSet <a name = "default_dbset"></a>
+A default dbset is the base dbset that all other special dbsets use under the hood.  Stateful dbsets are special dbsets that aim to keep an internal state inline with the database at all times, these dbsets use default dbsets under the hood.
 
-### `.types` <a name = "dbset_types"></a>
+### `.types` <a name = "default_dbset_fields_types"></a>
 Types are exposed from a dbset, because in TypeScript, types are not known until db sets are declared.  Once a dbset is declared, we know the types and can expose the types for other usages in the application.
 
 **Type:** `.get types(): { modify: OmittedEntity<TEntity, TExclusions>, result: TEntity, documentType: TEntity["DocumentType"], map: { [DocumentType in TEntity["DocumentType"]]: TEntity }, dbsetType: DbSetType }>`
@@ -888,7 +931,9 @@ const context = new MyDataContext();
 const types = context.vehicles.types;
 ```
 
-### `.info` <a name = "dbset_info"></a>
+## Default DbSet Methods <a name = "default_dbset_methods"></a>
+
+### `.info` <a name = "default_dbset_methods_info"></a>
 Info is used to information about the dbset, such as it's defaults, keys, readonly status and more.  Please check out the [IDbSetInfo](#dbset_info_type) for all information returned from info.
 
 **Type:** `.info(): IDbSetInfo<TDocumentType, TEntity, TExclusions>`
@@ -900,7 +945,7 @@ const context = new MyDataContext();
 const info = context.vehicles.info();
 ```
 
-### `.tag` <a name = "dbset_tag"></a>
+### `.tag` <a name = "default_dbset_methods_tag"></a>
 Tagging allows for developers to tag entities with meta data that can be read in [onBeforeSaveChanges](#data_context_on_before_save_changes) or onAfterSaveChanges.  One use case for tagging is to tag certain data when it's removed to distinguish between a user clicking to remove data or the application automatically removing data on it's own.  We can add a tag to the code behind the click operation and consume the tag in onBeforeSaveChanges or onAfterSaveChanges to do something with it.
 
 **Type:** `.tag(value: unknown): this`
@@ -918,7 +963,7 @@ const [ vehicle ] = await context.vehicles.tag("some-value").add({
 });
 ```
 
-### `.instance` <a name = "dbset_instance"></a>
+### `.instance` <a name = "default_dbset_methods_instance"></a>
 Instance will create one or many untracked instances as if it were actually added to change tracking and queued for saving to the database.  One use case for instace is to use it for ID creation.  These entities are never attached to the data context and therefore never saved to the database unless we later [upsert](#dbset_upsert) them
 
 **Type:** `.instance(...entities: OmittedEntity<TEntity, TExclusions>[]): TEntity[]`
@@ -936,7 +981,7 @@ const [ vehicle ] = context.vehicles.instance({
 });
 ```
 
-### `.add` <a name = "dbset_add"></a>
+### `.add` <a name = "default_dbset_methods_add"></a>
 Adds one or many entities into the data context that will be saved when [changes are saved](#data_context_save_changes)
 
 **Type:** `.add(...entities: OmittedEntity<TEntity, TExclusions>[]): Promise<TEntity[]>`
@@ -954,7 +999,7 @@ const [ vehicle ] = await context.vehicles.add({
 });
 ```
 
-### `.upsert` <a name = "dbset_upsert"></a>
+### `.upsert` <a name = "default_dbset_methods_upsert"></a>
 Upserts (Update or Insert) one or many entities into the data context that will be saved when [changes are saved](#data_context_save_changes).  The data context will do the heavy lifting around the upsert.  If an item is found that already exists in the database, the entire contents of the upserted object will overwrite the existing object.
 
 **Type:** `.upsert(...entities: (OmittedEntity<TEntity, TExclusions> | Omit<TEntity, "DocumentType">)[]): Promise<TEntity[]>`
@@ -967,13 +1012,13 @@ const context = new MyDataContext();
 const [ vehicle ] = await context.vehicles.upsert(someUnsureEntity);
 ```
 
-### `.remove` <a name = "dbset_remove"></a>
+### `.remove` <a name = "default_dbset_methods_remove"></a>
 Removes one or many entities by entity or id.  Entities to be removed are stored in the data context until  [changes are saved](#data_context_save_changes).
 
 **Type:** `.remove(...ids: string[]): Promise<void>`
 **Type:** `.remove(...entities: TEntity[]): Promise<void>`
 
-### `.empty` <a name = "dbset_empty"></a>
+### `.empty` <a name = "default_dbset_methods_empty"></a>
 Empties an entire db sets data.  Data will only be fully removed when [changes are saved](#data_context_save_changes).
 
 **Type:** `.empty(): Promise<void>`
@@ -985,7 +1030,7 @@ const context = new MyDataContext();
 await context.vehicles.empty();
 ```
 
-### `.all` <a name = "dbset_all"></a>
+### `.all` <a name = "default_dbset_methods_all"></a>
 Gets all data that is linked to a db set from the underlying data store.  Other document types are not returned, only the document type of the calling db set.
 **Type:** `.all(): Promise<TEntity[]>`
 
@@ -996,7 +1041,7 @@ const context = new MyDataContext();
 const allData = await context.vehicles.all();
 ```
 
-### `.filter` <a name = "dbset_filter"></a>
+### `.filter` <a name = "default_dbset_methods_filter"></a>
 Filters the underlying data store by document type that matches the given filter.
 
 **Type:** `.filter(selector: EntitySelector<TDocumentType, TEntity>): Promise<TEntity[]>`
@@ -1008,7 +1053,7 @@ const context = new MyDataContext();
 const all2021Vehicles = await context.vehicles.filter(w => w.year === 2021);
 ```
 
-### `.isMatch` <a name = "dbset_is_match"></a>
+### `.isMatch` <a name = "default_dbset_methods_is_match"></a>
 
 **Type:** `.isMatch(first: TEntity, second: any): boolean`
 
@@ -1021,7 +1066,7 @@ const foundTwo = await context.vehicles.find(w => w.year === 2022);
 const result = context.vehicles.isMatch(foundOne, foundTwo)
 ```
 
-### `.match` <a name = "dbset_match"></a>
+### `.match` <a name = "default_dbset_methods_match"></a>
 Match is a way to take in entities and see if they belong in a db set.  The best usage is to get all document from a data store and use this function to separate out the documents by type.  See the example below.
 
 **Type:** `.match(...items: IDbRecordBase[]): TEntity[]`
@@ -1037,7 +1082,7 @@ const booksOnly = context.books.match(...allData);
 
 ```
 
-### `.get` <a name = "dbset_get"></a>
+### `.get` <a name = "default_dbset_methods_get"></a>
 Get one or more entities by ID.
 
 **Type:** `.get(...ids: string[]): Promise<TEntity[]>`
@@ -1049,7 +1094,7 @@ const context = new MyDataContext();
 const found = await context.vehicles.get("some_id");
 ```
 
-### `.find` <a name = "dbset_find"></a>
+### `.find` <a name = "default_dbset_methods_find"></a>
 Find an entity by the selection criteria
 
 **Type:** `.find(selector: EntitySelector<TDocumentType, TEntity>): Promise<TEntity | undefined>`
@@ -1061,7 +1106,7 @@ const context = new MyDataContext();
 const found = await context.vehicles.find(w => w.year === 2021);
 ```
 
-### `.unlink` <a name = "dbset_unlink"></a>
+### `.unlink` <a name = "default_dbset_methods_unlink"></a>
 Unlinks or removes an object from a given data context.  Once unlinked, any changes are not tracked or saved.
 
 **Type:** `.unlink(...entities: TEntity[]): void`
@@ -1077,7 +1122,7 @@ if (found != null) {
 }
 ```
 
-### `.markDirty` <a name = "dbset_mark_dirty"></a>
+### `.markDirty` <a name = "default_dbset_methods_mark_dirty"></a>
 Marks one or more entities as dirty so they are saved to the underlying data store even if no changes were detected.
 
 **Type:** `.markDirty(...entities: TEntity[]): Promise<TEntity[]>`
@@ -1093,7 +1138,7 @@ if (found != null) {
 }
 ```
 
-### `.link` <a name = "dbset_link"></a>
+### `.link` <a name = "default_dbset_methods_link"></a>
 Links one or more entites to the data context, after the entity is linked changes are tracked and changes can be made to the entity and saved.
 
 **Type:** `.link(...entities: TEntity[]): Promise<TEntity[]>`
@@ -1107,7 +1152,35 @@ const someEntityFromAnotherDataContext = ...;
 await context.vehicles.link(someEntityFromAnotherDataContext);
 ```
 
-### `.first` <a name = "dbset_first"></a>
+### `.linkUnsafe` <a name = "default_dbset_methods_link_unsafe"></a>
+Links one or more entites to the data context, after the entity is linked changes are tracked and changes can be made to the entity and saved.  This is the unsafe version of link because we will link exactly what is passed in.
+
+**Type:** `.linkUnsafe(...entities: TEntity[]): Promise<TEntity[]>`
+
+**Usage:**
+```typescript
+const context = new MyDataContext();
+
+const someEntityFromAnotherDataContext = ...;
+
+await context.vehicles.linkUnsafe(someEntityFromAnotherDataContext);
+```
+
+### `.isLinked` <a name = "default_dbset_methods_is_linked"></a>
+Returns a boolean value of whether or not an entity is linked to the context
+
+**Type:** `.isLinked(entity: TEntity): boolean`
+
+**Usage:**
+```typescript
+const context = new MyDataContext();
+
+const someEntityFromAnotherDataContext = ...;
+
+const isLinked = context.vehicles.isLinked(someEntityFromAnotherDataContext);
+```
+
+### `.first` <a name = "default_dbset_methods_first"></a>
 Returns the first item in the data store for the db set.
 
 **Type:** `.first(): Promise<TEntity>`
@@ -1119,11 +1192,49 @@ const context = new MyDataContext();
 const first = await context.vehicles.first();
 ```
 
+### `.pluck` <a name = "default_dbset_methods_pluck"></a>
+Returns the property value for the entity matching the selector
+
+**Type:** `.pluck<TKey extends keyof TEntity>(selector: (entity: TEntity, index?: number, array?: TEntity[]) => boolean, propertySelector: TKey): Promise<TEntity>`
+
+**Usage:**
+```typescript
+const context = new MyDataContext();
+
+const model = await context.vehicles.pluck(w => w.make === "Tesla", "model");
+```
+
+### `.serialize` <a name = "default_dbset_methods_serialize"></a>
+Serializes an entity based on the dbset builder serializer provided so the entity can be saved to the database.  If no serializer is provided, the original entity will be returned.  The serializer can be used to convert properties before the entity is saved, most commmonly, dates are converted to strings before it is saved.
+
+**Type:** `.serialize(...entities: TEntity[]): any[]`
+
+**Usage:**
+```typescript
+const context = new MyDataContext();
+
+const item = ...;
+
+const mySerializedItem = await context.vehicles.serialize(item);
+```
+
+### `.deserialize` <a name = "default_dbset_methods_deserialize"></a>
+Deserializes an entity based on the dbset builder serializer provided so the entity can be saved to the database.  If no deserializer is provided, the original entity will be returned.  The deserializer can be used to convert properties after the entity is saved, most commmonly, strings are converted to dates after it is returned from the database.
+
+**Type:** `.deserialize(...entities: any[]): TEntity[]`
+
+**Usage:**
+```typescript
+const context = new MyDataContext();
+
+const model = await context.vehicles.pluck(w => w.make === "Tesla", "model");
+```
+
 
 ## Stateful DbSet <a name = "stateful_dbset"></a>
+A Stateful Dbset is meant to keep an internal local state and the database in constant sync with one another.
 
-
-### `.hydrate` <a name = "stateful_dbset_hydrate"></a>
+### `.hydrate` <a name = "stateful_dbset_builder_api_methods_hydrate"></a>
 Used to hydrate state from the database and store it locally.  Must be called on application start so the stateful db set can track changes properly.  
 
 **Type:** `.hydrate(): Promise<number>`
@@ -1135,7 +1246,7 @@ const context = new MyDataContext();
 const hydratedDocumentsCount = await context.vehicles.hydrate();
 ```
 
-### `.state` <a name = "stateful_dbset_state"></a>
+### `.state` <a name = "stateful_dbset_builder_api_fields_state"></a>
 Same as [context state](#stateful_data_context_state), but has one extra method allowing the addition of remote or untracked documents to the local state.  This is useful if there are documents that do not exist in the database, but rather in a remote store of some kind.  We can fetch documents from a remote store and add them to the state.  These documents are only stored in state, they are never persisted to the database.  They are referred to as remote documents.  Save changes does not need to be called since these documents are never stored in the underlying data store.
 
 **Type:** `state: IDbSetState<TDocumentType, TEntity, TExclusions`
@@ -1157,7 +1268,9 @@ const [ vehicle ] = await context.vehicles.state.add({
 ## Default DbSet Builder API <a name = "default_dbset_builder"></a>
 The Default DbSet Builder API is a [fluent API](https://en.wikipedia.org/wiki/Fluent_interface) that is used to declare and create db sets. This API comes with many different options to customize a db set.  Developers can use as little or as many options available to them.
 
-### `.readonly` <a name = "default_dbset_builder_first"></a>
+
+
+### `.readonly` <a name = "default_dbset_builder_api_readonly"></a>
 By marking a db set as readonly, it allows only inserts and removes from the underlying data store.  Data cannot be updated and measures are taken such as [object freezing](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/freeze) and any changes are ignored on save only for the db set it is created with.
 
 **Type:** `.readonly(): DefaultDbSetBuilder`
@@ -1176,7 +1289,7 @@ export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<My
 }
 ```
 
-### `.keys` <a name = "default_dbset_builder_keys"></a>
+### `.keys` <a name = "default_dbset_builder_api_keys"></a>
 Key generation can be customized to almost anything.  Out of the box, the id property can be a composite key made up of other properties, auto generated by the context, or have no key at all meaning the document type is the key.  Having no key is useful when we only want a maximum of one document per db set.  
 
 **Type:** `.keys(builder: (b: IIdBuilderBase<TDocumentType, TEntity>) => (IChainIdBuilder<TDocumentType, TEntity> | ITerminateIdBuilder<TDocumentType, TEntity>)): DefaultDbSetBuilder`
@@ -1206,7 +1319,7 @@ export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<My
 }
 ```
 
-### `.defaults` <a name = "default_dbset_builder_defaults"></a>
+### `.defaults` <a name = "default_dbset_builder_api_defaults"></a>
 Defaults are very powerful when paired with exclusions and can be used to set default values when data is added or retrieved from the database.  We can also specify defaults on adding/retrieving or both.
 
 **Type:** `.defaults(value: DbSetPickDefaultActionOptional<TDocumentType, TEntity, TExclusions>): DefaultDbSetBuilder`
@@ -1229,7 +1342,7 @@ export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<My
 }
 ```
 
-### `.exclude` <a name = "default_dbset_builder_exclude"></a>
+### `.exclude` <a name = "default_dbset_builder_api_exclude"></a>
 Exclude is almost always paired with defaults and can be used to exclude the requirement of properties when adding or upserting documents.
 
 **Type:** `.exclude<T extends keyof TEntity>(...exclusions: T[]): DefaultDbSetBuilder`
@@ -1250,10 +1363,10 @@ export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<My
 }
 ```
 
-### `.map` <a name = "default_dbset_builder_map"></a>
-Map is used to change or map property values to different values.  For example, if we want to turn a string date into a JavaScript date object, we can use mapping for that.
+### `.serialize` <a name = "default_dbset_builder_api_serialize"></a>
+Serialize is used to change the entity before it is saved.  For example, if we want to turn a Date object into a string, we can use serialization.
 
-**Type:** `.map<T extends keyof TEntity>(propertyMap: PropertyMap<TDocumentType, TEntity, T>): DefaultDbSetBuilder`
+**Type:** `.serialize(serializer: (entity: TEntity) => any): DefaultDbSetBuilder`
 
 **Usage:**
 ```typescript
@@ -1264,15 +1377,23 @@ export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<My
     }
 
     books = this.dbset().default<IBook>(MyDocumentTypes.Book)
-                .map({ property: "publishedDate", map: w => w != null ? new Date(w) : undefined })
+                .serialize(w => {
+                    const result = w as any;
+
+                    if (w.publishDate != null) {
+                        result.publishDate = w.publishDate.toISOString();
+                    }
+
+                    return result
+                })
                 .create();
 }
 ```
 
-### `.extend` <a name = "default_dbset_builder_extend"></a>
-Extending is the most powerful API method available in the builder API.  Extending allows developers to add or override functionality of the db set.
+### `.deserialize` <a name = "default_dbset_builder_api_deserialize"></a>
+Deserialize is used to change the entity after it is retrieved from the database.  For example, if we want to turn a string into a Date object, we can use deserialization.
 
-**Type:** `.extend<TExtension extends IDbSet<TDocumentType, TEntity, TExclusions>>(extend: (i: new (props: IDbSetProps<TDocumentType, TEntity, TExclusions>) => TResult, args: IDbSetProps<TDocumentType, TEntity, TExclusions>) => TExtension): DefaultDbSetBuilder`
+**Type:** `.deserialize(deserializer: (entity: any) => TEntity): DefaultDbSetBuilder`
 
 **Usage:**
 ```typescript
@@ -1283,22 +1404,34 @@ export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<My
     }
 
     books = this.dbset().default<IBook>(MyDocumentTypes.Book)
-                .extend((Instance, props) => {
-                    return new class extends Instance {
+                .deserialize((w) => {
+                    
+                    w.publishDate = w.publishDate == null ? null : new Date(w.publishDate);
 
-                        constructor() {
-                            super(props);
-                        }
+                    return w
+                })
+                .create();
+}
+```
 
-                        // override existing method
-                        override async all() {
-                            // custom code here
-                            return await super.all();
-                        }
+### `.enhance` <a name = "default_dbset_builder_api_enhance"></a>
+Enhance can be used to add more properties (untracked) or even functions to an object.  If you have an expiration date on an entity and you want to check if its expired, instead of adding a helper function, the entity can be enhanced with the function.  All properties will be ignored and not saved to the database.  All properties are required and cannot be optional.
+**Type:** `.enhance<TEnhanced>(enhancer: (entity: TEntity) => Required<TEnhanced>): DefaultDbSetBuilder`
 
-                        // new method will be available wherever the db set is used
-                        someNewMethod() {
-                            // custom code here
+**Usage:**
+```typescript
+export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<MyDocumentTypes>, "_id" | "_rev"> {
+
+    constructor() {
+        super({ dbName: "some-new-database" }, PouchDbPlugin)
+    }
+
+    // All books will be enhanced with the new function
+    books = this.dbset().default<IBook>(MyDocumentTypes.Book)
+                .enhance((w) => {
+                    return {
+                        isSameYear: () => {
+                            return w.year === new Date().getFullYear();
                         }
                     }
                 })
@@ -1306,7 +1439,7 @@ export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<My
 }
 ```
 
-### `.filter` <a name = "default_dbset_builder_filter"></a>
+### `.filter` <a name = "default_dbset_builder_api_filter"></a>
 Filter can be used to set a permanent filter on all documents in the db set.  This is useful if the data is dependent on configuration flags and the all data returned needs to change based on the configuration flags.
 
 **Type:** `.filter(selector: EntitySelector<TDocumentType, TEntity>): DefaultDbSetBuilder`
@@ -1326,10 +1459,10 @@ export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<My
 }
 ```
 
-### `.hasChanged` <a name = "default_dbset_builder_has_changed"></a>
-Used to enable custom change tracking on the db set.  The provided comparator function will be used to determine if the entity has any changes.  Useful when we want to exclude properties from change tracking, yet allow them into the database.
+### `.getChanges` <a name = "default_dbset_builder_api_get_changes"></a>
+Used to enable custom change tracking on the db set.  The provided function will be used to return a partial object with only the changed properties and their values or null if nothing has changed.  Useful when we want to exclude properties from change tracking, yet allow them into the database.
 
-**Type:** `.hasChanged(comparison: EntityComparator<TDocumentType, TEntity>): DefaultDbSetBuilder`
+**Type:** `.getChanges(comparison: (original: TEntity, next: TEntity) => DeepPartial<TEntity> | null): DefaultDbSetBuilder`
 
 **Usage:**
 ```typescript
@@ -1341,17 +1474,25 @@ export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<My
 
     // Only save changes to the entity when the year changes
     books = this.dbset().default<IBook>(MyDocumentTypes.Book)
-                .hasChanged((a, b) => a.year !== b.year)
+                .hasChanged((original, next) => {
+
+                    if (original.year !== next.year) {
+                        return { year: next.year } // show that only the year has changed
+                    }
+
+                    return null;// no changes
+                })
                 .create();
 }
 ```
 
-### `.create` <a name = "default_dbset_builder_create"></a>
-Must be called to create the db set and use it within the context
+### `.create` <a name = "default_dbset_builder_api_create"></a>
+Must be called to create the db set and use it within the context.  Can be used to extend the functionality of the existing dbset or even override functionality.
 
 **Type:** `.create(): TResult`
+**Type:** `.create(extend: (i: new (props: IDbSetProps<TDocumentType, TEntity, TExclusions>) => IDbSet<TDocumentType, TEntity, TExclusions>, args: IDbSetProps<TDocumentType, TEntity, TExclusions>) => TExtension): TResult`
 
-**Usage:**
+**Usage (No Extension):**
 ```typescript
 export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<MyDocumentTypes>, "_id" | "_rev"> {
 
@@ -1363,6 +1504,36 @@ export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<My
 }
 ```
 
+**Usage (With Extension):**
+```typescript
+export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<MyDocumentTypes>, "_id" | "_rev"> {
+
+    constructor() {
+        super({ dbName: "some-new-database" }, PouchDbPlugin)
+    }
+
+    books = this.dbset().default<IBook>(MyDocumentTypes.Book)
+                .create((Instance, props) => {
+                    return new class extends Instance {
+
+                        constructor() {
+                            super(props);
+                        }
+
+                        // override existing method
+                        override async all() {
+                            // custom code here
+                            return await super.all();
+                        }
+
+                        // new method will be available wherever the db set is used
+                        someNewMethod() {
+                            // custom code here
+                        }
+                    }
+                });
+}
+```
 
 
 ## Stateful DbSet Builder <a name = "stateful_dbset_builder"></a>

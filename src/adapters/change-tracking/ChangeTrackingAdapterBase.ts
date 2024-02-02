@@ -1,4 +1,4 @@
-import { Enrichment, IAttachmentDictionary, ProcessedChangesResult } from "../../types/change-tracking-types";
+import { Enrichment, IList, ProcessedChangesResult } from "../../types/change-tracking-types";
 import { ITrackedChanges, ITrackedData } from "../../types/context-types";
 import { ChangeTrackingOptions, IDbSetProps } from "../../types/dbset-types";
 import { IDbRecord, IdRemoval } from "../../types/entity-types";
@@ -11,7 +11,7 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
     protected additions: TEntity[] = [];
     protected removeById: IdRemoval<TDocumentType>[] = [];
 
-    protected abstract attachments: IAttachmentDictionary<TDocumentType, TEntity>;
+    protected abstract attachments: IList<TEntity>;
 
     abstract getPendingChanges(): ITrackedChanges<TDocumentType, TEntity>;
     abstract merge(from: TEntity, to: TEntity): TEntity;
@@ -61,7 +61,7 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
         this.attachments.removeById(...ids);
     }
 
-    attach(data: TEntity[]) {
+    attach(...data: TEntity[]) {
 
         const result: TEntity[] = [];
         const reselectIds: (keyof TEntity)[] = [];
@@ -71,14 +71,8 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
 
             const found = this.attachments.get(id)
 
-            if (found != null) {
-                if (this.attachments.includes(id) === true && this.processChanges(found).isDirty === true) {
-                    // if the attached item is dirty, it has changed and we issue an error, otherwise return a copy of the referenced item, not the one in the database
-                    reselectIds.push(id);
-                }
-
-                result.push(found)
-                continue;
+            if (found != null && this.attachments.includes(id) === true && this.processChanges(found).isDirty === true) {
+                reselectIds.push(id);
             }
 
             result.push(item);
@@ -94,10 +88,10 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
 
     getTrackedData() {
         const result: ITrackedData<TDocumentType, TEntity> = {
-            add: this.additions,
-            remove: this.removals,
-            attach: this.attachments,
-            removeById: this.removeById
+            adds: this.additions,
+            removes: this.removals,
+            attachments: this.attachments,
+            removesById: this.removeById
         };
 
         return result;

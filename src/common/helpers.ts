@@ -1,3 +1,6 @@
+import { IDictionary } from "../types/common-types";
+import { ReadOnlyList } from "./ReadOnlyList";
+
 export const chunkArray = <T extends any>(inputArray: T[], size: number): T[][] => {
     return inputArray.reduce((resultArray, item, index) => {
         const chunkIndex = Math.floor(index / size)
@@ -53,4 +56,12 @@ export const generateRandomId = () => {
     }
 
     return result;
+}
+
+export const toDictionary = <T>(data: T[], idPropertyName: keyof T) => {
+    return data.reduce((a, v) => ({ ...a, [v[idPropertyName] as string | number]: v }), {} as IDictionary<T>)
+}
+
+export const toReadOnlyList = <T>(data: T[], idPropertyName: keyof T) => {
+    return new ReadOnlyList<T>(idPropertyName, data);
 }

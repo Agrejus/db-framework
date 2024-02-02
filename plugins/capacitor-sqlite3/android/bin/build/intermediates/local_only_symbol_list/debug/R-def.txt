@@ -1,0 +1,15 @@
+R_DEF: Internal format may change without notice
+local
+id camera_container
+id camera_loader
+id camera_loader_spinner
+id frame_camera_cont
+id frame_container
+id frame_view
+id picture_view
+id video_view
+id webview
+layout bridge_layout_main
+layout camera_activity
+string my_string
+style CameraPreviewTheme

@@ -1,12 +1,14 @@
-import { IPreviewChanges } from "../types/common-types";
-import { ContextOptions, IDataContext, IEntityUpdates, OnChangeEvent } from "../types/context-types";
+import { Changes, DeepPartial, SaveResult } from "../types/common-types";
+import { ContextOptions, IDataContext, OnChangeEvent } from "../types/context-types";
 import { DbSetMap, EntityAndTag, IDbSet, IDbSetApi, SaveChangesEventData } from "../types/dbset-types";
-import { IDbRecord } from "../types/entity-types";
+import { IDbRecord, IRemovalRecord } from "../types/entity-types";
 import { DbSetInitializer } from './dbset/builders/DbSetInitializer';
 import { DbPluginInstanceCreator, IDbPlugin, IDbPluginOptions } from '../types/plugin-types';
 import { IContextChangeTracker } from "../types/change-tracking-types";
 import { ContextChangeTrackingAdapter } from '../adapters/change-tracking/ContextChangeTrackingAdapter';
-import { performance } from "perf_hooks";
+import { toReadOnlyList } from "../common/helpers";
+import { ReadOnlyList } from "../common/ReadOnlyList";
+import { v4 as uuidv4 } from 'uuid';
 
 export abstract class DataContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase, TPluginOptions extends IDbPluginOptions = IDbPluginOptions, TDbPlugin extends IDbPlugin<TDocumentType, TEntityBase, TExclusions> = IDbPlugin<TDocumentType, TEntityBase, TExclusions>> implements IDataContext<TDocumentType, TEntityBase> {
 
@@ -44,7 +46,8 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
 
             if (dbSet) {
                 const enriched = this._changeTracker.enrichment.retrieve(w);
-                return this._changeTracker.enableChangeTracking(enriched)
+                const [tracked] = this._changeTracker.enableChangeTracking(enriched);
+                return tracked;
             }
 
             return w
@@ -96,29 +99,33 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
         this.dbSets[info.DocumentType] = dbset;
     }
 
-    private async _cleanseUpdateEntities(updates: { [key: string | number]: TEntityBase }) {
-        await Promise.all(Object.keys(updates).map(w => this._changeTracker.enrichment.strip(updates[w])))
+    private _stripUpdatedEntities(updates: ReadOnlyList<TEntityBase>) {
+        return updates.map(w => this._changeTracker.enrichment.prepare(w))
     }
 
-    async previewChanges(): Promise<IPreviewChanges<TDocumentType, TEntityBase>> {
-        const { add, remove, updated } = await this._getModifications();
+    async previewChanges(): Promise<Changes<TDocumentType, TEntityBase>> {
+        const { adds, removes, updates } = await this._getModifications();
         const clone = JSON.stringify({
-            add,
-            remove,
-            update: updated
-        } as IPreviewChanges<TDocumentType, TEntityBase>);
+            adds: toReadOnlyList(adds, this.dbPlugin.idPropertyName),
+            removes: toReadOnlyList(removes, this.dbPlugin.idPropertyName),
+            updates: {
+                deltas: toReadOnlyList<DeepPartial<TEntityBase>>(Object.values(updates.deltas), this.dbPlugin.idPropertyName as any),
+                docs: toReadOnlyList(Object.values(updates.docs), this.dbPlugin.idPropertyName),
+                originals: toReadOnlyList(Object.values(updates.originals), this.dbPlugin.idPropertyName),
+            }
+        } as Changes<TDocumentType, TEntityBase>);
 
-        const result: IPreviewChanges<TDocumentType, TEntityBase> = JSON.parse(clone);
+        const result: Changes<TDocumentType, TEntityBase> = JSON.parse(clone);
 
-        await this._cleanseUpdateEntities(result.update.docs);
+        result.updates.docs = toReadOnlyList(this._stripUpdatedEntities(result.updates.docs), this.dbPlugin.idPropertyName);
 
         return result;
     }
 
     private async _getModifications() {
-        const { add, remove, removeById, updated } = this._changeTracker.getPendingChanges();
 
-        const extraRemovalsMap = removeById.reduce((a, v) => {
+        const { adds, removes, removesById, updates } = this._changeTracker.getPendingChanges();
+        const extraRemovalsMap = removesById.reduce((a, v) => {
 
             if (a[v.DocumentType] == null) {
                 a[v.DocumentType] = [];
@@ -133,32 +140,34 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
         const extraRemovals = extraRemovalsByDocumentType.reduce((a, v) => a.concat(v), []);
 
         return {
-            add,
-            remove: [...remove, ...extraRemovals],
-            updated
+            adds,
+            removes: [...removes, ...extraRemovals],
+            updates
         }
     }
 
     private async _beforeSaveChanges() {
+
         const beforeOnBeforeSaveChangesTags = this._getTagsForTransaction();
         const beforeSaveChanges = await this._getModifications();
 
         for (const documentType in this._onBeforeSaveChangesEvents) {
             const event = this._onBeforeSaveChangesEvents[documentType];
             await event(() => ({
-                adds: beforeSaveChanges.add.filter(w => w.DocumentType === documentType).map(w => this._mapChangeToEntityAndTag(w, beforeOnBeforeSaveChangesTags)),
-                removes: beforeSaveChanges.remove.filter(w => w.DocumentType === documentType).map(w => this._mapChangeToEntityAndTag(w, beforeOnBeforeSaveChangesTags)),
-                updates: Object.values(beforeSaveChanges.updated.docs).filter(w => w.DocumentType === documentType).map(w => this._mapChangeToEntityAndTag(w, beforeOnBeforeSaveChangesTags))
+                adds: beforeSaveChanges.adds.filter(w => w.DocumentType === documentType).map(w => this._mapChangeToEntityAndTag(w, beforeOnBeforeSaveChangesTags)),
+                removes: beforeSaveChanges.removes.filter(w => w.DocumentType === documentType).map(w => this._mapChangeToEntityAndTag(w, beforeOnBeforeSaveChangesTags)),
+                updates: Object.values(beforeSaveChanges.updates.docs).filter(w => w.DocumentType === documentType).map(w => this._mapChangeToEntityAndTag(w, beforeOnBeforeSaveChangesTags))
             }))
         }
 
         // Devs are allowed to modify data/add data in onBeforeSaveChanges.  Useful for
         // creating history dbset that tracks changes in another dbset
+        
         await this.onBeforeSaveChanges(() => ({
-            adds: beforeSaveChanges.add.map(w => this._mapChangeToEntityAndTag(w, beforeOnBeforeSaveChangesTags)),
-            removes: beforeSaveChanges.remove.map(w => this._mapChangeToEntityAndTag(w, beforeOnBeforeSaveChangesTags)),
-            updates: Object.values(beforeSaveChanges.updated.docs).map(w => this._mapChangeToEntityAndTag(w, beforeOnBeforeSaveChangesTags))
-        }));
+            adds: beforeSaveChanges.adds.map(w => this._mapChangeToEntityAndTag(w, beforeOnBeforeSaveChangesTags)),
+            removes: beforeSaveChanges.removes.map(w => this._mapChangeToEntityAndTag(w, beforeOnBeforeSaveChangesTags)),
+            updates: Object.values(beforeSaveChanges.updates.docs).map(w => this._mapChangeToEntityAndTag(w, beforeOnBeforeSaveChangesTags))
+        }))
 
         // get tags again in case more were added in onBeforeSaveChanges
         const afterOnBeforeSaveChangesTags = this._getTagsForTransaction();
@@ -171,12 +180,11 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
         }
     }
 
-    async saveChanges() {
+    async saveChanges(): Promise<SaveResult<TDocumentType, TEntityBase>> {
         try {
-
-            const { tags, changes } = await this._beforeSaveChanges();           
-            const { add, remove, updated } = changes;
-            const updatedItems = Object.values(updated.docs);
+            const { tags, changes } = await this._beforeSaveChanges();
+            const { adds, removes, updates } = changes;
+            const updatedItems = Object.values(updates.docs);
 
             // check for readonly updates, they are not allowed
             if (updatedItems.length > 0) {
@@ -186,11 +194,11 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
                     throw new Error(`Cannot save readonly entities.  Document Types: ${readonlyDocumentTypes.join(', ')}`)
                 }
             }
-            
+
             // strip updates/adds and process removals
-            const strippedAdds = add.map(this._changeTracker.enrichment.strip);
-            const strippedUpdates = updatedItems.map(this._changeTracker.enrichment.strip);
-            const formattedRemovals = remove.map(this._changeTracker.enrichment.remove);
+            const strippedAdds = adds.map(this._changeTracker.enrichment.prepare);
+            const strippedUpdates = updatedItems.map(this._changeTracker.enrichment.prepare);
+            const formattedRemovals = removes.map(this._changeTracker.enrichment.remove) as IRemovalRecord<TDocumentType, TEntityBase>[];
 
             // perform operation on the database
             const modificationResult = await this.dbPlugin.bulkOperations({ adds: strippedAdds, removes: formattedRemovals, updates: strippedUpdates });
@@ -199,25 +207,27 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
             const persistedAdds = strippedAdds.map(this._changeTracker.enrichment.composers.persisted(modificationResult));
             const persistedUpdates = strippedUpdates.map(this._changeTracker.enrichment.composers.persisted(modificationResult));
 
-            // set updated results
-            const updatedDocs = persistedUpdates.reduce((a, v) => ({ ...a, [v[this.dbPlugin.idPropertyName] as string | number]: v }), {})
+            // re-enable change tracking on the persisted entities
+            const trackedPersistedAdds = this._changeTracker.enableChangeTracking(...persistedAdds);
+            const trackedPersistedUpdates = this._changeTracker.enableChangeTracking(...persistedUpdates);
 
-            this._changeTracker.reinitialize(formattedRemovals, persistedAdds, persistedUpdates);
+            this._changeTracker.reinitialize(formattedRemovals, trackedPersistedAdds, trackedPersistedUpdates);
 
-            await this._onAfterSaveChanges(changes, tags);
+            const result: SaveResult<TDocumentType, TEntityBase> = {
+                adds: toReadOnlyList(trackedPersistedAdds, this.dbPlugin.idPropertyName),
+                removes: toReadOnlyList(formattedRemovals, this.dbPlugin.idPropertyName),
+                updates: {
+                    docs: toReadOnlyList(trackedPersistedUpdates, this.dbPlugin.idPropertyName),
+                    deltas: toReadOnlyList(Object.values(updates.deltas), this.dbPlugin.idPropertyName as any),
+                    originals: toReadOnlyList(Object.values(updates.originals), this.dbPlugin.idPropertyName)
+                },
+                successes_count: modificationResult.successes_count
+            }
 
-            return {
-                successes_count: modificationResult.successes_count,
-                changes: {
-                    add: persistedAdds,
-                    remove: formattedRemovals,
-                    updated: {
-                        docs: updatedDocs,
-                        deltas: updated.deltas,
-                        originals: updated.originals
-                    }
-                }
-            };
+            await this._onAfterSaveChanges(persistedAdds, persistedUpdates, formattedRemovals, tags);
+            
+
+            return result;
         } catch (e: any) {
             this._changeTracker.reinitialize();
 
@@ -240,23 +250,21 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
         }
     }
 
-    private async _onAfterSaveChanges(changes: { add: TEntityBase[]; remove: TEntityBase[]; updated: IEntityUpdates<TDocumentType, TEntityBase>; }, tags: { [x: string]: unknown; }) {
-
-        const { add, remove, updated } = changes;
+    private async _onAfterSaveChanges(adds: TEntityBase[], updates: TEntityBase[], removes: IRemovalRecord<TDocumentType, TEntityBase>[], tags: { [x: string]: unknown; }) {
 
         for (const documentType in this._onAfterSaveChangesEvents) {
             const event = this._onAfterSaveChangesEvents[documentType];
             await event(() => JSON.parse(JSON.stringify({
-                adds: add.filter(w => w.DocumentType === documentType).map(w => this._mapChangeToEntityAndTag(w, tags)),
-                removes: remove.filter(w => w.DocumentType === documentType).map(w => this._mapChangeToEntityAndTag(w, tags)),
-                updates: Object.values(updated.docs).filter(w => w.DocumentType === documentType).map(w => this._mapChangeToEntityAndTag(w, tags))
+                adds: adds.filter(w => w.DocumentType === documentType).map(w => this._mapChangeToEntityAndTag(w, tags)),
+                removes: removes.filter(w => w.DocumentType === documentType).map(w => this._mapChangeToEntityAndTag(w, tags)),
+                updates: Object.values(updates).filter(w => w.DocumentType === documentType).map(w => this._mapChangeToEntityAndTag(w, tags))
             })))
         }
 
         await this.onAfterSaveChanges(() => JSON.parse(JSON.stringify({
-            adds: add.map(w => this._mapChangeToEntityAndTag(w, tags)),
-            removes: remove.map(w => this._mapChangeToEntityAndTag(w, tags)),
-            updates: Object.values(updated.docs).map(w => this._mapChangeToEntityAndTag(w, tags))
+            adds: adds.map(w => this._mapChangeToEntityAndTag(w, tags)),
+            removes: removes.map(w => this._mapChangeToEntityAndTag(w, tags)),
+            updates: Object.values(updates).map(w => this._mapChangeToEntityAndTag(w, tags))
         })));
     }
 
@@ -287,8 +295,8 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
     }
 
     hasPendingChanges() {
-        const { add, remove, removeById, updated } = this._changeTracker.getPendingChanges();
-        return [add.length, remove.length, removeById.length, Object.values(updated.docs).length].some(w => w > 0);
+        const { adds, removes, removesById, updates } = this._changeTracker.getPendingChanges();
+        return [adds.length, removes.length, removesById.length, Object.values(updates.docs).length].some(w => w > 0);
     }
 
     async empty() {
