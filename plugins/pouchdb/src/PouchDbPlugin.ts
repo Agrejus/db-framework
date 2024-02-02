@@ -128,6 +128,10 @@ export class PouchDbPlugin<TDocumentType extends string, TEntityBase extends Pou
                 const response = await this.doWork(w => w.bulkDocs([...removes, ...adds, ...updates]));
                 const result = this.formatBulkDocsResponse(response);
 
+                if (result.errors_count > 0) {
+                    console.log('Conflicts');
+                }
+
                 if (this.options.resolveConflicts === true && result.errors_count > 0) {
 
                     const updateConflicts = Object.values(result.errors).filter(w => w.error?.toLowerCase().includes("document update conflict"));

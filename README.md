@@ -652,7 +652,7 @@ export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<My
     }
 
     getAttachmentsHistory() {
-        return cacheStore.filter<IDriveItemHistory>(w => w.DocumentType === KorTerraFieldDocumentTypes.KorTerraDriveAttachmentsHistory);
+        return cacheStore.filter<IDriveItemHistory>(w => w.DocumentType === MyFieldDocumentTypes.Histories);
     }
 
     protected _mapHistories(item: IVehicle) {
