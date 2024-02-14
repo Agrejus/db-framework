@@ -11,6 +11,16 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
         super(props, type, changeTracker);
     }
 
+    async pluck<TKey extends keyof TEntity>(selector: EntitySelector<TDocumentType, TEntity>, propertySelector: TKey) {
+        const found = await this.find(selector);
+
+        if (found == null) {
+            throw new Error('Entity not found for pluck')
+        }
+
+        return found[propertySelector];
+    }
+
     async filter(selector: EntitySelector<TDocumentType, TEntity>) {
         const data = await this.allDataAndMakeTrackable();
 
@@ -18,7 +28,7 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
 
         await this.onAfterDataFetched(result);
 
-        const attached = this.changeTracker.attach(result)
+        const attached = this.changeTracker.attach(...result)
 
         return attached;
     }
@@ -28,13 +38,19 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
     }
 
     async get(...ids: string[]) {
-        const entities = await this.api.dbPlugin.getStrict(...ids);
-        const result = entities.map(w => this.changeTracker.enableChangeTracking(w, this.defaults.retrieve, this.isReadonly, this.map));
+
+        const entities = await this.api.dbPlugin.getStrict(this.documentType, ...ids);
+
+        const result = entities.map(w => {
+            const enriched = this.changeTracker.enrichment.retrieve(w);
+            const [tracked] = this.changeTracker.enableChangeTracking(enriched);
+            return tracked;
+        });
         const filteredResult = this.filterResult(result)
         await this.onAfterDataFetched(filteredResult);
 
         if (filteredResult.length > 0) {
-            return this.changeTracker.attach(filteredResult)
+            return this.changeTracker.attach(...filteredResult)
         }
 
         return filteredResult;
@@ -42,6 +58,7 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
 
 
     async find(selector: EntitySelector<TDocumentType, TEntity>): Promise<TEntity | undefined> {
+
         const data = await this.allDataAndMakeTrackable();
         const result = [...data].find(selector);
 
@@ -49,7 +66,7 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
 
             await this.onAfterDataFetched([result]);
 
-            const [attached] = this.changeTracker.attach([result]);
+            const [attached] = this.changeTracker.attach(result);
 
             return attached;
         }
@@ -65,7 +82,7 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
 
             await this.onAfterDataFetched([result]);
 
-            const [attached] = this.changeTracker.attach([result]);
+            const [attached] = this.changeTracker.attach(result);
 
             return attached;
         }

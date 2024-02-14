@@ -1,4 +1,4 @@
-import { DbSetChangeType, DbSetOnChangeEvent, DbSetType, EntityAndTag, IStoreDbSetProps, SaveChangesEventData } from "../../types/dbset-types";
+import { DbSetChangeType, DbSetOnChangeEvent, DbSetType, IStoreDbSetProps, SaveChangesEventData } from "../../types/dbset-types";
 import { IDbRecord, OmittedEntity } from "../../types/entity-types";
 import { DbSetModificationAdapter } from "../DbSetModificationAdapter";
 import { CacheDataStore } from '../../cache/CacheDataStore';
@@ -13,7 +13,7 @@ export class DbSetStatefulModificationAdapter<TDocumentType extends string, TEnt
     constructor(props: IStoreDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType, changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>) {
         super(props, type, changeTracker);
         this._onChange = props.onChange
-        this._store = new CacheDataStore<TDocumentType, TEntity>(this.api.dbPlugin.idPropertName);
+        this._store = new CacheDataStore<TDocumentType, TEntity>(this.api.dbPlugin.idPropertyName);
     }
 
     protected override async onAfterSaveChanges(getChanges: () => SaveChangesEventData<TDocumentType, TEntity>) {
@@ -30,7 +30,7 @@ export class DbSetStatefulModificationAdapter<TDocumentType extends string, TEnt
         this._store.putMany(...remotes);
         this._store.removeMany(...removedEntities);
 
-        this._remotes = []; // remove the remotes after save
+        this._remotes = []; // remove the added remotes after save
 
         this._fireOnChangeWithLocalData("change", { adds: addedEntities, removes: removedEntities, updates: updatedEntities, all: this._store.all(), remotes });
     }

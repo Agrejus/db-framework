@@ -19,20 +19,30 @@ export const contextBuilder = <TDocumentType extends string>(contextOptions?: Co
                             return {
 
                                 createDefault: <TInstance extends new () => DataContext<TDocumentType, TEntityBase, TExclusions | typeof p.types.exclusions, TPluginOptions, TDbPlugin>>(
+                                    contextId: string,
                                     extend: (Base: new () => DataContext<TDocumentType, TEntityBase, TExclusions | typeof p.types.exclusions, TPluginOptions, TDbPlugin>) => TInstance
                                 ) => {
                                     return extend(class extends DataContext<TDocumentType, TEntityBase, TExclusions | typeof p.types.exclusions, TPluginOptions, TDbPlugin> {
                                         constructor() {
                                             super(typeof options === "function" ? options() : options, Plugin, contextOptions)
                                         }
+
+                                        contextId() {
+                                            return contextId;
+                                        }
                                     });
                                 },
                                 createStateful: <TInstance extends new () => StatefulDataContext<TDocumentType, TEntityBase, TExclusions | typeof p.types.exclusions, TPluginOptions, TDbPlugin>>(
+                                    contextId: string,
                                     extend: (Base: new () => StatefulDataContext<TDocumentType, TEntityBase, TExclusions | typeof p.types.exclusions, TPluginOptions, TDbPlugin>) => TInstance
                                 ) => {
                                     return extend(class extends StatefulDataContext<TDocumentType, TEntityBase, TExclusions | typeof p.types.exclusions, TPluginOptions, TDbPlugin> {
                                         constructor() {
                                             super(typeof options === "function" ? options() : options, Plugin, contextOptions)
+                                        }
+
+                                        contextId() {
+                                            return contextId;
                                         }
                                     });
                                 }

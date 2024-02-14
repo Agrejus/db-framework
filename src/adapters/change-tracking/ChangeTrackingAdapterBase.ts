@@ -1,37 +1,49 @@
-import { IAttachmentDictionary } from "../../types/change-tracking-types";
-import { DeepPartial } from "../../types/common-types";
-import { DbFrameworkEnvironment, ITrackedChanges, ITrackedData } from "../../types/context-types";
-import { PropertyMap } from "../../types/dbset-builder-types";
-import { IDbRecord, IIndexableEntity, OmittedEntity } from "../../types/entity-types";
+import { Enrichment, IList, ProcessedChangesResult } from "../../types/change-tracking-types";
+import { ITrackedChanges, ITrackedData } from "../../types/context-types";
+import { ChangeTrackingOptions, IDbSetProps } from "../../types/dbset-types";
+import { IDbRecord, IdRemoval } from "../../types/entity-types";
+import { IDbPlugin } from "../../types/plugin-types";
+import { EntityEnricher } from './enrichment/EntityEnricher';
 
 export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> {
 
     protected removals: TEntity[] = [];
     protected additions: TEntity[] = [];
-    protected removeById: string[] = [];
+    protected removeById: IdRemoval<TDocumentType>[] = [];
 
-    protected abstract attachments: IAttachmentDictionary<TDocumentType, TEntity>;
+    protected abstract attachments: IList<TEntity>;
 
-    abstract enableChangeTracking(entity: TEntity, defaults: DeepPartial<OmittedEntity<TEntity, TExclusions>>, readonly: boolean, maps: PropertyMap<TDocumentType, TEntity, any>[]): TEntity;
     abstract getPendingChanges(): ITrackedChanges<TDocumentType, TEntity>;
-    abstract makePristine(...entities: TEntity[]): void;
     abstract merge(from: TEntity, to: TEntity): TEntity;
     abstract markDirty(...entities: TEntity[]): Promise<TEntity[]>;
-    abstract isDirty(entity: TEntity): boolean;
+    abstract processChanges(entity: TEntity): ProcessedChangesResult<TDocumentType, TEntity>;
     abstract asUntracked(...entities: TEntity[]): TEntity[];
 
-    protected readonly idPropertyName: keyof TEntity;
-    protected readonly environment?: DbFrameworkEnvironment;
-    protected readonly propertyMaps: PropertyMap<TDocumentType, TEntity, TExclusions>[];
+    private readonly _enricher: EntityEnricher<TDocumentType, TEntity, TExclusions>;
+    readonly enrichment: Enrichment<TDocumentType, TEntity, TExclusions>;
 
-    constructor(idPropertyName: keyof TEntity, propertyMaps: PropertyMap<TDocumentType, TEntity, TExclusions>[], environment?: DbFrameworkEnvironment) {
-        this.idPropertyName = idPropertyName;
-        this.environment = environment;
-        this.propertyMaps = propertyMaps;
+    protected readonly changeTrackingOptions: ChangeTrackingOptions<TDocumentType, TEntity>;
+    protected readonly dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>;
+    protected readonly dbPlugin: IDbPlugin<TDocumentType, TEntity, TExclusions>;
+    protected readonly changeTrackingId: string;
+
+    constructor(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: ChangeTrackingOptions<TDocumentType, TEntity>, dbPlugin: IDbPlugin<TDocumentType, TEntity, TExclusions>) {
+        this.changeTrackingOptions = changeTrackingOptions;
+        this.dbSetProps = dbSetProps;
+        this.dbPlugin = dbPlugin;
+
+        this.changeTrackingId = `${this.changeTrackingOptions.contextName}-${this.dbSetProps.documentType}`
+
+        this._enricher = new EntityEnricher(dbSetProps, changeTrackingOptions, dbPlugin);
+        this.enrichment = this._enricher.compose();
     }
 
     isAttached(id: keyof TEntity) {
         return this.attachments.has(id);
+    }
+
+    isLinked(entity: TEntity) {
+        return this.attachments.get(entity[this.dbPlugin.idPropertyName] as keyof TEntity) === entity;
     }
 
     reinitialize(removals: TEntity[] = [], add: TEntity[] = [], updates: TEntity[] = []) {
@@ -42,38 +54,33 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
         this.attachments.remove(...removals);
 
         // move additions to attachments so we can track changes
-        this.attachments.push(...add);
+        this.attachments.put(...add);
     }
 
     detach(ids: (keyof TEntity)[]) {
         this.attachments.removeById(...ids);
     }
 
-    attach(data: TEntity[]) {
+    attach(...data: TEntity[]) {
 
         const result: TEntity[] = [];
         const reselectIds: (keyof TEntity)[] = [];
+
         for (const item of data) {
-            const id = item[this.idPropertyName] as keyof TEntity;
+            const id = item[this.dbPlugin.idPropertyName] as keyof TEntity;
 
             const found = this.attachments.get(id)
 
-            if (found != null) {
-                if (this.attachments.includes(id) === true && this.isDirty(found) === true) {
-                    // if the attached item is dirty, it has changed and we issue an error, otherwise return a copy of the referenced item, not the one in the database
-                    reselectIds.push(id);
-                }
-
-                result.push(found)
-                continue;
-            } 
+            if (found != null && this.attachments.includes(id) === true && this.processChanges(found).isDirty === true) {
+                reselectIds.push(id);
+            }
 
             result.push(item);
-            this.attachments.push(item)
+            this.attachments.put(item)
         }
 
-        if (reselectIds.length > 0 && this.environment === "development") {
-            console.warn(`Reselect Error.  Data has been reselected and changed between operations.  Entities should not be changed and then reselected, Db Framework functions return a copy of the entity that should be used in all operations.  Reselecting an item can lead to unwanted and missed changes. - Ids: ${reselectIds.join(', ')}`);
+        if (reselectIds.length > 0 && this.changeTrackingOptions.environment === "development") {
+            console.warn(`Reselect Warning.  Data has been reselected and changed between operations.  Entities should not be changed and then reselected, Db Framework functions return a copy of the entity that should be used in all operations.  Reselecting an item can lead to unwanted and missed changes. - Ids: ${reselectIds.join(', ')}`);
         }
 
         return result;
@@ -81,37 +88,12 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
 
     getTrackedData() {
         const result: ITrackedData<TDocumentType, TEntity> = {
-            add: this.additions,
-            remove: this.removals,
-            attach: this.attachments,
-            removeById: this.removeById
+            adds: this.additions,
+            removes: this.removals,
+            attachments: this.attachments,
+            removesById: this.removeById
         };
 
         return result;
     }
-
-    mapAndSetDefaults(entity: TEntity | OmittedEntity<TEntity, TExclusions>, maps: PropertyMap<any, any, any>[], defaults: DeepPartial<OmittedEntity<TEntity, TExclusions>> = {} as any) {
-        const mergedInstance = { ...defaults, ...entity };
-        let mappedInstance = {};
-
-        if (maps.length > 0) {
-            mappedInstance = maps.reduce((a, v) => {
-                const preTransformValue = (mergedInstance as any)[v.property];
-                return { ...a, [v.property]: Object.prototype.toString.call(preTransformValue) === '[object Date]' ? preTransformValue : v.map(preTransformValue, entity) }
-            }, {});
-        }
-
-        return { ...mergedInstance, ...mappedInstance };
-    }
-
-    protected mapInstance(entity: TEntity, maps: PropertyMap<TDocumentType, TEntity, any>[]) {
-
-        const result: IIndexableEntity = entity;
-
-        for (const map of maps) {
-            result[map.property] = map.map(result[map.property], entity)
-        }
-
-        return result as TEntity
-    }
-}
+}   

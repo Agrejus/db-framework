@@ -1,0 +1,14 @@
+node_modules/
+ios/Pods/
+.DS_Store
+.idea/
+*.iml
+.gradle
+android/.gradle
+android/local.properties
+ios/Plugin.xcodeproj/xcuserdata
+ios/Plugin.xcworkspace/xcuserdata
+.DS_Store
+.husky/
+dist/
+package-lock.json

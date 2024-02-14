@@ -1,161 +1,56 @@
-import { DbSetPickDefaultActionOptional, DeepPartial, EntityComparator, EntitySelector } from "../../../types/common-types";
-import { DbSetExtender, IChainIdBuilder, IDbSetStatefulBuilderParams, IIdBuilderBase, ITerminateIdBuilder, IdBuilder, PropertyMap } from "../../../types/dbset-builder-types";
-import { DbSetRemoteOnChangeEvent, IDbSetBase, IDbSetProps, IStatefulDbSet, IStoreDbSetProps } from "../../../types/dbset-types";
+import { DbSetPickDefaultActionOptional, DeepPartial, EntityComparator, EntitySelector, ToUnion } from "../../../types/common-types";
+import { Deserializer, IChainIdBuilder, IDbSetStatefulBuilderParams, IIdBuilderBase, ITerminateIdBuilder, Serializer } from "../../../types/dbset-builder-types";
+import { DbSetRemoteOnChangeEvent } from "../../../types/dbset-types";
 import { IDbRecord, OmittedEntity } from "../../../types/entity-types";
+import { BaseDbSetBuilder } from "./base/BaseDbSetBuilder";
 
-export class StatefulDbSetBuilder<
-    TDocumentType extends string,
-    TEntity extends IDbRecord<TDocumentType>,
-    TExclusions extends keyof TEntity,
-    TResult extends IStatefulDbSet<TDocumentType, TEntity, TExclusions>,
-    TParams extends IDbSetStatefulBuilderParams<TDocumentType, TEntity, TExclusions, TResult>> {
-
-    protected _onCreate: (dbset: IDbSetBase<string>) => void;
-    protected _params: TParams;
-    protected InstanceCreator: new (props: IDbSetProps<TDocumentType, TEntity, TExclusions>) => TResult;
-
-    protected _defaultExtend: (i: DbSetExtender<TDocumentType, TEntity, TExclusions>, args: IDbSetProps<TDocumentType, TEntity, TExclusions>) => TResult = (Instance, a) => new Instance(a) as any;
-
-    constructor(onCreate: (dbset: IDbSetBase<TDocumentType>) => void, params: TParams, InstanceCreator: new (props: IDbSetProps<TDocumentType, TEntity, TExclusions>) => TResult) {
-        this.InstanceCreator = InstanceCreator;
-        this._params = params;
-        this._onCreate = onCreate;
-    }
+export class StatefulDbSetBuilder<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> extends BaseDbSetBuilder<TDocumentType, TEntity, TExclusions, IDbSetStatefulBuilderParams<TDocumentType, TEntity, TExclusions>> {
 
     onChange(callback: DbSetRemoteOnChangeEvent<TDocumentType, TEntity>) {
         this._params.onChange = callback;
-        return new StatefulDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>(this._onCreate, this._params, this.InstanceCreator);
+
+        return new StatefulDbSetBuilder<TDocumentType, TEntity, TExclusions>({
+            InstanceCreator: this.InstanceCreator,
+            onCreate: this._onCreate,
+            params: this._params
+        });
     }
 
-    /**
-     * Makes all entities returned from the underlying database readonly.  Entities cannot be updated, only adding or removing is available.
-     * @returns DbSetBuilder
-     */
-    readonly() {
-        this._params.readonly = true;
-        return new StatefulDbSetBuilder<TDocumentType, Readonly<TEntity>, TExclusions, IStatefulDbSet<TDocumentType, Readonly<TEntity>, TExclusions>, TParams>(this._onCreate, this._params, this.InstanceCreator);
+    keys(builder: (b: IIdBuilderBase<TDocumentType, TEntity>) => IChainIdBuilder<TDocumentType, TEntity> | ITerminateIdBuilder<TDocumentType, TEntity>) {
+        return super._keys(builder, StatefulDbSetBuilder<TDocumentType, TEntity, TExclusions>);
     }
 
-    /**
-     * Fluent API for building the documents key.  Key will be built in the order
-     * keys are added
-     * @param builder Fluent API
-     * @returns DbSetBuilder
-     */
-    keys(builder: (b: IIdBuilderBase<TDocumentType, TEntity>) => (IChainIdBuilder<TDocumentType, TEntity> | ITerminateIdBuilder<TDocumentType, TEntity>)) {
-        const idBuilder = new IdBuilder<TDocumentType, TEntity>();
-
-        builder(idBuilder);
-
-        this._params.idKeys.push(...idBuilder.Ids);
-        this._params.keyType = idBuilder.KeyType;
-
-        return new StatefulDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>(this._onCreate, this._params, this.InstanceCreator);
+    defaults(value: DbSetPickDefaultActionOptional<TDocumentType, TEntity, TExclusions>): this
+    defaults(value: DeepPartial<OmittedEntity<TEntity, TExclusions>>): this
+    defaults(value: DbSetPickDefaultActionOptional<TDocumentType, TEntity, TExclusions> | DeepPartial<OmittedEntity<TEntity, TExclusions>>) {
+        return super._defaults(value, StatefulDbSetBuilder<TDocumentType, TEntity, TExclusions>);
     }
 
-    /**
-     * Set default separately for add and retrieval.  This is useful to retroactively add new properties
-     * that are not nullable or to supply a default to an excluded property.  Default's will only be 
-     * set when the property does not exist or is excluded
-     * @param value Pick one or more properties and set their default value
-     * @returns DbSetBuilder
-     */
-    defaults(value: DbSetPickDefaultActionOptional<TDocumentType, TEntity, TExclusions>): StatefulDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>
-
-    /**
-     * Set default values for both add and retrieval of entities.  This is useful to retroactively add new properties
-     * that are not nullable or to supply a default to an excluded property.  Default's will only be 
-     * set when the property does not exist or is excluded
-     * @param value Pick one or more properties and set their default value
-     * @returns DbSetBuilder
-     */
-    defaults(value: DeepPartial<OmittedEntity<TEntity>>): StatefulDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>
-    defaults(value: DbSetPickDefaultActionOptional<TDocumentType, TEntity, TExclusions> | DeepPartial<OmittedEntity<TEntity>>) {
-
-        if ("add" in value) {
-            this._params.defaults = {
-                ...this._params.defaults,
-                add: { ...this._params.defaults.add, ...value.add }
-            };
-        }
-
-        if ("retrieve" in value) {
-            this._params.defaults = {
-                ...this._params.defaults,
-                retrieve: { ...this._params.defaults.retrieve, ...value.retrieve }
-            };
-        }
-
-        if (!("retrieve" in value) && !("add" in value)) {
-            this._params.defaults = {
-                ...this._params.defaults,
-                add: { ...this._params.defaults.add, ...value },
-                retrieve: { ...this._params.defaults.retrieve, ...value },
-            };
-        }
-
-        return new StatefulDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>(this._onCreate, this._params, this.InstanceCreator);
-    }
-
-    /**
-     * Exclude properties from the DbSet.add(). This is useful for defaults.  Properties can be excluded 
-     * and default values can be set making it easier to add an entity.  Can be called one or many times to
-     * exclude one or more properties
-     * @param exclusions Property Exclusions
-     * @returns DbSetBuilder
-     */
     exclude<T extends keyof TEntity>(...exclusions: T[]) {
-        this._params.exclusions.push(...exclusions);
-        const params = this._params as IDbSetStatefulBuilderParams<TDocumentType, TEntity, T | TExclusions, IStatefulDbSet<TDocumentType, TEntity, T | TExclusions>>;
-        const instanceCreator = this.InstanceCreator as new (props: IStoreDbSetProps<TDocumentType, TEntity, T | TExclusions>) => IStatefulDbSet<TDocumentType, TEntity, T | TExclusions>;
-        return new StatefulDbSetBuilder<TDocumentType, TEntity, T | TExclusions, IStatefulDbSet<TDocumentType, TEntity, T | TExclusions>, IDbSetStatefulBuilderParams<TDocumentType, TEntity, T | TExclusions, IStatefulDbSet<TDocumentType, TEntity, T | TExclusions>>>(this._onCreate, params, instanceCreator);
+        return super._exclude(StatefulDbSetBuilder<TDocumentType, TEntity, T | TExclusions>, ...exclusions)
     }
 
-    map<T extends keyof TEntity>(propertyMap: PropertyMap<TDocumentType, TEntity, T>) {
-        this._params.map.push(propertyMap);
-        return new StatefulDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>(this._onCreate, this._params, this.InstanceCreator);
+    readonly() {
+        return super._readonly(StatefulDbSetBuilder<TDocumentType, Readonly<TEntity>, TExclusions>)
     }
 
-
-    extend<TExtension extends IStatefulDbSet<TDocumentType, TEntity, TExclusions>>(extend: (i: new (props: IStoreDbSetProps<TDocumentType, TEntity, TExclusions>) => TResult, args: IStoreDbSetProps<TDocumentType, TEntity, TExclusions>) => TExtension) {
-        this._params.extend.push(extend as any);
-
-        const params: IDbSetStatefulBuilderParams<TDocumentType, TEntity, TExclusions, TExtension> = this._params as any;
-        const instanceCreator: new (props: IStoreDbSetProps<TDocumentType, TEntity, TExclusions>) => TExtension = this.InstanceCreator as any;
-        return new StatefulDbSetBuilder<TDocumentType, TEntity, TExclusions, TExtension, IDbSetStatefulBuilderParams<TDocumentType, TEntity, TExclusions, TExtension>>(this._onCreate, params, instanceCreator);
+    serialize(serializer: Serializer<TDocumentType, TEntity>) {
+        return super._serialize(serializer, StatefulDbSetBuilder<TDocumentType, TEntity, TExclusions>)
+    }
+    
+    deserialize(deserializer: Deserializer<TDocumentType, TEntity>) {
+        return super._deserialize(deserializer, StatefulDbSetBuilder<TDocumentType, TEntity, TExclusions>)
     }
 
-    /**
-     * Set a filter to be used on all queries
-     * @param selector 
-     * @returns DbSetBuilder
-     */
     filter(selector: EntitySelector<TDocumentType, TEntity>) {
-        this._params.filterSelector = selector;
-        return new StatefulDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>(this._onCreate, this._params, this.InstanceCreator);
+        return super._filter(selector, StatefulDbSetBuilder<TDocumentType, TEntity, TExclusions>)
     }
 
-    hasChanged(comparison: EntityComparator<TDocumentType, TEntity>) {
-        this._params.entityComparator = comparison;
-        return new StatefulDbSetBuilder<TDocumentType, TEntity, TExclusions, TResult, TParams>(this._onCreate, this._params, this.InstanceCreator); 
+    getChanges(comparison: EntityComparator<TDocumentType, TEntity>) {
+        return super._getChanges(comparison, StatefulDbSetBuilder<TDocumentType, TEntity, TExclusions>)
     }
 
-    /**
-     * Must call to fully create the DbSet.
-     * @returns new DbSet
-     */
-    create(): TResult {
-
-        const { extend, exclusions, ...rest } = this._params
-
-        if (extend.length === 0) {
-            extend.push(this._defaultExtend)
-        }
-
-        const result = extend.reduce((a: any, v, i) => v(i === 0 ? a : a.constructor, rest), this.InstanceCreator);
-
-        this._onCreate(result);
-
-        return result;
+    enhance<TEnhanced extends TEntity>(enhancer: (entity: TEntity) => TEnhanced) {
+        return super._enhance(enhancer, StatefulDbSetBuilder<TDocumentType, TEnhanced, TExclusions | ToUnion<TEnhanced>>)
     }
 }

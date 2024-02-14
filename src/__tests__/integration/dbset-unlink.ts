@@ -19,11 +19,13 @@ describe('DbSet Unlink Tests', () => {
             address: "1234 Test St"
         });
 
-        await context.saveChanges();
+        const { adds } = await context.saveChanges();
 
-        context.contacts.unlink(contact);
+        const [found] = adds.match(contact)!;
 
-        contact.firstName = "Test";
+        context.contacts.unlink(found!);
+
+        found!.firstName = "Test";
 
         expect(context.hasPendingChanges()).toBe(false);
         await context.saveChanges();
@@ -164,7 +166,7 @@ describe('DbSet Unlink Tests', () => {
         expect(context.hasPendingChanges()).toBe(true);
         const changeCount = await context.saveChanges();
 
-        expect(changeCount).toBe(1);
+        expect(changeCount.successes_count).toBe(1);
 
         const foundOne = await context.contacts.find(w => w.firstName === "Value One");
         const foundTwo = await context.contacts.find(w => w.firstName === "Value Two");

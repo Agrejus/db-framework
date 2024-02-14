@@ -50,6 +50,10 @@ describe('data context', () => {
             super({ dbName: name.endsWith("-db") ? name : `${name}-db` }, PouchDbPlugin, contextOptions);
         }
 
+        contextId() {
+            return ExternalDataContext.name
+        }
+
         async empty() {
             for (let dbset of this) {
                 await dbset.empty();
@@ -85,15 +89,17 @@ describe('data context', () => {
         });
 
         expect(context.hasPendingChanges()).toBe(true);
-        await context.saveChanges();
+        const { adds } = await context.saveChanges();
         expect(context.hasPendingChanges()).toBe(false);
 
         const contacts = await context.contacts.all();
 
+        const [found] = adds.match(contact)!;
+
         expect(contacts.length).toBe(1);
-        expect(contact._id).toBeDefined();
-        expect(contact._rev).toBeDefined();
-        expect(contact.DocumentType).toBe(DocumentTypes.Contacts)
+        expect(found._id).toBeDefined();
+        expect(found._rev).toBeDefined();
+        expect(found.DocumentType).toBe(DocumentTypes.Contacts)
     });
 
     it('should save changes when entities are added and a non auto generated id', async () => {
@@ -113,19 +119,21 @@ describe('data context', () => {
         });
 
         expect(context.hasPendingChanges()).toBe(true);
-        await context.saveChanges();
+        const { adds } = await context.saveChanges();
         expect(context.hasPendingChanges()).toBe(false);
 
         const contacts = await context.contacts.all();
 
-        expect(contacts.length).toBe(2);
-        expect(one._id).toBeDefined();
-        expect(one._rev).toBeDefined();
-        expect(one.DocumentType).toBe(DocumentTypes.Contacts);
+        const [foundOne, foundTwo] = adds.match(one, two);
 
-        expect(two._id).toBeDefined();
-        expect(two._rev).toBeDefined();
-        expect(two.DocumentType).toBe(DocumentTypes.Contacts);
+        expect(contacts.length).toBe(2);
+        expect(foundOne._id).toBeDefined();
+        expect(foundOne._rev).toBeDefined();
+        expect(foundOne.DocumentType).toBe(DocumentTypes.Contacts);
+
+        expect(foundTwo._id).toBeDefined();
+        expect(foundTwo._rev).toBeDefined();
+        expect(foundTwo.DocumentType).toBe(DocumentTypes.Contacts);
     });
 
     it('should add entity with auto generated id', async () => {
@@ -137,16 +145,18 @@ describe('data context', () => {
         });
 
         expect(context.hasPendingChanges()).toBe(true);
-        await context.saveChanges();
+        const { adds } = await context.saveChanges();
         expect(context.hasPendingChanges()).toBe(false);
 
         const notes = await context.notes.all();
 
         expect(notes.length).toBe(1);
 
-        expect(note._id).toBeDefined();
-        expect(note._rev).toBeDefined();
-        expect(note.DocumentType).toBeDefined();
+        const [found] = adds.match(note)!;
+
+        expect(found._id).toBeDefined();
+        expect(found._rev).toBeDefined();
+        expect(found.DocumentType).toBeDefined();
     });
 
 
@@ -166,18 +176,20 @@ describe('data context', () => {
         });
 
         expect(context.hasPendingChanges()).toBe(true);
-        await context.saveChanges();
+        const { adds } = await context.saveChanges();
         expect(context.hasPendingChanges()).toBe(false);
 
         const contacts = await context.contacts.all();
 
+        const [foundFirst, foundSecond] = adds.match(first, second);
+
         expect(contacts.length).toBe(2);
-        expect(first._id).toBeDefined();
-        expect(first._rev).toBeDefined();
-        expect(first.DocumentType).toBe(DocumentTypes.Contacts);
-        expect(second._id).toBeDefined();
-        expect(second._rev).toBeDefined();
-        expect(second.DocumentType).toBe(DocumentTypes.Contacts);
+        expect(foundFirst._id).toBeDefined();
+        expect(foundFirst._rev).toBeDefined();
+        expect(foundFirst.DocumentType).toBe(DocumentTypes.Contacts);
+        expect(foundSecond._id).toBeDefined();
+        expect(foundSecond._rev).toBeDefined();
+        expect(foundSecond.DocumentType).toBe(DocumentTypes.Contacts);
     });
 
     it('should save changes when entity is removed', async () => {
@@ -191,16 +203,19 @@ describe('data context', () => {
         });
 
         expect(context.hasPendingChanges()).toBe(true);
-        await context.saveChanges();
+        const { adds } = await context.saveChanges();
         expect(context.hasPendingChanges()).toBe(false);
 
         let contacts = await context.contacts.all();
 
         expect(contacts.length).toBe(1);
 
-        await context.contacts.remove(contact);
+        const [foundContact] = adds.match(contact)!;
+
+        await context.contacts.remove(foundContact);
 
         expect(context.hasPendingChanges()).toBe(true);
+
         await context.saveChanges();
         expect(context.hasPendingChanges()).toBe(false);
 
@@ -225,14 +240,16 @@ describe('data context', () => {
         });
 
         expect(context.hasPendingChanges()).toBe(true);
-        await context.saveChanges();
+        const { adds } = await context.saveChanges();
         expect(context.hasPendingChanges()).toBe(false);
 
         let contacts = await context.contacts.all();
 
         expect(contacts.length).toBe(2);
 
-        await context.contacts.remove(first, second);
+        const found = adds.match(first, second);
+
+        await context.contacts.remove(...found);
 
         expect(context.hasPendingChanges()).toBe(true);
         await context.saveChanges();
@@ -293,12 +310,13 @@ describe('data context', () => {
 
         let contacts = await context.contacts.all();
 
+        const [foundContact] = contacts
+
         expect(contacts.length).toBe(1);
 
-        contact.firstName = "Changed";
+        foundContact.firstName = "Changed";
 
         expect(context.hasPendingChanges()).toBe(true);
-
         await context.saveChanges();
         expect(context.hasPendingChanges()).toBe(false);
 
@@ -327,6 +345,7 @@ describe('data context', () => {
         expect(contacts.length).toBe(1);
 
         contact.firstName = "Changed";
+
         contact.firstName = "James";
 
         expect(context.hasPendingChanges()).toBe(false);
@@ -350,7 +369,8 @@ describe('data context', () => {
 
         expect(contacts.length).toBe(1);
 
-        contact.firstName = "Changed";
+        const [foundContact] = contacts
+        foundContact.firstName = "Changed";
 
         expect(context.hasPendingChanges()).toBe(true);
         await context.saveChanges();
@@ -428,15 +448,17 @@ describe('data context', () => {
         });
 
         expect(context.hasPendingChanges()).toBe(true);
-        await context.saveChanges();
+        const { adds } = await context.saveChanges();
         expect(context.hasPendingChanges()).toBe(false);
 
         const contacts = await context.contacts.all();
 
+        const [found] = adds.match(contact);
+
         expect(contacts.length).toBe(1);
-        expect(contact._id).toBeDefined();
-        expect(contact._rev).toBeDefined();
-        expect(contact.DocumentType).toBe(DocumentTypes.Contacts)
+        expect(found._id).toBeDefined();
+        expect(found._rev).toBeDefined();
+        expect(found.DocumentType).toBe(DocumentTypes.Contacts)
     });
 
 
@@ -671,54 +693,6 @@ describe('data context', () => {
         expect((context.dbsetTest as any)._params.exclusions).toEqual(["contents", "createdDate"]);
     });
 
-    it('should build key using one property using fluent dbset builder', async () => {
-
-        class FluentContext extends ExternalDataContext {
-
-            constructor(name: string) {
-                super(name);
-            }
-
-            dbsetTest = this.dbset().default<INote>(DocumentTypes.Notes).keys(w => w.add("contents"));
-        }
-
-        const context = dbFactory(FluentContext) as FluentContext
-
-        expect((context.dbsetTest as any)._params.idKeys).toEqual(["contents"]);
-    });
-
-    it('should build key using many properties using fluent dbset builder', async () => {
-
-        class FluentContext extends ExternalDataContext {
-
-            constructor(name: string) {
-                super(name);
-            }
-
-            dbsetTest = this.dbset().default<INote>(DocumentTypes.Notes).keys(w => w.add("contents").add("userId"));
-        }
-
-        const context = dbFactory(FluentContext) as FluentContext
-
-        expect((context.dbsetTest as any)._params.idKeys).toEqual(["contents", "userId"]);
-    });
-
-    it('should allow keys to be called more than once and build key using many properties using fluent dbset builder', async () => {
-
-        class FluentContext extends ExternalDataContext {
-
-            constructor(name: string) {
-                super(name);
-            }
-
-            dbsetTest = this.dbset().default<INote>(DocumentTypes.Notes).keys(w => w.add("contents")).keys(w => w.add("userId"));
-        }
-
-        const context = dbFactory(FluentContext) as FluentContext
-
-        expect((context.dbsetTest as any)._params.idKeys).toEqual(["contents", "userId"]);
-    });
-
     it('should save correctly with context tracking', async () => {
 
         class FluentContext extends ExternalDataContext {
@@ -732,7 +706,7 @@ describe('data context', () => {
 
         const context = dbFactory(FluentContext) as FluentContext
 
-        const [book] = await context.books2.add({ 
+        const [book] = await context.books2.add({
             author: "James",
             rejectedCount: 1,
             publishDate: new Date(),

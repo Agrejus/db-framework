@@ -1,3 +1,4 @@
+
 import { DataContext } from "../../src/context/DataContext";
 import { IDbRecord } from "../../src/types/entity-types";
 import { PouchDbPlugin, PouchDbRecord } from "@agrejus/db-framework-plugin-pouchdb";
@@ -6,6 +7,10 @@ import { contextBuilder } from "../../src/context/builder/context-builder";
 import { DbSetRemoteChanges } from "../../src/types/dbset-types";
 import { StatefulDataContext } from "../../src/context/StatefulDataContext";
 import { DbContextFactory, ExternalDataContext } from "../../src/__tests__/integration/shared/context";
+import { faker } from "@faker-js/faker";
+import PouchDB from 'pouchdb';
+import { performance } from "perf_hooks";
+import { shouldFilterEntitiesWithDefaults } from "../../src/__tests__/integration/shared/common-tests";
 
 enum DocumentTypes {
     Notes = "Notes",
@@ -13,17 +18,43 @@ enum DocumentTypes {
     Books = "Books",
     Cars = "Cars",
     Preference = "Preference",
-    ExtendedBooks = "ExtendedBooks"
+    ExtendedBooks = "ExtendedBooks",
+    Configuration = "Configuration"
 }
+
+interface IChildConfigration {
+    someProperty_1: string;
+    someArray_1: string[];
+}
+
+interface IConfiguration extends PouchDbRecord<DocumentTypes> {
+    someProperty_1: string;
+    someProperty_2: string;
+    someProperty_3: string;
+    someProperty_4: string;
+    someProperty_5: string;
+    someProperty_6: string;
+    someProperty_7: string;
+    someProperty_8: string;
+    someProperty_9: string;
+    someProperty_10: string;
+    someProperty_11: string;
+    someChildObject: IChildConfigration;
+}
+
 
 interface IPreference extends PouchDbRecord<DocumentTypes> {
-    isSomePropertyOn: boolean;
-    isOtherPropertyOn: boolean;
-}
-
-interface IBaseEntity extends PouchDbRecord<DocumentTypes> {
-    syncStatus: "pending" | "approved" | "rejected";
-    syncRetryCount: 0;
+    someProperty_1: string;
+    someProperty_2: string;
+    someProperty_3: string;
+    someProperty_4: string;
+    someProperty_5: string;
+    someProperty_6: string;
+    someProperty_7: string;
+    someProperty_8: string;
+    someProperty_9: string;
+    someProperty_10: string;
+    someProperty_11: string;
 }
 
 interface INote extends PouchDbRecord<DocumentTypes> {
@@ -48,142 +79,111 @@ interface ICar extends PouchDbRecord<DocumentTypes.Cars> {
     manufactureDate: string;
 }
 
-const TestDataContext = contextBuilder<DocumentTypes>()
+const PerformanceDataContext = contextBuilder<DocumentTypes>()
     .useBaseRecord<PouchDbRecord<DocumentTypes>>()
     .useExclusions()
-    .usePlugin({ dbName: "test-builder-db" }, PouchDbPlugin)
-    .createStateful((Base) => {
+    .usePlugin({ dbName: "performance-db" }, PouchDbPlugin)
+    .createDefault("createDefault", (Base) => {
         return class extends Base {
 
-            types = {
-                map: {} as typeof this.cars.types.map & typeof this.books.types.map
+            contextId() {
+                return "some-name"
             }
 
-
-            onChange(documentType: DocumentTypes, type: any, data: IDbRecord<DocumentTypes>[]) {
-                // all 
-                // what if we have the store dbset automatically implement onChange?
-                console.log('onChange', documentType, data, type)
-            }
-
-            books = this.dbset().stateful<IBook>(DocumentTypes.Books)
-                .onChange((d, w, c) => { this.onChange(d, w, c.all) })
-                //.defaults({ test: "Winner" })
-                .keys(w => w.add("author").add("test"))
-                .filter(w => w.test == "Winner")
+            cars = this.dbset().default<ICar>(DocumentTypes.Cars)
+                .keys(w => w.auto())
                 .create();
 
-            cars = this.dbset().stateful<ICar>(DocumentTypes.Cars)
-                .onChange((d, w, c) => { this.onChange(d, w, c.all) })
+            books = this.dbset().default<IBook>(DocumentTypes.Books)
+                .keys(w => w.auto())
+                .create();
+
+            notes = this.dbset().default<INote>(DocumentTypes.Notes)
+                .keys(w => w.auto())
+                .create();
+
+            preferences = this.dbset().default<IPreference>(DocumentTypes.Preference)
+                .keys(w => w.auto())
+                .create();
+
+            configurations = this.dbset().default<IConfiguration>(DocumentTypes.Configuration)
                 .keys(w => w.auto())
                 .create();
         }
     });
 
-class ExternalDbDataContext extends StatefulDataContext<DocumentTypes, PouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, PouchDbRecord<DocumentTypes>, IDbPluginOptions>> {
-
-    constructor() {
-        super({ dbName: "Test" }, PouchDbPlugin, { environment: "development" });
-    }
-
-    types = {
-        map: {} as typeof this.cars.types.map & typeof this.books.types.map
-    }
-
-
-    onChange(documentType: DocumentTypes, type: any, data: DbSetRemoteChanges<DocumentTypes, PouchDbRecord<DocumentTypes>>) {
-        // all 
-        // what if we have the store dbset automatically implement onChange?
-        console.log('onChange', documentType, data, type)
-    }
-
-    books = this.dbset().stateful<IBook>(DocumentTypes.Books)
-        .onChange((d, w, c) => { this.onChange(d, w, c) })
-        .defaults({ test: "Winner" })
-        .keys(w => w.add("author").add("test"))
-        .filter(w => w.test == "Winner")
-        .create();
-
-    cars = this.dbset().stateful<ICar>(DocumentTypes.Cars)
-        .onChange((d, w, c) => { this.onChange(d, w, c) })
-        .keys(w => w.auto())
-        .create();
-
-    books2 = this.dbset().default<IBook>(DocumentTypes.ExtendedBooks).create();
-}
-
-// const runTest = async () => {
-//     const context = new ExternalDbDataContext();
-
-//     const [bookOne, bookTwo] = await context.books2.add({
-//         author: "James",
-//         rejectedCount: 1,
-//         syncStatus: "pending",
-//         status: "pending"
-//     }, {
-//         author: "Megan",
-//         rejectedCount: 1,
-//         syncStatus: "pending",
-//         status: "pending"
-//     });
-
-//     // Add
-//     await context.saveChanges();
-
-//     // no changes here
-
-//     let foundOne = await context.books2.find(w => w._id === bookOne._id);
-//     let foundTwo = await context.books2.find(w => w._id === bookTwo._id);
-
-//     if (foundOne == null || foundTwo == null) {
-//         return;
-//     }
-
-//     let changes = await context.previewChanges();
-
-//     bookOne.status = "rejected";
-
-//     changes = await context.previewChanges();
-
-
-//     // Make First Change
-//     await context.saveChanges();
-
-//     foundOne = await context.books2.find(w => w._id === foundOne!._id);
-
-//     changes = await context.previewChanges();
-
-//     bookTwo.status = "approved";
-
-//     // Change Second Change
-//     changes = await context.previewChanges()
-
-//     const count = await context.saveChanges();
-
-//     console.log(changes)
-    
-
-//     foundTwo = await context.books2.find(w => w._id === foundTwo!._id);
-// }
 
 export const run = async () => {
     try {
+        //const contextFactory = new DbContextFactory();
+
+        // const context = new ExternalDataContext("test-db");
+        // const all = await context.computers.all();
+        // console.log(all);
+
+
+        // const [contact] = await context.computers.add({
+        //     cores: 8,
+        //     name: "Some Name"
+        // });
+
+        // await context.saveChanges();
+
+        // contact.name = "TEst";
+
+        // const changes = await context.previewChanges();
+
+        // console.log(changes)
+
+
         const contextFactory = new DbContextFactory();
-        const context = contextFactory.createContext(ExternalDataContext);
+        const dbname = contextFactory.getRandomDbName();
+        const context = contextFactory.createContext(ExternalDataContext, dbname);
 
-        const [book] = await context.books.add({
-            author: "James DeMeuse",
-            publishDate: new Date()
-        });
+        const s1 = performance.now();
 
-        await context.saveChanges();
+        for(let i = 0; i < 1000; i++) {
+            await context.books.add({
+                author: faker.random.word(),
+                publishDate: faker.date.between('2010-01-01', '2024-01-01')
+            });
+        }
 
-        const found = await context.books.first();
+        console.log('adds', performance.now() - s1)
 
-        const x = Object.prototype.toString.call(found?.publishDate);
 
+        // const x = await context.booksV3.first();
+        // const y = await context2.booksV3.first();
+
+        const s = performance.now();
+        const saved = await context.saveChanges();
+        console.log(performance.now() - s)
+        console.log(saved)
+       
+
+        for(let i = 0; i < 1000; i++) {
+            await context.books.add({
+                author: faker.random.word(),
+                publishDate: faker.date.between('2010-01-01', '2024-01-01')
+            });
+        }
+
+        const s2 = performance.now();
+        const saved2 = await context.saveChanges();
+        console.log(performance.now() - s2)
+
+        const found = await context.books.find(w => w.author === "James");
+
+        if (found != null) {
+            console.log(found.someProperty)
+        }
+
+        const author = await context.books.pluck(w => w.author === "James", "someProperty");
+
+        console.log(author)
+       
     } catch (e) {
-        console.log(e)
+        console.error(e)
     }
 
 }

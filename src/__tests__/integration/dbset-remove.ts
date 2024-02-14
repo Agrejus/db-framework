@@ -19,9 +19,11 @@ describe('DbSet Remove Tests', () => {
             address: "1234 Test St"
         });
 
-        await context.saveChanges();
+        const { adds } = await context.saveChanges();
 
-        await context.contacts.remove(contact);
+        const [found] = adds.match(contact);
+
+        await context.contacts.remove(found!);
 
         await context.saveChanges();
 
@@ -124,9 +126,11 @@ describe('DbSet Remove Tests', () => {
             address: "6789 Test St"
         });
 
-        await context.saveChanges();
+        const { adds } = await context.saveChanges();
 
-        await context.contacts.remove(one);
+        const [found] = adds.match(one)
+
+        await context.contacts.remove(found!);
 
         await context.saveChanges();
 

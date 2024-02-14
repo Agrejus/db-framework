@@ -1,4 +1,4 @@
-import { DbContextFactory, ExternalDataContext, BooksWithTwoDefaultContext } from "./shared/context";
+import { DbContextFactory, ExternalDataContext } from "./shared/context";
 import { DocumentTypes } from "./shared/types";
 import { EntityAndTag } from "../../types/dbset-types";
 
@@ -12,6 +12,7 @@ describe('DbSet Add Tests', () => {
 
     it('should add entity and return reference', async () => {
         const context = contextFactory.createContext(ExternalDataContext);
+
         const [contact] = await context.contacts.add({
             firstName: "James",
             lastName: "DeMeuse",
@@ -27,6 +28,35 @@ describe('DbSet Add Tests', () => {
         expect(contact.lastName).toBe("DeMeuse");
         expect(contact.phone).toBe("111-111-1111");
         expect(contact.address).toBe("1234 Test St");
+    });
+
+    it('should not add entity and add to internal change tracking for updates until it is saved', async () => {
+        const context = contextFactory.createContext(ExternalDataContext);
+        const [contact] = await context.contacts.add({
+            firstName: "James",
+            lastName: "DeMeuse",
+            phone: "111-111-1111",
+            address: "1234 Test St"
+        });
+
+        expect(context.contacts.isLinked(contact)).toBe(false);
+    });
+
+    it('should add entity and add to internal change tracking for updates', async () => {
+        const context = contextFactory.createContext(ExternalDataContext);
+        const [contact] = await context.contacts.add({
+            firstName: "James",
+            lastName: "DeMeuse",
+            phone: "111-111-1111",
+            address: "1234 Test St"
+        });
+
+        const { adds } = await context.saveChanges();
+
+        const [found] = adds.match(contact);
+
+        expect(context.contacts.isLinked(found!)).toBe(true)
+        expect(context.contacts.isLinked(contact)).toBe(false);
     });
 
     it('should only allow one single entity per dbset', async () => {
@@ -134,36 +164,46 @@ describe('DbSet Add Tests', () => {
             address: "1234 Test St"
         });
 
-        await context.saveChanges();
+        const { adds } = await context.saveChanges();
 
-        expect(contact.DocumentType).toBe(DocumentTypes.Contacts);
-        expect(contact._id).toBe("Contacts/James/DeMeuse");
-        expect(contact._rev).toBeDefined();
+        const [saved] = adds.match(contact);
 
-        expect(contact.firstName).toBe("James");
-        expect(contact.lastName).toBe("DeMeuse");
-        expect(contact.phone).toBe("111-111-1111");
-        expect(contact.address).toBe("1234 Test St");
+        expect(saved?.DocumentType).toBe(DocumentTypes.Contacts);
+        expect(saved?._id).toBe("Contacts/James/DeMeuse");
+        expect(saved?._rev).toBeDefined();
+
+        expect(saved?.firstName).toBe("James");
+        expect(saved?.lastName).toBe("DeMeuse");
+        expect(saved?.phone).toBe("111-111-1111");
+        expect(saved?.address).toBe("1234 Test St");
+
+        expect(contact._rev).not.toBeDefined()
     });
 
     it('should add entity, save, and generate an id', async () => {
         const context = contextFactory.createContext(ExternalDataContext);
+
         const [note] = await context.notes.add({
             contents: "Some Note",
             createdDate: new Date(),
             userId: "jdemeuse"
         });
 
-        await context.saveChanges();
+        const { adds } = await context.saveChanges();
 
-        expect(note.DocumentType).toBe(DocumentTypes.Notes);
+        const [found] = adds.match(note);
 
-        expect(note._id).toMatch(/^[0-9a-fA-F]{8}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{12}$/)
-        expect(note._rev).toBeDefined();
+        expect(found?.DocumentType).toBe(DocumentTypes.Notes);
 
-        expect(note.contents).toBe("Some Note");
-        expect(note.createdDate).toBeDefined();
-        expect(note.userId).toBe("jdemeuse");
+        expect(found?._id).toMatch(/^[0-9a-fA-F]{8}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{12}$/)
+        expect(found?._rev).toBeDefined();
+
+        expect(found?.contents).toBe("Some Note");
+        expect(found?.createdDate).toBeDefined();
+        expect(found?.userId).toBe("jdemeuse");
+
+        expect(note._id).toBeDefined();
+        expect(note._rev).not.toBeDefined();
     });
 
     it('should add entity and create id from selector', async () => {
@@ -194,15 +234,24 @@ describe('DbSet Add Tests', () => {
             publishDate: new Date()
         });
 
-        await context.saveChanges();
 
-        expect(book.DocumentType).toBe(DocumentTypes.Books);
-        expect(book._id).toBeDefined();
-        expect(book._rev).toBeDefined();
+        const { adds } = await context.saveChanges();
 
-        expect(book.author).toBe("James DeMeuse");
-        expect(book.publishDate).toBeDefined();
-        expect(book.status).toBe("pending");
+        const [found] = adds.match(book);
+
+        const raw = await context.getRaw(found!._id);
+
+        expect((raw as any).someProperty).not.toBeDefined();
+
+        expect(found?.DocumentType).toBe(DocumentTypes.Books);
+        expect(found?._id).toBeDefined();
+        expect(found?._rev).toBeDefined();
+
+        expect(found?.someProperty).toBeDefined();
+        expect(found?.someProperty).toBe(found?.author);
+        expect(found?.author).toBe("James DeMeuse");
+        expect(found?.publishDate).toBeDefined();
+        expect(found?.status).toBe("pending");
     });
 
     it('should add entity and return the original added object', async () => {
@@ -212,20 +261,22 @@ describe('DbSet Add Tests', () => {
             publishDate: new Date()
         });
 
-        await context.saveChanges();
+        const { adds } = await context.saveChanges();
 
-        expect(book.DocumentType).toBe(DocumentTypes.Books);
-        expect(book._id).toBeDefined();
-        expect(book._rev).toBeDefined();
+        const [match] = adds.match(book);
 
-        expect(book.author).toBe("James DeMeuse");
-        expect(book.publishDate).toBeDefined();
-        expect(book.status).toBe("pending");
-        expect(Object.prototype.toString.call(book.publishDate)).toBe('[object Date]');
+        expect(match?.DocumentType).toBe(DocumentTypes.Books);
+        expect(match?._id).toBeDefined();
+        expect(match?._rev).toBeDefined();
+
+        expect(match?.author).toBe("James DeMeuse");
+        expect(match?.publishDate).toBeDefined();
+        expect(match?.status).toBe("pending");
+        expect(Object.prototype.toString.call(match?.publishDate)).toBe('[object Date]');
 
         const found = await context.books.first();
 
-        expect(Object.prototype.toString.call(found?.publishDate)).toBe('[object Date]');
+        expect(Object.prototype.toString.call(found?.publishDate)).toBe('[object String]');
     });
 
     it('should add entity and map the returning date', async () => {
@@ -236,16 +287,18 @@ describe('DbSet Add Tests', () => {
             createdDate: new Date()
         });
 
-        await context.saveChanges();
+        const { adds } = await context.saveChanges();
 
-        expect(book.DocumentType).toBe(DocumentTypes.BooksWithDateMapped);
-        expect(book._id).toBeDefined();
-        expect(book._rev).toBeDefined();
+        const [match] = adds.match(book);
 
-        expect(book.author).toBe("James DeMeuse");
-        expect(Object.prototype.toString.call(book.publishDate)).toBe('[object Date]');
-        expect(Object.prototype.toString.call(book.createdDate)).toBe('[object Date]');
-        expect(book.status).toBe("pending");
+        expect(match?.DocumentType).toBe(DocumentTypes.BooksWithDateMapped);
+        expect(match?._id).toBeDefined();
+        expect(match?._rev).toBeDefined();
+
+        expect(match?.author).toBe("James DeMeuse");
+        expect(Object.prototype.toString.call(match?.publishDate)).toBe('[object Date]');
+        expect(Object.prototype.toString.call(match?.createdDate)).toBe('[object Date]');
+        expect(match?.status).toBe("pending");
 
         const found = await context.booksWithDateMapped.first();
 
@@ -288,7 +341,7 @@ describe('DbSet Add Tests', () => {
     });
 
     it('dbset should set defaults after fetch for add and retrieve', async () => {
-        const [missingContext, context] = contextFactory.createDbContexts(name => [new BooksWithTwoDefaultContext(name), new ExternalDataContext(name)]);
+        const [missingContext, context] = contextFactory.createDbContexts(name => [new ExternalDataContext(name), new ExternalDataContext(name)]);
         const date = new Date();
         await missingContext.booksWithTwoDefaults.add({
             author: "james",
@@ -304,8 +357,8 @@ describe('DbSet Add Tests', () => {
             publishDate: date
         });
 
-        expect(retrievedBook?.status).toBe("approved");
-        expect(retrievedBook?.rejectedCount).toBe(-1);
+        expect(retrievedBook?.status).toBe("pending");
+        expect(retrievedBook?.rejectedCount).toBe(0);
         expect(retrievedBook?.author).toBe("james");
         expect(retrievedBook?.DocumentType).toBe(DocumentTypes.BooksWithTwoDefaults);
         expect(retrievedBook?.publishDate).toBe(date.toISOString());
@@ -322,7 +375,7 @@ describe('DbSet Add Tests', () => {
     });
 
     it('dbset should set defaults after fetch for add and retrieve for all docs', async () => {
-        const [missingContext, context] = contextFactory.createDbContexts(name => [new BooksWithTwoDefaultContext(name), new ExternalDataContext(name)]);
+        const [missingContext, context] = contextFactory.createDbContexts(name => [new ExternalDataContext(name), new ExternalDataContext(name)]);
         const date = new Date();
         await missingContext.booksWithTwoDefaults.add({
             author: "james",
@@ -339,8 +392,8 @@ describe('DbSet Add Tests', () => {
             publishDate: date
         });
 
-        expect(retrievedBook.status).toBe("approved");
-        expect(retrievedBook.rejectedCount).toBe(-1);
+        expect(retrievedBook.status).toBe("pending");
+        expect(retrievedBook.rejectedCount).toBe(0);
         expect(retrievedBook.author).toBe("james");
         expect(retrievedBook.DocumentType).toBe(DocumentTypes.BooksWithTwoDefaults);
         expect(retrievedBook.publishDate).toBe(date.toISOString());
@@ -369,9 +422,13 @@ describe('DbSet Add Tests', () => {
 
         expect(context.hasPendingChanges()).toBe(false);
 
-        const count = await context.saveChanges();
+        const result = await context.saveChanges();
 
-        expect(count).toBe(0)
+        expect(result.adds.length).toEqual(0);
+        expect(result.removes.length).toEqual(0);
+        expect(result.updates.deltas.length).toEqual(0);
+        expect(result.updates.docs.length).toEqual(0);
+        expect(result.updates.originals.length).toEqual(0);
 
         await context.contacts.add(contact)
 
@@ -379,7 +436,7 @@ describe('DbSet Add Tests', () => {
 
         const afterLinkCount = await context.saveChanges();
 
-        expect(afterLinkCount).toBe(1);
+        expect(afterLinkCount.successes_count).toBe(1);
 
         const found = context.contacts.first();
 
@@ -397,14 +454,16 @@ describe('DbSet Add Tests', () => {
         expect(book.SyncRetryCount).toBe(0);
         expect(book.SyncStatus).toBe("Pending");
 
-        await context.saveChanges();
+        const { adds } = await context.saveChanges();
 
-        expect(book.DocumentType).toBe(DocumentTypes.BooksV3);
-        expect(book._id).toBeDefined();
-        expect(book._rev).toBeDefined();
+        const [match] = adds.match(book);
 
-        expect(book.author).toBe("me");
-        expect(book.publishDate).toBeDefined();
+        expect(match?.DocumentType).toBe(DocumentTypes.BooksV3);
+        expect(match?._id).toBeDefined();
+        expect(match?._rev).toBeDefined();
+
+        expect(match?.author).toBe("me");
+        expect(match?.publishDate).toBeDefined();
     });
 
     it('should insert and add with auto generated id', async () => {
@@ -456,12 +515,13 @@ describe('DbSet Add Tests', () => {
 
         expect(upsertedOne._id).toEqual(one._id);
         expect(context.hasPendingChanges()).toEqual(true);
+
         await context.saveChanges();
         expect(context.hasPendingChanges()).toEqual(false);
 
         const foundUpsertOne = await context.notes.find(w => w._id === one._id);
 
-        expect({ ...upsertedOne, createdDate: upsertedOne.createdDate }).toEqual({ ...foundUpsertOne });
+        expect(upsertedOne.createdDate.toISOString()).toEqual(foundUpsertOne?.createdDate)
         expect(foundUpsertOne?.contents).toEqual("changed contents");
         expect(foundUpsertOne?.userId).toEqual("changed user");
 
@@ -478,7 +538,7 @@ describe('DbSet Add Tests', () => {
         const dbName = contextFactory.getRandomDbName();
         let calls = 0;
         const context = contextFactory.createContext(class extends ExternalDataContext {
-   
+
             async onAfterSaveChanges(getChanges: () => { adds: EntityAndTag[]; removes: EntityAndTag[]; updates: EntityAndTag[]; }): Promise<void> {
                 calls++;
                 const changes = getChanges();
@@ -500,7 +560,7 @@ describe('DbSet Add Tests', () => {
         const dbName = contextFactory.getRandomDbName();
         let calls = 0;
         const context = contextFactory.createContext(class extends ExternalDataContext {
-   
+
             async onAfterSaveChanges(getChanges: () => { adds: EntityAndTag[]; removes: EntityAndTag[]; updates: EntityAndTag[]; }): Promise<void> {
                 calls++;
                 const changes = getChanges();
@@ -523,7 +583,7 @@ describe('DbSet Add Tests', () => {
         const dbName = contextFactory.getRandomDbName();
         let calls = 0;
         const context = contextFactory.createContext(class extends ExternalDataContext {
-   
+
             async onAfterSaveChanges(getChanges: () => { adds: EntityAndTag[]; removes: EntityAndTag[]; updates: EntityAndTag[]; }): Promise<void> {
                 calls++;
                 const changes = getChanges();
@@ -542,7 +602,7 @@ describe('DbSet Add Tests', () => {
 
         context.books.tag(tag).add({
             author: "James"
-        },{
+        }, {
             author: "Megan"
         }).then(() => context.saveChanges());
     });
@@ -552,11 +612,11 @@ describe('DbSet Add Tests', () => {
         const dbName = contextFactory.getRandomDbName();
         let calls = 0;
         const context = contextFactory.createContext(class extends ExternalDataContext {
-   
+
             async onAfterSaveChanges(getChanges: () => { adds: EntityAndTag[]; removes: EntityAndTag[]; updates: EntityAndTag[]; }): Promise<void> {
                 calls++;
                 const changes = getChanges();
-                
+
                 expect(changes.adds.length).toBe(2);
                 expect(changes.adds[0].entity).toBeTruthy();
                 expect(changes.adds[0].tag).toBe(tag);
@@ -589,7 +649,7 @@ describe('DbSet Add Tests', () => {
         const dbName = contextFactory.getRandomDbName();
         let calls = 0;
         const context = contextFactory.createContext(class extends ExternalDataContext {
-   
+
             async onAfterSaveChanges(getChanges: () => { adds: EntityAndTag[]; removes: EntityAndTag[]; updates: EntityAndTag[]; }): Promise<void> {
                 calls++;
                 const changes = getChanges();

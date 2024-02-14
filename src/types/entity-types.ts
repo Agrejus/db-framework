@@ -14,5 +14,7 @@ export interface IIndexableEntity<T extends any = any> {
     [key: string]: T;
 }
 
+export type IdRemoval<TDocumentType extends string> = { key: string; DocumentType: TDocumentType; }
+
 export type EntityIdKeys<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> = EntityIdKey<TDocumentType, TEntity, TExclusions>[];
 export type EntityIdKey<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> = IdKey<Omit<TEntity, "DocumentType" | TExclusions>>;

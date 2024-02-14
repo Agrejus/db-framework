@@ -1,7 +1,8 @@
-import { IAttachmentDictionary } from './change-tracking-types';
-import { IPreviewChanges } from './common-types';
+import { ReadOnlyList } from '../common/ReadOnlyList';
+import { IList } from './change-tracking-types';
+import { DeepPartial, Changes, SaveResult, IDictionary } from './common-types';
 import { IDbSetApi, SaveChangesEventData } from './dbset-types';
-import { IDbRecord } from './entity-types';
+import { IDbRecord, IdRemoval } from './entity-types';
 
 export type OnChangeEvent<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> = (getChanges: () => SaveChangesEventData<TDocumentType, TEntityBase>) => Promise<void>
 
@@ -11,7 +12,7 @@ export interface IDataContext<TDocumentType extends string, TEntityBase extends 
      * Persist changes to the underlying data store.  Returns number of documents modified
      * @returns {Promise<number>}
      */
-    saveChanges(): Promise<number>;
+    saveChanges(): Promise<SaveResult<TDocumentType, TEntityBase>>;
 
     /**
      * Get all documents in the underlying data store
@@ -39,23 +40,35 @@ export interface IDataContext<TDocumentType extends string, TEntityBase extends 
 
     /**
      * Will list changes that will be persisted.  Changes are add, remove, update.  NOTE:  This is a copy of the changes, changes made will not be persisted
-     * @returns {Promise<IPreviewChanges<TDocumentType, TEntityBase>>}
+     * @returns {Promise<Changes<TDocumentType, TEntityBase>>}
      */
-    previewChanges(): Promise<IPreviewChanges<TDocumentType, TEntityBase>>
+    previewChanges(): Promise<Changes<TDocumentType, TEntityBase>>
 }
 
 export interface ITrackedData<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> {
-    add: TEntityBase[];
-    remove: TEntityBase[];
-    attach: IAttachmentDictionary<TDocumentType, TEntityBase>;
-    removeById: string[]
+    adds: TEntityBase[];
+    removes: TEntityBase[];
+    attachments: IList<TEntityBase>;
+    removesById: IdRemoval<TDocumentType>[]
+}
+
+export type IEntityUpdates<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> = {
+    docs: ReadOnlyList<TEntityBase>;
+    deltas: ReadOnlyList<DeepPartial<TEntityBase>>;
+    originals: ReadOnlyList<TEntityBase>;
+}
+
+export interface IProcessedUpdates<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> {
+    docs: IDictionary<TEntityBase>;
+    deltas: IDictionary<DeepPartial<TEntityBase>>;
+    originals: IDictionary<TEntityBase>;
 }
 
 export interface ITrackedChanges<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> {
-    add: TEntityBase[];
-    remove: TEntityBase[];
-    removeById: string[];
-    updated: TEntityBase[];
+    adds: TEntityBase[];
+    removes: TEntityBase[];
+    removesById: IdRemoval<TDocumentType>[];
+    updates: IProcessedUpdates<TDocumentType, TEntityBase>;
 }
 
 export interface IPrivateContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase> extends IDataContext<TDocumentType, TEntityBase> {

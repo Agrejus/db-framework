@@ -14,6 +14,10 @@ export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends I
         return this.getKeyFromEntity(first) === this.getKeyFromEntity(second);
     }
 
+    isLinked(entity: TEntity) {
+        return this.changeTracker.isLinked(entity);
+    }
+
     match(...items: IDbRecordBase[]) {
         return items.filter(w => w.DocumentType === this.documentType) as TEntity[]
     }
@@ -21,12 +25,9 @@ export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends I
     info() {
         const info: IDbSetInfo<TDocumentType, TEntity, TExclusions> = {
             DocumentType: this.documentType,
-            IdKeys: this.idKeys,
             Defaults: this.defaults,
-            KeyType: this.keyType,
             Readonly: this.isReadonly,
-            Map: this.map,
-            ChangeTracker: this.changeTracker
+            ChangeTracker: this.changeTracker,
         }
 
         return info;
@@ -56,7 +57,7 @@ export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends I
                 throw new Error(`Entities to be unlinked have errors.  Errors: \r\n${errors}`)
             }
 
-            const ids = response.docs.map(w => w[this.api.dbPlugin.idPropertName]) as (keyof TEntity)[]
+            const ids = response.docs.map(w => w[this.api.dbPlugin.idPropertyName]) as (keyof TEntity)[]
             this.changeTracker.detach(ids);
         }
     }
@@ -65,14 +66,23 @@ export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends I
         return await this.changeTracker.markDirty(...entities);
     }
 
+    linkUnsafe(...entites: TEntity[]) {
+        const result = entites.map(w => {
+            const enriched = this.changeTracker.enrichment.create(w);
+            const [tracked] = this.changeTracker.enableChangeTracking(enriched);
+            return tracked;
+        });
+        return this.changeTracker.attach(...result);
+    }
+
     async link(...entities: TEntity[]) {
 
         const response = await this.api.dbPlugin.prepareAttachments(...entities);
 
-        const alreadyAttached = entities.filter(w => this.changeTracker.isAttached(w[this.api.dbPlugin.idPropertName] as keyof TEntity) === true);
+        const alreadyAttached = entities.filter(w => this.changeTracker.isAttached(w[this.api.dbPlugin.idPropertyName] as keyof TEntity) === true);
 
         if (alreadyAttached.length > 0 && this.api.contextOptions.environment !== "production") {
-            console.warn(`DB Framework Warning - Linked entities are already linked.  Ids: ${alreadyAttached.map(w => w[this.api.dbPlugin.idPropertName]).join(', ')}`)
+            console.warn(`DB Framework Warning - Linked entities are already linked.  Ids: ${alreadyAttached.map(w => w[this.api.dbPlugin.idPropertyName]).join(', ')}`)
         }
 
         if (response.ok === false) {
@@ -80,7 +90,6 @@ export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends I
             throw new Error(`Entities to be linked have errors.  Errors: \r\n${errors}`)
         }
 
-        const result = response.docs.map(w => this.changeTracker.enableChangeTracking(w, this.defaults.add, this.isReadonly, this.map));
-        return this.changeTracker.attach(result);
+        return this.changeTracker.link(response.docs, entities);
     }
 }

@@ -34,25 +34,26 @@ describe('DbSet All Tests', () => {
 
     it('should get all entities with no defaults', async () => {
 
+        const dbName = contextFactory.getRandomDbName();
         await shouldFilterEntitiesWithDefaults(
-            () => contextFactory.createContextWithParams("", "my-db0"),
+            () => contextFactory.createContextWithParams("", dbName),
             (dbSet, _) => dbSet.all(),
             w => expect(w.length).toBe(1))
     });
 
     it('should get all entities with defaults', async () => {
-
+        const dbName = contextFactory.getRandomDbName();
         await shouldFilterEntitiesWithDefaults(
-            () => contextFactory.createContextWithParams("CouchDB", "my-db"),
+            () => contextFactory.createContextWithParams("CouchDB", dbName),
             (dbSet, _) => dbSet.all(),
             w => expect(w.length).toBe(1))
     });
 
     it('should get all entities and not find result when base filter does not match - with default', async () => {
-
+        const dbName = contextFactory.getRandomDbName();
         await shouldFilterEntitiesWithDefaultsAndNotMatchOnSecondQuery(
-            () => contextFactory.createContextWithParams("CouchDB", "my-db1"),
-            () => contextFactory.createContextWithParams("", "my-db1"),
+            () => contextFactory.createContextWithParams("CouchDB", dbName),
+            () => contextFactory.createContextWithParams("", dbName),
             (dbSet, _) => dbSet.all(),
             w => expect(w.length).toBe(1),
             w => expect(w.length).toBe(1),
@@ -61,10 +62,10 @@ describe('DbSet All Tests', () => {
     });
 
     it('should get all entities and not find result when base filter does not match - with no default', async () => {
-
+        const dbName = contextFactory.getRandomDbName();
         await shouldFilterEntitiesWithDefaultsAndNotMatchOnSecondQuery(
-            () => contextFactory.createContextWithParams("", "my-db2"),
-            () => contextFactory.createContextWithParams("CouchDB", "my-db2"),
+            () => contextFactory.createContextWithParams("", dbName),
+            () => contextFactory.createContextWithParams("CouchDB", dbName),
             (dbSet, _) => dbSet.all(),
             w => expect(w.length).toBe(1),
             w => expect(w.length).toBe(1),

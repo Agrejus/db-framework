@@ -4,6 +4,9 @@ import { EntitySelector } from '../../types/common-types';
 import { IDbSetProps, DbSetType } from '../../types/dbset-types';
 import { IDbRecord, OmittedEntity, IDbRecordBase } from '../../types/entity-types';
 import { IDbPlugin } from '../../types/plugin-types';
+import { ChangeTrackingFactory } from '../../adapters/change-tracking/ChangeTrackingFactory';
+import { IPrivateContext } from '../../types/context-types';
+import { IDbSetChangeTracker } from '../../types/change-tracking-types';
 
 /**
  * Data Collection for set of documents with the same type.  To be used inside of the DbContext
@@ -13,7 +16,8 @@ export class DbSet<TDocumentType extends string, TEntity extends IDbRecord<TDocu
     protected readonly _fetchAdapter: IDbSetFetchAdapter<TDocumentType, TEntity, TExclusions>;
     protected readonly _generalAdapter: IDbSetGeneralAdapter<TDocumentType, TEntity, TExclusions>;
     protected readonly _modificationAdapter: IDbSetModificationAdapter<TDocumentType, TEntity, TExclusions>;
-    protected readonly plugin: IDbPlugin<TDocumentType, TEntity>;
+    protected readonly plugin: IDbPlugin<TDocumentType, TEntity, TExclusions>;
+    protected readonly _changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>;
 
     protected getDbSetType(): DbSetType {
         return "default";
@@ -35,7 +39,16 @@ export class DbSet<TDocumentType extends string, TEntity extends IDbRecord<TDocu
      */
     constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>) {
 
-        const adapterFactory = new AdapterFactory<TDocumentType, TEntity, TExclusions>(props, this.types.dbsetType);
+        const context = props.context as IPrivateContext<TDocumentType, TEntity, TExclusions>;
+
+        const api = context._getApi();
+        this.plugin = api.dbPlugin;
+
+        const changeTrackingFactory = new ChangeTrackingFactory<TDocumentType, TEntity, TExclusions>(props, this.plugin, api.contextId, api.contextOptions.environment ?? "development");
+
+        this._changeTracker = changeTrackingFactory.getTracker();
+
+        const adapterFactory = new AdapterFactory<TDocumentType, TEntity, TExclusions>(props, this.types.dbsetType, this._changeTracker);
 
         this._fetchAdapter = adapterFactory.createFetchAdapter();
         this._generalAdapter = adapterFactory.createGeneralAdapter();
@@ -111,7 +124,27 @@ export class DbSet<TDocumentType extends string, TEntity extends IDbRecord<TDocu
         return await this._generalAdapter.link(...entities);
     }
 
+    linkUnsafe(...entities: TEntity[]) {
+        return this._generalAdapter.linkUnsafe(...entities);
+    }
+
+    isLinked(entity: TEntity) {
+        return this._generalAdapter.isLinked(entity);
+    }
+
     async first() {
         return await this._fetchAdapter.first();
+    }
+
+    async pluck<TKey extends keyof TEntity>(selector: EntitySelector<TDocumentType, TEntity>, propertySelector: TKey) {
+        return await this._fetchAdapter.pluck(selector, propertySelector);
+    }
+
+    serialize(...entities: TEntity[]): any[] {
+        return entities.map(w => this._changeTracker.enrichment.serialize(w));
+    }
+
+    deserialize(...entities: any[]) {
+        return entities.map(w => this._changeTracker.enrichment.deserialize(w));
     }
 }

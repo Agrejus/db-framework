@@ -1,3 +1,5 @@
+import { ReadOnlyList } from "../common/ReadOnlyList";
+import { IEntityUpdates } from "./context-types";
 import { IDbRecord, OmittedEntity, IRemovalRecord } from "./entity-types";
 
 export type DeepOmit<T, K extends PropertyKey> = {
@@ -23,12 +25,21 @@ export type DbSetPickDefaultActionOptional<TDocumentType extends string, TEntity
 export type DbSetPickDefaultActionRequired<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> = DbSetActionDictionaryRequired<DeepPartial<OmittedEntity<TEntity, TExclusions>>>;
 
 export type EntitySelector<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = (entity: TEntity, index?: number, array?: TEntity[]) => boolean;
-export type EntityComparator<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = (a: TEntity, b: TEntity) => boolean;
+export type EntityComparator<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = (original: TEntity, next: TEntity) => DeepPartial<TEntity> | null;
 
 export type DeepReadOnly<T> = { readonly [key in keyof T]: DeepReadOnly<T[key]> };
 
-export interface IPreviewChanges<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> {
-    add: TEntityBase[];
-    remove: IRemovalRecord<TDocumentType, TEntityBase>[];
-    update: TEntityBase[];
+export interface Changes<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> {
+    adds: ReadOnlyList<TEntityBase>;
+    removes: ReadOnlyList<IRemovalRecord<TDocumentType, TEntityBase>>;
+    updates: IEntityUpdates<TDocumentType, TEntityBase>
 }
+
+export interface SaveResult<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> extends Changes<TDocumentType, TEntityBase> {
+    successes_count: number;
+}
+
+export type ToUnion<T> = { [K in keyof T]: K }[keyof T]
+
+export type IDictionary<T> = { [key: string | number]: T };
+

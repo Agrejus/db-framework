@@ -19,21 +19,22 @@ export interface IBulkOperationsResponse {
     successes_count: number
 }
 
-export type DbPluginOperations = "add";
+export type DbPluginOperations = "add" | "remove";
 export interface IDbPlugin<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase = never> {
-    readonly idPropertName: keyof TEntityBase;
+    readonly idPropertyName: keyof TEntityBase;
     readonly types: { exclusions: TExclusions }
     destroy(): Promise<void>;
     all(payload?: IQueryParams<TDocumentType>): Promise<TEntityBase[]>;
-    getStrict(...ids: string[]): Promise<TEntityBase[]>;
-    get(...ids: string[]): Promise<TEntityBase[]>;
+    getStrict(DocumentType: TDocumentType, ...ids: string[]): Promise<TEntityBase[]>;
+    get(DocumentType: TDocumentType, ...ids: string[]): Promise<TEntityBase[]>;
     bulkOperations(operations: { adds: TEntityBase[], removes: TEntityBase[], updates: TEntityBase[] }): Promise<IBulkOperationsResponse>;
 
     prepareDetachments(...entities: TEntityBase[]): { ok: boolean, errors: string[], docs: TEntityBase[] }
     prepareAttachments(...entities: TEntityBase[]): Promise<{ ok: boolean, errors: string[], docs: TEntityBase[] }>;
-    isOperationAllowed(entity: TEntityBase, operation: DbPluginOperations): boolean;
-    formatDeletions(...entities: TEntityBase[]): TEntityBase[];
-    setDbGeneratedValues(response: IBulkOperationsResponse, entities: TEntityBase[]): void;
+    isOperationAllowed(entity: TEntityBase, operation: DbPluginOperations): { ok: boolean, error?: string };
+    enrichRemoval(entity: TEntityBase): TEntityBase;
+    enrichGenerated(response: IBulkOperationsResponse, entity: TEntityBase): TEntityBase;
+
 }
 
 export type IDbPluginOptions = {

@@ -20,9 +20,16 @@ describe('DbSet Update Tests', () => {
         });
 
 
-        await context.saveChanges();
+        const { adds } = await context.saveChanges();
 
-        expect(newBook._rev).toBeDefined();
+        const [found] = adds.match(newBook);
+
+        if (found == null) {
+            expect(false).toBe(true);
+            return;
+        }
+
+        expect(found._rev).toBeDefined();
 
         const book = await context.books.first();
 
@@ -33,12 +40,16 @@ describe('DbSet Update Tests', () => {
         await context.saveChanges();
 
         const secondaryContext = contextFactory.createContext(ExternalDataContext, dbname);
+
         const [linkedBook] = await secondaryContext.books.link(book!);
 
         linkedBook.author = "James DeMeuse";
-        await secondaryContext.saveChanges();
 
-        expect(linkedBook._rev.startsWith("3")).toBe(true)
+        const { updates } = await secondaryContext.saveChanges();
+
+        const [updatedBook] = updates.docs.match(linkedBook)!;
+
+        expect(updatedBook?._rev.startsWith("3")).toBe(true)
     });
 
     it('should should add and update in one transaction', async () => {
@@ -63,7 +74,8 @@ describe('DbSet Update Tests', () => {
 
         const [foundOne] = await context.contacts.all();
 
-        expect(foundOne).toEqual(one);
+        expect(foundOne._id).toEqual(one._id);
+        expect(foundOne._rev).not.toEqual(one._rev);
 
         const [two, three] = await context.contacts.upsert({
             firstName: "James",
@@ -83,11 +95,45 @@ describe('DbSet Update Tests', () => {
 
         const foundAll = await context.contacts.all();
 
-        expect(foundAll.find(w => w._id === two._id)).toEqual(two);
-        expect(foundAll.find(w => w._id === three._id)).toEqual(three);
+        expect(foundAll.find(w => w._id === two._id)?._id).toEqual(two._id);
+        expect(foundAll.find(w => w._id === two._id)?.address).toEqual(two.address);
+        expect(foundAll.find(w => w._id === two._id)?.phone).toEqual(two.phone);
+        expect(foundAll.find(w => w._id === three._id)?._id).toEqual(three._id);
 
         expect(EntityChangeTrackingAdapter.isProxy(one)).toBe(true);
         expect(EntityChangeTrackingAdapter.isProxy(two)).toBe(true);
         expect(EntityChangeTrackingAdapter.isProxy(three)).toBe(true);
+    });
+
+    it('should update an entity from the save result and save again', async () => {
+
+        const dbname = contextFactory.getRandomDbName();
+        const context = contextFactory.createContext(ExternalDataContext, dbname);
+        const [newBook] = await context.books.add({
+            author: "Tester McTester",
+            publishDate: new Date()
+        });
+
+
+        const { adds } = await context.saveChanges();
+
+        const [found] = adds.match(newBook);
+
+        if (found == null) {
+            expect(false).toBe(true);
+            return;
+        }
+
+        expect(found._rev).toBeDefined();
+
+        found.author = "Other McTester";
+
+        const hasPendingChanges = context.hasPendingChanges();
+        expect(hasPendingChanges).toBe(true)
+        await context.saveChanges();
+
+        const book = await context.books.first();
+
+        expect(book?.author).toBe("Other McTester")
     });
 });

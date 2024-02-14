@@ -24,9 +24,11 @@ describe('DbSet markDirty Tests', () => {
         });
 
         expect(context.hasPendingChanges()).toBe(true);
-        await context.saveChanges();
+        const { adds } = await context.saveChanges();
         expect(context.hasPendingChanges()).toBe(false);
         const found = await context.notes.first();
+
+        const [foundAdd] = adds.match(one)
 
         if (found == null) {
             expect(true).toBe(false);
@@ -34,11 +36,13 @@ describe('DbSet markDirty Tests', () => {
         }
 
         const [dirty] = await context.notes.markDirty(found);
-        
+
         expect(context.hasPendingChanges()).toBe(true);
-        await context.saveChanges();
+        const { updates } = await context.saveChanges();
         expect(context.hasPendingChanges()).toBe(false);
 
-        expect(dirty._rev === one._rev).toBe(true);
+        const [updatedFound] = updates.docs.match(dirty)
+
+        expect(updatedFound!._rev === foundAdd!._rev).toBe(false);
     });
 });

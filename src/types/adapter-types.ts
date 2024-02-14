@@ -1,5 +1,6 @@
 import { IDbRecord, IDbRecordBase, OmittedEntity } from './entity-types';
 import { IDbSetInfo } from './dbset-types';
+import { EntitySelector } from './common-types';
 
 export interface IDbSetFetchAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> {
     filter(selector: (entity: TEntity, index?: number, array?: TEntity[]) => boolean): Promise<TEntity[]>;
@@ -7,6 +8,7 @@ export interface IDbSetFetchAdapter<TDocumentType extends string, TEntity extend
     first(): Promise<TEntity | undefined>;
     all(): Promise<TEntity[]>;
     get(...ids: string[]): Promise<TEntity[]>;
+    pluck<TKey extends keyof TEntity>(selector: EntitySelector<TDocumentType, TEntity>, propertySelector: TKey): Promise<TEntity[TKey]>
 }
 
 export interface IDbSetGeneralAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> {
@@ -17,6 +19,8 @@ export interface IDbSetGeneralAdapter<TDocumentType extends string, TEntity exte
     unlink(...ids: (keyof TEntity)[]): void;
     unlink(...entities: TEntity[]): void;
     link(...entites: TEntity[]): Promise<TEntity[]>;
+    linkUnsafe(...entites: TEntity[]): TEntity[];
+    isLinked(entity: TEntity): boolean;
     markDirty(...entities: TEntity[]): Promise<TEntity[]>;
 }
 
