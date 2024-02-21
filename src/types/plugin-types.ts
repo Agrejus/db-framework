@@ -1,3 +1,4 @@
+import { Transactions } from '../common/Transactions';
 import { IDbRecord } from '../types/entity-types'
 
 export interface IQueryParams<TDocumentType extends string> {
@@ -27,7 +28,7 @@ export interface IDbPlugin<TDocumentType extends string, TEntityBase extends IDb
     all(payload?: IQueryParams<TDocumentType>): Promise<TEntityBase[]>;
     getStrict(DocumentType: TDocumentType, ...ids: string[]): Promise<TEntityBase[]>;
     get(DocumentType: TDocumentType, ...ids: string[]): Promise<TEntityBase[]>;
-    bulkOperations(operations: { adds: TEntityBase[], removes: TEntityBase[], updates: TEntityBase[] }): Promise<IBulkOperationsResponse>;
+    bulkOperations(operations: { adds: TEntityBase[], removes: TEntityBase[], updates: TEntityBase[] }, transactions: Transactions): Promise<IBulkOperationsResponse>;
 
     prepareDetachments(...entities: TEntityBase[]): { ok: boolean, errors: string[], docs: TEntityBase[] }
     prepareAttachments(...entities: TEntityBase[]): Promise<{ ok: boolean, errors: string[], docs: TEntityBase[] }>;

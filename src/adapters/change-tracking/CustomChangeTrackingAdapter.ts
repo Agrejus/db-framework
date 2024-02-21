@@ -1,4 +1,5 @@
 import { List } from "../../common/List";
+import { Transaction } from "../../common/Transaction";
 import { IList, IDbSetChangeTracker, ProcessedChangesResult } from "../../types/change-tracking-types";
 import { DeepPartial, EntityComparator } from "../../types/common-types";
 import { ITrackedChanges, IProcessedUpdates } from "../../types/context-types";
@@ -25,6 +26,7 @@ export class CustomChangeTrackingAdapter<TDocumentType extends string, TEntity e
     }
 
     link(foundEntities: TEntity[], attachEntities: TEntity[]): TEntity[] {
+        const enrich = this.enrichment.compose("documentType", "id", "defaultAdd", "enhance", "destroyChanges");
         const attachedEntitiesMap = attachEntities.reduce((a, v) => {
             const id = v[this.dbPlugin.idPropertyName] as string | number;
 
@@ -34,7 +36,7 @@ export class CustomChangeTrackingAdapter<TDocumentType extends string, TEntity e
             const id = w[this.dbPlugin.idPropertyName] as string | number;
 
             return {
-                ...this.enrichment.create(w),
+                ...enrich(w),
                 ...attachedEntitiesMap[id]
             };
         });
@@ -50,13 +52,16 @@ export class CustomChangeTrackingAdapter<TDocumentType extends string, TEntity e
 
         const id = entity[this.dbPlugin.idPropertyName] as keyof TEntity;
         const original = this._originals.get(id);
+        const now = Transaction.now();
 
         if (this._dirtyMarkers[id] === true || original == null) {
+
             return {
                 isDirty: true,
                 deltas: { ...entity, [this.dbPlugin.idPropertyName]: id } as DeepPartial<TEntity>,
                 doc: entity,
-                original: entity
+                original: entity,
+                timestamp: now
             }; // mark as dirty so we save it
         }
 
@@ -67,13 +72,15 @@ export class CustomChangeTrackingAdapter<TDocumentType extends string, TEntity e
             isDirty,
             deltas: { ...deltas, [this.dbPlugin.idPropertyName]: original[this.dbPlugin.idPropertyName] },
             doc: entity,
-            original: entity
+            original: entity,
+            timestamp: now
         }
     }
 
     private _pushOriginals(...data: TEntity[]) {
+        const enrich = this.enrichment.compose("deserialize");
         const clonedItems = JSON.parse(JSON.stringify(data)) as TEntity[];
-        const clonedAndMappedItems = clonedItems.map(w => this.enrichment.deserialize(w) as TEntity);
+        const clonedAndMappedItems = clonedItems.map(enrich);
         this._originals.put(...clonedAndMappedItems)
     }
 
@@ -94,7 +101,7 @@ export class CustomChangeTrackingAdapter<TDocumentType extends string, TEntity e
     getPendingChanges(): ITrackedChanges<TDocumentType, TEntity> {
 
         const changes = this.getTrackedData();
-        const { adds, removes, removesById, attachments } = changes;
+        const { adds, removes, removesById, attachments, transactions } = changes;
 
         const updates = attachments
             .map(w => this.processChanges(w))
@@ -110,19 +117,22 @@ export class CustomChangeTrackingAdapter<TDocumentType extends string, TEntity e
                 a.docs[id] = v.doc;
                 a.deltas[id] = v.deltas;
                 a.originals[id] = v.original;
+                a.timestamp[id] = v.timestamp;
+
                 return a;
-            }, { deltas: {}, docs: {}, originals: {} } as IProcessedUpdates<TDocumentType, TEntity>);
+            }, { deltas: {}, docs: {}, originals: {}, timestamp: {}, timestamps: {} } as IProcessedUpdates<TDocumentType, TEntity>);
 
         return {
             adds,
             removes,
             removesById,
-            updates
+            updates,
+            transactions
         }
     }
 
-    enableChangeTracking(...entities: TEntity[]) {
-        return entities
+    enableChangeTracking(entity: TEntity) {
+        return entity
     }
 
     merge(from: TEntity, to: TEntity) {

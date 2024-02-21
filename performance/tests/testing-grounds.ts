@@ -113,6 +113,10 @@ const PerformanceDataContext = contextBuilder<DocumentTypes>()
     });
 
 
+const context = new ExternalDataContext("performance-db");
+
+export type EnhancedBook = typeof context.books.types.result;
+
 export const run = async () => {
     try {
         //const contextFactory = new DbContextFactory();
@@ -148,7 +152,7 @@ export const run = async () => {
                 publishDate: faker.date.between('2010-01-01', '2024-01-01')
             });
         }
-
+        debugger;
         console.log('adds', performance.now() - s1)
 
 
@@ -161,12 +165,10 @@ export const run = async () => {
         console.log(saved)
        
 
-        for(let i = 0; i < 1000; i++) {
-            await context.books.add({
-                author: faker.random.word(),
-                publishDate: faker.date.between('2010-01-01', '2024-01-01')
-            });
-        }
+        await context.books.add({
+            author: "James",
+            publishDate: faker.date.between('2010-01-01', '2024-01-01')
+        });
 
         const s2 = performance.now();
         const saved2 = await context.saveChanges();
@@ -175,10 +177,17 @@ export const run = async () => {
         const found = await context.books.find(w => w.author === "James");
 
         if (found != null) {
-            console.log(found.someProperty)
+
+            found.setPublishDate();
+
+            debugger;
+
+            found.status = "rejected";
+            await context.saveChanges();
+
         }
 
-        const author = await context.books.pluck(w => w.author === "James", "someProperty");
+        const author = await context.books.pluck(w => w.author === "James", "author");
 
         console.log(author)
        

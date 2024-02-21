@@ -128,7 +128,7 @@ export class BaseDbSetBuilder<TDocumentType extends string, TEntity extends IDbR
         });
     }
 
-    protected _enhance<TEnhanced, TResult>(enhancer: (entity: TEntity) => TEnhanced, InstanceCreator: DbSetBuilderInstanceCreator<TDocumentType, TEntity & TEnhanced, TExclusions | ToUnion<TEnhanced>, IDbSetBuilderParams<TDocumentType, TEntity & TEnhanced, TExclusions | ToUnion<TEnhanced>>, TResult>) {
+    protected _enhance<TEnhanced, TResult>(enhancer: (entity: Readonly<TEntity>) => TEnhanced, InstanceCreator: DbSetBuilderInstanceCreator<TDocumentType, TEntity & TEnhanced, TExclusions | ToUnion<TEnhanced>, IDbSetBuilderParams<TDocumentType, TEntity & TEnhanced, TExclusions | ToUnion<TEnhanced>>, TResult>) {
         const params: IDbSetBuilderParams<TDocumentType, TEntity & TEnhanced, TExclusions | ToUnion<TEnhanced>> = this._params as any;
 
         params.enhancer = enhancer as any

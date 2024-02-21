@@ -1,4 +1,5 @@
 import { List } from "../../common/List";
+import { Transactions } from "../../common/Transactions";
 import { IDbSetChangeTracker, ProcessedChangesResult } from "../../types/change-tracking-types";
 import { ITrackedChanges } from "../../types/context-types";
 import { ChangeTrackingOptions, IDbSetProps } from "../../types/dbset-types";
@@ -27,7 +28,8 @@ export class ReadonlyChangeTrackingAdapter<TDocumentType extends string, TEntity
             isDirty: false,
             deltas: null,
             doc: null,
-            original: null
+            original: null,
+            timestamp: -1
         }
     }
 
@@ -44,7 +46,8 @@ export class ReadonlyChangeTrackingAdapter<TDocumentType extends string, TEntity
             adds,
             removes: [],
             removesById: [],
-            updates: { deltas: {}, docs: {}, originals: {} }
+            updates: { deltas: {}, docs: {}, originals: {}, timestamp: {} },
+            transactions: new Transactions()
         }
     }
 

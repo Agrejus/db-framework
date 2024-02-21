@@ -26,7 +26,7 @@
     "@agrejus/db-framework": ">=1.0.0"
   },
   "devDependencies": {
-    "@agrejus/db-framework": "file:../db-framework",
+    "@agrejus/db-framework": "file:../..",
     "@capacitor/android": "latest",
     "@capacitor/ios": "latest",
     "@ionic/eslint-config": "^0.3.0",
@@ -43,16 +43,11 @@
     "swiftlint": "^1.0.1",
     "typescript": "^4.3.2"
   },
-  "husky": {
-    "hooks": {
-      "pre-commit": "pretty-quick --staged"
-    }
-  },
   "files": [
     "dist/",
     "ios/",
     "android/",
-    "DbFrameworkPluginCapacitorRealm.podspec"
+    "DbFrameworkPluginCapacitorSqlite3.podspec"
   ],
   "keywords": [
     "capacitor",
@@ -74,9 +69,9 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/agrejus/db-framework-plugin-capacitor-realm.git"
+    "url": "https://github.com/agrejus/db-framework-plugin-capacitor-sqlite3.git"
   },
   "bugs": {
-    "url": "https://github.com/agrejus/db-framework-plugin-capacitor-realm/issues"
+    "url": "https://github.com/agrejus/db-framework-plugin-capacitor-sqlite3/issues"
   }
 }

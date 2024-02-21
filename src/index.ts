@@ -7,5 +7,7 @@ export { IDataContext } from './types/context-types';
 export { IDbRecord, IDbRecordBase, IIndexableEntity, OmittedEntity, EntityIdKeys } from './types/entity-types';
 export { IDbSet, IDbSetBase, EntityAndTag, IStatefulDbSet as IStoreDbSet, IStoreDbSetProps } from './types/dbset-types';
 export { IdKeys, DeepPartial, DeepOmit, DeepKeyOf, DeepReadOnly } from './types/common-types';
-export { DbPluginInstanceCreator, IBulkOperation, IBulkOperationsResponse, IDbPlugin, IDbPluginOptions, IQueryParams } from './types/plugin-types';
+export { Transaction } from './common/Transaction';
+export { Transactions } from './common/Transactions';
+export { DbPluginInstanceCreator, IBulkOperation, IBulkOperationsResponse, IDbPlugin, IDbPluginOptions, IQueryParams, DbPluginOperations } from './types/plugin-types';
 export { contextBuilder } from './context/builder/context-builder';

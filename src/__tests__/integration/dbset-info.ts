@@ -1,4 +1,4 @@
-import { DbContextFactory, ExternalDataContext } from "./shared/context";
+import { DbContextFactory } from "./shared/context";
 
 describe('DbSet Info Tests', () => {
 

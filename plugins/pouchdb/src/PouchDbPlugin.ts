@@ -1,11 +1,10 @@
 import PouchDB from 'pouchdb';
-import { IDbPlugin, IBulkOperationsResponse, IBulkOperation, IQueryParams } from '@agrejus/db-framework';
+import { IDbPlugin, IBulkOperationsResponse, IBulkOperation, IQueryParams, DbPluginOperations, Transactions } from '@agrejus/db-framework';
 import findAdapter from 'pouchdb-find';
 import memoryAdapter from 'pouchdb-adapter-memory';
 import { validateAttachedEntity } from './validator';
 import { IPouchDbPluginOptions, PouchDbRecord } from './types';
 import { Transaction } from './Transaction';
-import { DbPluginOperations } from '@agrejus/db-framework/dist/types/plugin-types';
 
 PouchDB.plugin(findAdapter);
 PouchDB.plugin(memoryAdapter);
@@ -120,7 +119,7 @@ export class PouchDbPlugin<TDocumentType extends string, TEntityBase extends Pou
         }
     }
 
-    async bulkOperations(operations: { adds: TEntityBase[]; removes: TEntityBase[]; updates: TEntityBase[]; }) {
+    async bulkOperations(operations: { adds: TEntityBase[]; removes: TEntityBase[]; updates: TEntityBase[]; }, transactions: Transactions) {
         return new Promise<IBulkOperationsResponse>(async (resolve, reject) => {
             try {
                 const { adds, removes, updates } = operations;
@@ -313,12 +312,6 @@ export class PouchDbPlugin<TDocumentType extends string, TEntityBase extends Pou
         return { ok: true };
     }
 
-    enrichRemoval(entity: TEntityBase): TEntityBase {
-        const result = { ...entity, _id: entity._id, _rev: entity._rev, DocumentType: entity.DocumentType, _deleted: true } as any;
-
-        return result as TEntityBase
-    }
-
     isOperationAllowed(entity: TEntityBase, operation: DbPluginOperations) {
 
         const map = {
@@ -326,7 +319,7 @@ export class PouchDbPlugin<TDocumentType extends string, TEntityBase extends Pou
             "remove": this._isRemovalAllowed
         }
 
-        const cb = map[operation] 
+        const cb = map[operation]
 
         if (cb == null) {
             return { ok: true }
@@ -361,5 +354,9 @@ export class PouchDbPlugin<TDocumentType extends string, TEntityBase extends Pou
         }
 
         return entity;
+    }
+
+    enrichRemoval(entity: TEntityBase) {
+        return { ...entity } as TEntityBase
     }
 }

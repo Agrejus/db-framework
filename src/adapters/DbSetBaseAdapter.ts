@@ -12,7 +12,6 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
     protected context: IPrivateContext<TDocumentType, TEntity, TExclusions>;
     protected api: IDbSetApi<TDocumentType, TEntity, TExclusions>;
     protected isReadonly: boolean;
-    //protected map: SerializationMap<TDocumentType, TEntity, any>[];
     protected filterSelector: EntitySelector<TDocumentType, TEntity> | null;
     protected type: DbSetType;
     protected changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>;
@@ -25,7 +24,6 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
         this.defaults = props.defaults;
         this.isReadonly = props.readonly;
         this.idCreator = props.idCreator;
-        //this.map = props.map;
         this.filterSelector = props.filterSelector;
         this.enhancer = props.enhancer;
 
@@ -40,13 +38,10 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
 
     protected async allDataAndMakeTrackable() {
         const data = await this.getAllData();
+        const enrich = this.changeTracker.enrichment.compose("deserialize", "defaultRetrieve", "changeTracking", "enhance", "destroyChanges")
 
         // process the mappings when we make the item trackable.  We are essentially prepping the entity
-        const result = data.map(w => {
-            const enriched = this.changeTracker.enrichment.retrieve(w);
-            const [tracked] = this.changeTracker.enableChangeTracking(enriched);
-            return tracked;
-        });
+        const result = data.map(enrich);
 
         return this.filterResult(result);
     }

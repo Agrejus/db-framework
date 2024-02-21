@@ -5,19 +5,19 @@ import { IDbRecord } from '../../../types/entity-types';
 import { IChangeTrackingCache } from '../../../types/memory-cache-types';
 
 export const documentTypeEnrichmentCreator = <TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity>(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: EnrichmentCreatorProps<TDocumentType, TEntity>) => {
-    return [(entity: TEntity) => ({ ...entity, DocumentType: dbSetProps.documentType } as TEntity)];
+    return [(entity: Readonly<TEntity>) => ({ ...entity, DocumentType: dbSetProps.documentType } as TEntity)];
 }
 
 export const idEnrichmentCreator = <TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity>(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: EnrichmentCreatorProps<TDocumentType, TEntity>) => {
-    return [(entity: TEntity) => ({ ...entity, [changeTrackingOptions.idPropertyName]: dbSetProps.idCreator(entity) } as TEntity)];
+    return [(entity: Readonly<TEntity>) => ({ ...entity, [changeTrackingOptions.idPropertyName]: dbSetProps.idCreator(entity) } as TEntity)];
 }
 
 export const defaultAddEnrichmentCreator = <TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity>(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: EnrichmentCreatorProps<TDocumentType, TEntity>) => {
-    return [(entity: TEntity) => ({ ...dbSetProps.defaults.add, ...entity } as TEntity)];
+    return [(entity: Readonly<TEntity>) => ({ ...dbSetProps.defaults.add, ...entity } as TEntity)];
 }
 
 export const defaultRetrieveEnrichmentCreator = <TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity>(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: EnrichmentCreatorProps<TDocumentType, TEntity>) => {
-    return [(entity: TEntity) => ({ ...dbSetProps.defaults.retrieve, ...entity } as TEntity)];
+    return [(entity: Readonly<TEntity>) => ({ ...dbSetProps.defaults.retrieve, ...entity } as TEntity)];
 }
 
 export const serializerEnrichmentCreator = <TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity>(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: EnrichmentCreatorProps<TDocumentType, TEntity>) => {
@@ -26,7 +26,23 @@ export const serializerEnrichmentCreator = <TDocumentType extends string, TEntit
         return [];
     }
 
-    return [(entity: TEntity) => ({ ...dbSetProps.serializer({ ...entity }) } as TEntity)];
+    return [(entity: Readonly<TEntity>) => ({ ...dbSetProps.serializer({ ...entity }) } as TEntity)];
+}
+
+export const destroyEnhancedEnrichmentCreator = <TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity>(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: EnrichmentCreatorProps<TDocumentType, TEntity>) => {
+
+    if (changeTrackingOptions.untrackedPropertyNames.size === 0) {
+        return [];
+    }
+
+    const untrackedPropertyNames = [...changeTrackingOptions.untrackedPropertyNames];
+    
+    return [(entity: TEntity) => {
+        return untrackedPropertyNames.reduce((a, v) => {
+            delete (a as any)[v];
+            return a;
+        }, entity)
+    }];
 }
 
 export const deserializerEnrichmentCreator = <TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity>(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: EnrichmentCreatorProps<TDocumentType, TEntity>) => {
@@ -35,7 +51,7 @@ export const deserializerEnrichmentCreator = <TDocumentType extends string, TEnt
         return [];
     }
 
-    return [(entity: TEntity) => ({ ...dbSetProps.deserializer({ ...entity }) } as TEntity)];
+    return [(entity: Readonly<TEntity>) => ({ ...dbSetProps.deserializer({ ...entity }) } as TEntity)];
 }
 
 export const enhancementEnrichmentCreator = <TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity>(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: EnrichmentCreatorProps<TDocumentType, TEntity>) => {
@@ -43,14 +59,21 @@ export const enhancementEnrichmentCreator = <TDocumentType extends string, TEnti
     const enhancer = dbSetProps.enhancer;
 
     if (enhancer != null) {
-        return [(w: TEntity) => ({ ...enhancer(w), ...w })]
+        return [(w: TEntity) => {
+            const enhanced = enhancer(w);
+
+            for (const key in enhanced) {
+                w[key] = enhanced[key];
+            }
+            return w;
+        }]
     }
 
     return [];
 }
 
 export const stripEnrichmentCreator = <TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity>(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: EnrichmentCreatorProps<TDocumentType, TEntity>) => {
-    return [(entity: TEntity) => {
+    return [(entity: Readonly<TEntity>) => {
 
         const cache = memoryCache.get<IChangeTrackingCache<TDocumentType, TEntity, TExclusions>>(changeTrackingOptions.changeTrackingId);
 

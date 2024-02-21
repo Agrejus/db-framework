@@ -1,15 +1,11 @@
 import { DbSetFetchAdapter } from "./DbSetFetchAdapter";
 import { DbSetGeneralAdapter } from "./DbSetGeneralAdapter";
 import { DbSetModificationAdapter } from "./DbSetModificationAdapter";
-import { DbSetType, IDbSetApi, IDbSetProps, IStoreDbSetProps } from "../types/dbset-types";
+import { DbSetType, IDbSetProps, IStoreDbSetProps } from "../types/dbset-types";
 import { IDbRecord } from "../types/entity-types";
 import { IDbSetFetchAdapter, IDbSetGeneralAdapter, IDbSetModificationAdapter } from "../types/adapter-types";
 import { DbSetStatefulModificationAdapter } from './stateful/DbSetStatefulModificationAdapter';
 import { IDbSetChangeTracker } from "../types/change-tracking-types";
-import { ReadonlyChangeTrackingAdapter } from "./change-tracking/ReadonlyChangeTrackingAdapter";
-import { CustomChangeTrackingAdapter } from "./change-tracking/CustomChangeTrackingAdapter";
-import { EntityChangeTrackingAdapter } from "./change-tracking/EntityChangeTrackingAdapter";
-import { IPrivateContext } from "../types/context-types";
 
 export class AdapterFactory<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> {
 

@@ -1,4 +1,5 @@
 import { ReadOnlyList } from '../common/ReadOnlyList';
+import { Transactions } from '../common/Transactions';
 import { IList } from './change-tracking-types';
 import { DeepPartial, Changes, SaveResult, IDictionary } from './common-types';
 import { IDbSetApi, SaveChangesEventData } from './dbset-types';
@@ -49,7 +50,8 @@ export interface ITrackedData<TDocumentType extends string, TEntityBase extends 
     adds: TEntityBase[];
     removes: TEntityBase[];
     attachments: IList<TEntityBase>;
-    removesById: IdRemoval<TDocumentType>[]
+    removesById: IdRemoval<TDocumentType>[];
+    transactions: Transactions;
 }
 
 export type IEntityUpdates<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> = {
@@ -62,6 +64,7 @@ export interface IProcessedUpdates<TDocumentType extends string, TEntityBase ext
     docs: IDictionary<TEntityBase>;
     deltas: IDictionary<DeepPartial<TEntityBase>>;
     originals: IDictionary<TEntityBase>;
+    timestamp: { [id: string | number]: number };
 }
 
 export interface ITrackedChanges<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> {
@@ -69,6 +72,7 @@ export interface ITrackedChanges<TDocumentType extends string, TEntityBase exten
     removes: TEntityBase[];
     removesById: IdRemoval<TDocumentType>[];
     updates: IProcessedUpdates<TDocumentType, TEntityBase>;
+    transactions: Transactions;
 }
 
 export interface IPrivateContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase> extends IDataContext<TDocumentType, TEntityBase> {

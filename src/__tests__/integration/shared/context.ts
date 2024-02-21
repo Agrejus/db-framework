@@ -77,7 +77,9 @@ export class ExternalDataContext extends DataContext<DocumentTypes, IPouchDbReco
         .defaults({ status: "pending" })
         .exclude("status", "rejectedCount")
         .enhance((w) => ({
-            someProperty: w.author
+            setPublishDate: () => {
+                w.publishDate = new Date()
+            }
         }))
         .create();
     booksWithDateMapped = this.dbset().default<IBookV4>(DocumentTypes.BooksWithDateMapped)
@@ -252,20 +254,3 @@ export class DbContextFactory {
         await Promise.all(dbNames.map(w => this._dbs[w].destroyDatabase()));
     }
 }
-
-// export type DeepOmit<T, K extends PropertyKey> = {
-//     [P in keyof T as P extends K ? never : P]: DeepOmit<T[P], K extends `${Exclude<P, symbol>}.${infer R}` ? R : never>
-// }
-
-// // https://medium.com/xgeeks/typescript-utility-keyof-nested-object-fa3e457ef2b2
-// export type DeepKeyOf<T> = {
-//     [Key in keyof T & (string | number)]: T[Key] extends object ? `${Key}` | `${Key}.${DeepKeyOf<T[Key]>}` : `${Key}`
-// }[keyof T & (string | number)];
-
-// export type DocumentKeySelector<T> = (entity: T) => any
-// export type KeyOf<T> = keyof T | DocumentKeySelector<T>;
-// export type IdKeys<T> = KeyOf<T>[];
-// export type IdKey<T> = KeyOf<T>;
-// export type DeepPartial<T> = T extends object ? {
-//     [P in keyof T]?: DeepPartial<T[P]>;
-// } : T;

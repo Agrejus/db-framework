@@ -1,5 +1,7 @@
+import { Transaction } from '../common/Transaction';
 import { IDbSetModificationAdapter } from '../types/adapter-types';
 import { IDbSetChangeTracker } from '../types/change-tracking-types';
+import { ITrackedData } from '../types/context-types';
 import { DbSetType, IDbSetProps } from '../types/dbset-types';
 import { IDbRecord, OmittedEntity, IIndexableEntity } from '../types/entity-types';
 import { DbSetBaseAdapter } from './DbSetBaseAdapter';
@@ -17,12 +19,15 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
     }
 
     instance(...entities: OmittedEntity<TEntity, TExclusions>[]) {
-        return entities.map(entity => ({ ...this.changeTracker.enrichment.create(entity as TEntity) }));
+        const enrich = this.changeTracker.enrichment.compose("documentType", "id", "defaultAdd", "enhance", "destroyChanges");
+        return entities.map(entity => enrich(entity as TEntity));
     }
 
     private async _add(...entities: OmittedEntity<TEntity, TExclusions>[]) {
         const data = this.changeTracker.getTrackedData();
-        const { adds } = data;
+        const { adds, transactions } = data;
+        const transaction = transactions.start("add");
+        const enrich = this.changeTracker.enrichment.compose("documentType", "id", "defaultAdd", "changeTracking", "enhance", "destroyChanges");
 
         const result = entities.map(entity => {
 
@@ -32,14 +37,15 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
                 throw new Error(canAddEntityResult.error ?? 'Cannot add entity')
             }
 
-            const enrichedEntity = this.changeTracker.enrichment.create(entity as TEntity);
-            const [trackableEntity] = this.changeTracker.enableChangeTracking(enrichedEntity);
+            const enrichedEntity = enrich(entity as TEntity);
 
-            this._tryAddMetaData(trackableEntity[this.api.dbPlugin.idPropertyName]);
+            const id = enrichedEntity[this.api.dbPlugin.idPropertyName];
+            this._tryAddMetaData(id);
+            transaction.add(id as string | number);
 
-            adds.push(trackableEntity);
+            adds.push(enrichedEntity);
 
-            return trackableEntity;
+            return enrichedEntity;
         });
 
         return result
@@ -47,6 +53,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
 
     async add(...entities: OmittedEntity<TEntity, TExclusions>[]) {
 
+        
         const result = await this._add(...entities);
 
         this._disposeMetaData();
@@ -74,15 +81,17 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
         }, {})
         const result: TEntity[] = [];
 
+        const createEnricher = this.changeTracker.enrichment.compose("documentType", "id", "defaultAdd", "enhance", "destroyChanges");
+        const upsertEnricher = this.changeTracker.enrichment.compose("defaultAdd", "deserialize", "changeTracking", "enhance", "destroyChanges");
+
         for (let entity of entities as any[]) {
-            const instance = entity[this.api.dbPlugin.idPropertyName] != null ? entity as TEntity : this.changeTracker.enrichment.create(entity) as TEntity;
+            const instance = entity[this.api.dbPlugin.idPropertyName] != null ? entity as TEntity : createEnricher(entity) as TEntity;
             const id = instance[this.api.dbPlugin.idPropertyName] as string;
             const found = allDictionary[id]
 
             if (found) {
-                const enriched = this.changeTracker.enrichment.upsert(found);
-                const [mergedAndTrackable] = this.changeTracker.enableChangeTracking(enriched);
-                const [attached] = this.changeTracker.attach(mergedAndTrackable);
+                const enriched = upsertEnricher(found);
+                const [attached] = this.changeTracker.attach(enriched);
 
                 try {
                     this.changeTracker.merge(entity, attached);
@@ -115,15 +124,18 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
     async remove(...entities: any[]) {
 
         await this.onRemove();
+        const data = this.changeTracker.getTrackedData();
+        const transaction = data.transactions.start("remove");
 
         if (entities.some(w => typeof w === "string")) {
-            await Promise.all(entities.map(w => this._removeById(w)));
+
+            await Promise.all(entities.map(w => this._removeById(w, transaction, data)));
 
             this._disposeMetaData();
             return;
         }
 
-        await Promise.all(entities.map(w => this._remove(w)))
+        await Promise.all(entities.map(w => this._remove(w, transaction, data)))
 
         this._disposeMetaData();
     }
@@ -137,8 +149,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
         await this.remove(...items);
     }
 
-    private async _remove(entity: TEntity) {
-        const data = this.changeTracker.getTrackedData();
+    private async _remove(entity: TEntity, transaction: Transaction, data: ITrackedData<TDocumentType, TEntity>) {
         const { removes } = data;
 
         const ids = removes.map(w => w[this.api.dbPlugin.idPropertyName]);
@@ -154,12 +165,13 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
             throw new Error(canAddEntityResult.error ?? 'Cannot remove entity')
         }
 
-        this._tryAddMetaData(entity[this.api.dbPlugin.idPropertyName]);
+        const id = entity[this.api.dbPlugin.idPropertyName];
+        this._tryAddMetaData(id);
         removes.push(entity as any);
+        transaction.add(id as string | number);
     }
 
-    protected async _removeById(id: string) {
-        const data = this.changeTracker.getTrackedData();
+    protected async _removeById(id: string, transaction: Transaction, data: ITrackedData<TDocumentType, TEntity>) {
         const { removesById } = data;
 
         if (removesById.map(w => w.key).includes(id)) {
@@ -168,6 +180,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
 
         this._tryAddMetaData(id as any);
 
+        transaction.add(id);
         removesById.push({ key: id, DocumentType: this.documentType });
     }
 }

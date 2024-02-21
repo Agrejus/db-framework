@@ -31,7 +31,7 @@ export interface ISqliteDatabase {
   run(sql: string, params?: any, callback?: (error: Error | null, rows: any[]) => void): void;
   all(sql: string, callback: (error: Error | null, rows: any[]) => void): void;
   all(sql: string, params: any, callback: (error: Error | null, rows: any[]) => void): void;
-  close(): void;
+  close(callback?: (e?: any) => void): void;
 }
 
 export interface ISqliteOptions {

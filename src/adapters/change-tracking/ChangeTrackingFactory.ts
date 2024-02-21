@@ -26,7 +26,8 @@ export class ChangeTrackingFactory<TDocumentType extends string, TEntity extends
         const untrackedPropertyNames = new Set<string>([
             EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY,
             EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER,
-            EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY
+            EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY,
+            EntityChangeTrackingAdapter.TIMESTAMP_ENTITY_KEY
         ]);
 
         if (this._props.readonly === true) {

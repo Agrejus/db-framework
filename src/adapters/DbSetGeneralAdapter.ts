@@ -67,11 +67,8 @@ export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends I
     }
 
     linkUnsafe(...entites: TEntity[]) {
-        const result = entites.map(w => {
-            const enriched = this.changeTracker.enrichment.create(w);
-            const [tracked] = this.changeTracker.enableChangeTracking(enriched);
-            return tracked;
-        });
+        const enrich = this.changeTracker.enrichment.compose("documentType", "id", "defaultAdd", "changeTracking", "enhance", "destroyChanges");
+        const result = entites.map(enrich);
         return this.changeTracker.attach(...result);
     }
 

@@ -1,7 +1,7 @@
 import { List } from "../../common/List";
 import { IDbSetChangeTracker, ProcessedChangesResult } from "../../types/change-tracking-types";
 import { DeepPartial } from "../../types/common-types";
-import { ITrackedChanges, IEntityUpdates, IProcessedUpdates } from "../../types/context-types";
+import { ITrackedChanges, IProcessedUpdates } from "../../types/context-types";
 import { ChangeTrackingOptions, IDbSetProps } from "../../types/dbset-types";
 import { IDbRecord, IIndexableEntity } from "../../types/entity-types";
 import { IDbPlugin } from "../../types/plugin-types";
@@ -15,6 +15,7 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
     static readonly DIRTY_ENTITY_MARKER: string = "__isDirty";
     static readonly CHANGES_ENTITY_KEY: string = "__changed__";
     static readonly ORIGINAL_ENTITY_KEY: string = "__original__";
+    static readonly TIMESTAMP_ENTITY_KEY: string = "__timestamp__";
     static readonly PROXY_MARKER: string = "__isProxy";
     protected override attachments;
 
@@ -47,15 +48,15 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
             isDirty,
             deltas: isDirty === false ? null : { ...changes, [this.dbPlugin.idPropertyName]: entity[this.dbPlugin.idPropertyName] },
             doc: entity,
-            original: entity
+            original: entity,
+            timestamp: isDirty === false ? -1 : indexableEntity[EntityChangeTrackingAdapter.TIMESTAMP_ENTITY_KEY] as number
         };
         return result
     }
 
     getPendingChanges(): ITrackedChanges<TDocumentType, TEntity> {
         const changes = this.getTrackedData();
-        const { adds, removes, removesById, attachments } = changes;
-
+        const { adds, removes, removesById, attachments, transactions } = changes;
         const updates = attachments
             .map(w => this.processChanges(w))
             .filter(w => w.isDirty === true)
@@ -70,19 +71,21 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
                 a.docs[id] = v.doc;
                 a.deltas[id] = v.deltas;
                 a.originals[id] = v.original;
+                a.timestamp[id] = v.timestamp;
 
                 return a;
-            }, { deltas: {}, docs: {}, originals: {} } as IProcessedUpdates<TDocumentType, TEntity>);
+            }, { deltas: {}, docs: {}, originals: {}, timestamp: {}, timestamps: {} } as IProcessedUpdates<TDocumentType, TEntity>);
 
         return {
             adds,
             removes,
             removesById,
-            updates
+            updates,
+            transactions
         }
     }
 
-    private _enableChangeTracking(entity: TEntity) {
+    protected override enableChangeTracking(entity: TEntity) {
         const proxyHandler: ProxyHandler<TEntity> = {
             set: (entity, property, value) => {
 
@@ -93,6 +96,8 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
                     indexableEntity[key] = value;
                     return true;
                 }
+
+                const now = Date.now();
 
                 if (property !== EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY && entity[this.dbPlugin.idPropertyName] != null) {
                     const originalValue = indexableEntity[key];
@@ -110,6 +115,7 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
                         indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY] = {};
                     }
 
+
                     if (indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY][key] != null) {
 
                         if (indexableEntity[EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY][key] === value) {
@@ -119,16 +125,23 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
                         } else {
                             // track the change
                             indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY][key] = value;
+                            indexableEntity[EntityChangeTrackingAdapter.TIMESTAMP_ENTITY_KEY] = now;
                         }
 
                     } else if (indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY][key] == null) {
                         // don't keep updating, keep the original value
+                        indexableEntity[EntityChangeTrackingAdapter.TIMESTAMP_ENTITY_KEY] = now;
                         indexableEntity[EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY][key] = value;
                         indexableEntity[EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY][key] = originalValue;
 
                     }
 
-                    indexableEntity[EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER] = Object.keys(indexableEntity[EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY]).length > 0
+                    const isDirty = Object.keys(indexableEntity[EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY]).length > 0;
+                    indexableEntity[EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER] = isDirty;
+
+                    if (isDirty === false && indexableEntity[EntityChangeTrackingAdapter.TIMESTAMP_ENTITY_KEY] != null) {
+                        delete indexableEntity[EntityChangeTrackingAdapter.TIMESTAMP_ENTITY_KEY];
+                    }
                 }
 
                 indexableEntity[key] = value;
@@ -146,10 +159,6 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
         }
 
         return new Proxy(entity, proxyHandler as any) as TEntity
-    }
-
-    enableChangeTracking(...entities: TEntity[]) {
-        return entities.map(w => this._enableChangeTracking(w))
     }
 
     merge(from: TEntity, to: TEntity) {
@@ -180,11 +189,8 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
     }
 
     link(found: TEntity[]) {
-        const result = found.map(w => {
-            const enriched = this.enrichment.link(w);
-            const [tracked] = this.enableChangeTracking(enriched);
-            return tracked;
-        });
+        const enrich = this.enrichment.compose("defaultAdd", "changeTracking", "enhance", "destroyChanges")
+        const result = found.map(enrich);
         return this.attach(...result);
     }
 }
