@@ -1,9 +1,11 @@
+import { memoryCache } from "../../cache/MemoryCache";
 import { List } from "../../common/List";
 import { IDbSetChangeTracker, ProcessedChangesResult } from "../../types/change-tracking-types";
 import { DeepPartial } from "../../types/common-types";
 import { ITrackedChanges, IProcessedUpdates } from "../../types/context-types";
 import { ChangeTrackingOptions, IDbSetProps } from "../../types/dbset-types";
 import { IDbRecord, IIndexableEntity } from "../../types/entity-types";
+import { IChangeTrackingCache } from "../../types/memory-cache-types";
 import { IDbPlugin } from "../../types/plugin-types";
 import { ChangeTrackingAdapterBase } from "./ChangeTrackingAdapterBase";
 
@@ -107,6 +109,25 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
                         return true;
                     }
 
+                    // handle ignored enhancer properties if any
+                    if (this.dbSetProps.enhancer != null) {
+
+                        const cache = memoryCache.get<IChangeTrackingCache<TDocumentType, TEntity, TExclusions>>(this.changeTrackingId);
+                        let enrichmentPropertyNames = cache.enrichmentPropertyNames ?? new Set<keyof TEntity>();
+    
+                        if (cache?.enrichmentPropertyNames == null) {
+                            const enhanced = this.dbSetProps.enhancer(entity);
+                            enrichmentPropertyNames = new Set<keyof TEntity>(Object.keys(enhanced) as (keyof TEntity)[]);
+                            memoryCache.put<IChangeTrackingCache<TDocumentType, TEntity, TExclusions>>(this.changeTrackingId, { enrichmentPropertyNames });
+                        }
+    
+                        if (enrichmentPropertyNames.size > 0 && enrichmentPropertyNames.has(key as keyof TEntity) === true) {
+                            // don't track changes to enrichment properties, only set the property
+                            indexableEntity[key] = value;
+                            return true;
+                        }
+                    }
+
                     if (indexableEntity[EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY] === undefined) {
                         indexableEntity[EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY] = {};
                     }
@@ -189,7 +210,7 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
     }
 
     link(found: TEntity[]) {
-        const enrich = this.enrichment.compose("defaultAdd", "changeTracking", "enhance", "destroyChanges")
+        const enrich = this.enrichment.compose("defaultAdd", "changeTracking", "enhance")
         const result = found.map(enrich);
         return this.attach(...result);
     }

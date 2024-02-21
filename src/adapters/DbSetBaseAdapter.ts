@@ -38,7 +38,7 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
 
     protected async allDataAndMakeTrackable() {
         const data = await this.getAllData();
-        const enrich = this.changeTracker.enrichment.compose("deserialize", "defaultRetrieve", "changeTracking", "enhance", "destroyChanges")
+        const enrich = this.changeTracker.enrichment.compose("deserialize", "defaultRetrieve", "changeTracking", "enhance")
 
         // process the mappings when we make the item trackable.  We are essentially prepping the entity
         const result = data.map(enrich);

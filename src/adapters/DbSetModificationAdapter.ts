@@ -19,7 +19,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
     }
 
     instance(...entities: OmittedEntity<TEntity, TExclusions>[]) {
-        const enrich = this.changeTracker.enrichment.compose("documentType", "id", "defaultAdd", "enhance", "destroyChanges");
+        const enrich = this.changeTracker.enrichment.compose("documentType", "id", "defaultAdd", "enhance");
         return entities.map(entity => enrich(entity as TEntity));
     }
 
@@ -27,7 +27,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
         const data = this.changeTracker.getTrackedData();
         const { adds, transactions } = data;
         const transaction = transactions.start("add");
-        const enrich = this.changeTracker.enrichment.compose("documentType", "id", "defaultAdd", "changeTracking", "enhance", "destroyChanges");
+        const enrich = this.changeTracker.enrichment.compose("documentType", "id", "defaultAdd", "changeTracking", "enhance");
 
         const result = entities.map(entity => {
 
@@ -81,8 +81,8 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
         }, {})
         const result: TEntity[] = [];
 
-        const createEnricher = this.changeTracker.enrichment.compose("documentType", "id", "defaultAdd", "enhance", "destroyChanges");
-        const upsertEnricher = this.changeTracker.enrichment.compose("defaultAdd", "deserialize", "changeTracking", "enhance", "destroyChanges");
+        const createEnricher = this.changeTracker.enrichment.compose("documentType", "id", "defaultAdd", "enhance");
+        const upsertEnricher = this.changeTracker.enrichment.compose("defaultAdd", "deserialize", "changeTracking", "enhance");
 
         for (let entity of entities as any[]) {
             const instance = entity[this.api.dbPlugin.idPropertyName] != null ? entity as TEntity : createEnricher(entity) as TEntity;

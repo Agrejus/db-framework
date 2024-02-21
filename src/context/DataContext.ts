@@ -38,7 +38,7 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
 
         const all = await this.dbPlugin.all();
 
-        return this._changeTracker.composeAndRunEnrichment(all, "deserialize", "defaultRetrieve", "changeTracking", "enhance", "destroyChanges");
+        return this._changeTracker.composeAndRunEnrichment(all, "deserialize", "defaultRetrieve", "changeTracking", "enhance");
     }
 
     /**

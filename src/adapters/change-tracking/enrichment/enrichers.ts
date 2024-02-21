@@ -29,22 +29,6 @@ export const serializerEnrichmentCreator = <TDocumentType extends string, TEntit
     return [(entity: Readonly<TEntity>) => ({ ...dbSetProps.serializer({ ...entity }) } as TEntity)];
 }
 
-export const destroyEnhancedEnrichmentCreator = <TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity>(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: EnrichmentCreatorProps<TDocumentType, TEntity>) => {
-
-    if (changeTrackingOptions.untrackedPropertyNames.size === 0) {
-        return [];
-    }
-
-    const untrackedPropertyNames = [...changeTrackingOptions.untrackedPropertyNames];
-    
-    return [(entity: TEntity) => {
-        return untrackedPropertyNames.reduce((a, v) => {
-            delete (a as any)[v];
-            return a;
-        }, entity)
-    }];
-}
-
 export const deserializerEnrichmentCreator = <TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity>(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: EnrichmentCreatorProps<TDocumentType, TEntity>) => {
 
     if (dbSetProps.deserializer == null) {

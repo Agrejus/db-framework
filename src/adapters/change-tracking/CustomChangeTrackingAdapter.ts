@@ -26,7 +26,7 @@ export class CustomChangeTrackingAdapter<TDocumentType extends string, TEntity e
     }
 
     link(foundEntities: TEntity[], attachEntities: TEntity[]): TEntity[] {
-        const enrich = this.enrichment.compose("documentType", "id", "defaultAdd", "enhance", "destroyChanges");
+        const enrich = this.enrichment.compose("documentType", "id", "defaultAdd", "enhance");
         const attachedEntitiesMap = attachEntities.reduce((a, v) => {
             const id = v[this.dbPlugin.idPropertyName] as string | number;
 

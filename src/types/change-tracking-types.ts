@@ -70,7 +70,6 @@ export interface IEnrichers<TDocumentType extends string, TEntity extends IDbRec
     strip: (entity: Readonly<TEntity>) => TEntity
     remove: (entity: Readonly<TEntity>) => TEntity;
     changeTracking: (entity: Readonly<TEntity>) => TEntity;
-    destroyChanges: (entity: Readonly<TEntity>) => TEntity;
 }
 
 export interface IComposeEnrichers<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> {

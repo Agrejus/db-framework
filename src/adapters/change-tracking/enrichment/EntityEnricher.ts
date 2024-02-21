@@ -4,7 +4,7 @@ import { ChangeTrackingOptions, IDbSetProps } from "../../../types/dbset-types";
 import { IDbRecord } from "../../../types/entity-types";
 import { IChangeTrackingCache } from "../../../types/memory-cache-types";
 import { IBulkOperationsResponse, IDbPlugin } from "../../../types/plugin-types";
-import { defaultAddEnrichmentCreator, defaultRetrieveEnrichmentCreator, documentTypeEnrichmentCreator, enhancementEnrichmentCreator, idEnrichmentCreator, deserializerEnrichmentCreator, serializerEnrichmentCreator, stripEnrichmentCreator, destroyEnhancedEnrichmentCreator } from "./enrichers";
+import { defaultAddEnrichmentCreator, defaultRetrieveEnrichmentCreator, documentTypeEnrichmentCreator, enhancementEnrichmentCreator, idEnrichmentCreator, deserializerEnrichmentCreator, serializerEnrichmentCreator, stripEnrichmentCreator } from "./enrichers";
 
 export class EntityEnricher<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> implements IEnrichmentComposer<TDocumentType, TEntity, TExclusions> {
 
@@ -43,8 +43,7 @@ export class EntityEnricher<TDocumentType extends string, TEntity extends IDbRec
             documentType: (entity) => entity,
             id: (entity) => entity,
             remove: (entity) => entity,
-            changeTracking: (entity) => entity,
-            destroyChanges: (entity) => entity
+            changeTracking: (entity) => entity
         }
 
         const cache = memoryCache.get<IChangeTrackingCache<TDocumentType, TEntity, TExclusions>>(this._changeTrackingId);
@@ -76,7 +75,6 @@ export class EntityEnricher<TDocumentType extends string, TEntity extends IDbRec
         const deserializationEnrichers = deserializerEnrichmentCreator(this._dbSetProps, props);
         const serializationEnrichers = serializerEnrichmentCreator(this._dbSetProps, props);
         const enhancementEnricher = enhancementEnrichmentCreator(this._dbSetProps, props);
-        const destroyChangesEnrichers = destroyEnhancedEnrichmentCreator(this._dbSetProps, props);
         const removalEnricher = this._dbPlugin.enrichRemoval;
 
         enrichment.defaultAdd = (entity) => defaultAddEnrichers.reduce((a, v) => v(a), entity);
@@ -89,7 +87,6 @@ export class EntityEnricher<TDocumentType extends string, TEntity extends IDbRec
         enrichment.documentType = (entity) => documentTypeEnricher.reduce((a, v) => v(a), entity);
         enrichment.id = (entity) => idEnricher.reduce((a, v) => v(a), entity);
         enrichment.remove = (entity) => removalEnricher(entity);
-        enrichment.destroyChanges = (entity) => destroyChangesEnrichers.reduce((a, v) => v(a), entity);
 
         memoryCache.put<IChangeTrackingCache<TDocumentType, TEntity, TExclusions>>(this._changeTrackingId, { enrichment });
 

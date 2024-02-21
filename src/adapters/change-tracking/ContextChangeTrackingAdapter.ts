@@ -48,7 +48,7 @@ export class ContextChangeTrackingAdapter<TDocumentType extends string, TEntity 
         return Object.keys(grouped).reduce((a, v) => {
 
             const persisted = this._changeTrackers[v].enrichment.composers.persisted(modificationResult);
-            const enricher = this._changeTrackers[v].enrichment.compose(persisted, "deserialize", "changeTracking", "enhance", "destroyChanges");
+            const enricher = this._changeTrackers[v].enrichment.compose(persisted, "deserialize", "changeTracking", "enhance");
             const entities = grouped[v];
 
             a.push(...entities.map(enricher));
