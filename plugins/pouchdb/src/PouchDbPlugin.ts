@@ -119,7 +119,7 @@ export class PouchDbPlugin<TDocumentType extends string, TEntityBase extends Pou
         }
     }
 
-    async bulkOperations(operations: { adds: TEntityBase[]; removes: TEntityBase[]; updates: TEntityBase[]; }, transactions: Transactions) {
+    async bulkOperations(operations: { adds: TEntityBase[]; removes: TEntityBase[]; updates: TEntityBase[]; }, _: Transactions) {
         return new Promise<IBulkOperationsResponse>(async (resolve, reject) => {
             try {
                 const { adds, removes, updates } = operations;
