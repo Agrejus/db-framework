@@ -19,7 +19,7 @@ export interface IDataContext<TDocumentType extends string, TEntityBase extends 
      * Get all documents in the underlying data store
      * @returns {Promise<TEntityBase[]>}
      */
-    getAllDocs(): Promise<TEntityBase[]>;
+    all(): Promise<TEntityBase[]>;
 
     /**
      * Check to see if there are any unsaved changes

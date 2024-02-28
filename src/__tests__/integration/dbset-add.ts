@@ -383,7 +383,7 @@ describe('DbSet Add Tests', () => {
 
         await missingContext.saveChanges();
 
-        const all = await context.getAllDocs();
+        const all = await context.all();
         const [retrievedBook] = context.booksWithTwoDefaults.match(...all)
 
         const [addedBook] = await context.booksWithTwoDefaults.add({

@@ -141,10 +141,12 @@ export class DbSet<TDocumentType extends string, TEntity extends IDbRecord<TDocu
     }
 
     serialize(...entities: TEntity[]): any[] {
-        return entities.map(w => this._changeTracker.enrichment.serialize(w));
+        const composed = this._changeTracker.enrichment.compose("serialize");
+        return entities.map(composed);
     }
 
     deserialize(...entities: any[]) {
-        return entities.map(w => this._changeTracker.enrichment.deserialize(w));
+        const composed = this._changeTracker.enrichment.compose("deserialize");
+        return entities.map(composed);
     }
 }

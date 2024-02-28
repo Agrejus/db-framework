@@ -7,6 +7,7 @@ import { DbPluginInstanceCreator, IDbPlugin, IDbPluginOptions } from '../types/p
 import { ContextChangeTrackingAdapter } from '../adapters/change-tracking/ContextChangeTrackingAdapter';
 import { toReadOnlyList } from "../common/helpers";
 import { ReadOnlyList } from "../common/ReadOnlyList";
+import { DbSetCollection } from "../common/DbSetCollection";
 
 export abstract class DataContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase, TPluginOptions extends IDbPluginOptions = IDbPluginOptions, TDbPlugin extends IDbPlugin<TDocumentType, TEntityBase, TExclusions> = IDbPlugin<TDocumentType, TEntityBase, TExclusions>> implements IDataContext<TDocumentType, TEntityBase> {
 
@@ -15,13 +16,15 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
     abstract contextId(): string;
 
     protected readonly dbPlugin: TDbPlugin;
-    protected dbSets: DbSetMap = {} as DbSetMap;
+    protected dbsetMap: DbSetMap = {} as DbSetMap;
     private _onBeforeSaveChangesEvents: { [key in TDocumentType]: OnChangeEvent<TDocumentType, TEntityBase> } = {} as any;
     private _onAfterSaveChangesEvents: { [key in TDocumentType]: OnChangeEvent<TDocumentType, TEntityBase> } = {} as any;
     private readonly _options: TPluginOptions;
     private readonly _contextOptions: ContextOptions;
     private _readonlyDocumentTypes: { [key: string]: true } = {}
     private _changeTracker: ContextChangeTrackingAdapter<TDocumentType, TEntityBase, TExclusions>;
+
+    readonly dbsets = new DbSetCollection(this.dbsetMap);
 
     get dbName() {
         return this._options.dbName;
@@ -34,11 +37,11 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
         this._changeTracker = new ContextChangeTrackingAdapter();
     }
 
-    async getAllDocs() {
+    async all() {
 
         const all = await this.dbPlugin.all();
 
-        return this._changeTracker.composeAndRunEnrichment(all, "deserialize", "defaultRetrieve", "changeTracking", "enhance");
+        return this._changeTracker.enrich(all, "deserialize", "defaultRetrieve", "changeTracking", "enhance");
     }
 
     /**
@@ -73,7 +76,7 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
 
         const info = (dbset as IDbSet<string, any, any>).info();
 
-        if (this.dbSets[info.DocumentType] != null) {
+        if (this.dbsetMap[info.DocumentType] != null) {
             throw new Error(`Can only have one DbSet per document type in a context, please create a new context instead`)
         }
 
@@ -83,12 +86,12 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
 
         this._changeTracker.registerChangeTracker(info.DocumentType as any, info.ChangeTracker as any)
 
-        this.dbSets[info.DocumentType] = dbset;
+        this.dbsetMap[info.DocumentType] = dbset;
     }
 
     private _stripUpdatedEntities(updates: ReadOnlyList<TEntityBase>) {
         const docs = updates.all();
-        return this._changeTracker.composeAndRunEnrichment(docs, "strip", "serialize");
+        return this._changeTracker.enrich(docs, "strip", "serialize");
     }
 
     async previewChanges(): Promise<Changes<TDocumentType, TEntityBase>> {
@@ -170,36 +173,49 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
 
     async saveChanges(): Promise<SaveResult<TDocumentType, TEntityBase>> {
         try {
+            const beforeSaveStart = performance.now();
             const { tags, changes } = await this._beforeSaveChanges();
             const { adds, removes, updates, transactions } = changes;
             const updatedItems = Object.values(updates.docs);
 
             // check for readonly updates, they are not allowed
             if (updatedItems.length > 0) {
+
                 const readonlyDocumentTypes = Object.keys(updatedItems.filter(w => this._readonlyDocumentTypes[w.DocumentType] === true).reduce((a, v) => ({ ...a, [v.DocumentType]: v.DocumentType }), {} as { [key: string]: string }));
 
                 if (readonlyDocumentTypes.length > 0) {
-                    throw new Error(`Cannot save readonly entities.  Document Types: ${readonlyDocumentTypes.join(', ')}`)
+                    throw new Error(`Cannot save readonly entities.  Document Types: ${readonlyDocumentTypes.join(', ')}`);
                 }
             }
+            console.log("beforeSaveStart", performance.now() - beforeSaveStart);
 
+            const firstEnrich = performance.now();
             // strip updates/adds and process removals
-            const strippedAdds = this._changeTracker.composeAndRunEnrichment(adds, "strip", "serialize");
-            const strippedUpdates = this._changeTracker.composeAndRunEnrichment(updatedItems, "strip", "serialize");
-            const formattedRemovals = this._changeTracker.composeAndRunEnrichment(removes, "remove") as IRemovalRecord<TDocumentType, TEntityBase>[];
+            const strippedAdds = this._changeTracker.enrich(adds, "strip", "serialize");
+            const strippedUpdates = this._changeTracker.enrich(updatedItems, "strip", "serialize");
+            const formattedRemovals = this._changeTracker.enrich(removes, "remove") as IRemovalRecord<TDocumentType, TEntityBase>[];
 
             transactions.appendUpdates(updates);
+            console.log("firstEnrich", performance.now() - firstEnrich);
 
+            const bulkStart = performance.now();
             // perform operation on the database
             const modificationResult = await this.dbPlugin.bulkOperations({ adds: strippedAdds, removes: formattedRemovals, updates: strippedUpdates }, transactions);
+            console.log("bulkOperations", performance.now() - bulkStart);
 
-            this._changeTracker.composeAndRunEnrichmentAfterPersisted(strippedAdds, modificationResult)
+            const enrichStart = performance.now();
+            
+            this._changeTracker.enrichAfterPersisted(strippedAdds, modificationResult);
+
             // map generated values and other enrichments
-            const persistedAdds = this._changeTracker.composeAndRunEnrichmentAfterPersisted(strippedAdds, modificationResult);
-            const persistedUpdates = this._changeTracker.composeAndRunEnrichmentAfterPersisted(strippedUpdates, modificationResult);
+            const persistedAdds = this._changeTracker.enrichAfterPersisted(strippedAdds, modificationResult);
+            const persistedUpdates = this._changeTracker.enrichAfterPersisted(strippedUpdates, modificationResult);
 
             this._changeTracker.reinitialize(formattedRemovals, persistedAdds, persistedUpdates);
 
+            console.log("enrich", performance.now() - enrichStart);
+
+            const afterSaveStart = performance.now();
             const result: SaveResult<TDocumentType, TEntityBase> = {
                 adds: toReadOnlyList(persistedAdds, this.dbPlugin.idPropertyName),
                 removes: toReadOnlyList(formattedRemovals, this.dbPlugin.idPropertyName),
@@ -213,7 +229,7 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
 
             await this._onAfterSaveChanges(persistedAdds, persistedUpdates, formattedRemovals, tags);
 
-
+            console.log("afterSaveStart", performance.now() - afterSaveStart);
             return result;
         } catch (e: any) {
             this._changeTracker.reinitialize();
@@ -287,7 +303,7 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
     }
 
     async empty() {
-        for (let dbset of this) {
+        for (let dbset of this.dbsets.all()) {
             await dbset.empty();
         }
     }
@@ -325,18 +341,5 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
         }
 
         return destination;
-    }
-
-    getDbSet(documentType: TDocumentType) {
-        return this.dbSets[documentType];
-    }
-
-    [Symbol.iterator]() {
-        let index = -1;
-        const data = Object.keys(this.dbSets).map(w => this.dbSets[w]);
-
-        return {
-            next: () => ({ value: data[++index], done: !(index in data) })
-        };
     }
 }

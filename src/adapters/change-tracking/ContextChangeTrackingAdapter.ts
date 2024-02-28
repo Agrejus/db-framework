@@ -10,22 +10,30 @@ export class ContextChangeTrackingAdapter<TDocumentType extends string, TEntity 
 
     private readonly _changeTrackers: { [key: string]: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions> } = {};
 
-    composeAndRunEnrichment(entities: TEntity[], ...enrichers: EnrichmentPick<TDocumentType, TEntity, TExclusions>[]) {
+    enrich(entities: TEntity[], ...enrichers: EnrichmentPick<TDocumentType, TEntity, TExclusions>[]) {
 
         const grouped = entities.reduce((a, v) => {
 
             if (a[v.DocumentType] == null) {
-                a[v.DocumentType] = [];
+                const changeTracker = this._changeTrackers[v.DocumentType];
+
+                let enricher = (entity: TEntity) => entity;
+
+                if (changeTracker != null) {
+                    enricher = this._changeTrackers[v.DocumentType].enrichment.compose(...enrichers);
+                }
+
+                a[v.DocumentType] = { enricher, entities: [] };
             }
-            a[v.DocumentType].push(v)
+
+            a[v.DocumentType].entities.push(v);
 
             return a;
-        }, {} as { [key: string]: TEntity[] });
-        const composed = Object.keys(grouped).reduce((a, v) => ({ ...a, [v]: this._changeTrackers[v].enrichment.compose(...enrichers) }), {} as { [key: string]: (entity: TEntity) => TEntity });
+        }, {} as { [key: string]: { entities: TEntity[], enricher: (entity: TEntity) => TEntity } });
+
 
         return Object.keys(grouped).reduce((a, v) => {
-            const enricher = composed[v];
-            const entities = grouped[v];
+            const { enricher, entities } = grouped[v];
 
             a.push(...entities.map(enricher));
 
@@ -33,27 +41,27 @@ export class ContextChangeTrackingAdapter<TDocumentType extends string, TEntity 
         }, [] as TEntity[]);
     }
 
-    composeAndRunEnrichmentAfterPersisted(entities: TEntity[], modificationResult: IBulkOperationsResponse) {
+    enrichAfterPersisted(entities: TEntity[], modificationResult: IBulkOperationsResponse) {
 
         const grouped = entities.reduce((a, v) => {
 
             if (a[v.DocumentType] == null) {
-                a[v.DocumentType] = [];
+
+                const persisted = this._changeTrackers[v.DocumentType].enrichment.composers.persisted(modificationResult);
+                const enricher = this._changeTrackers[v.DocumentType].enrichment.compose(persisted, "deserialize", "changeTracking", "enhance");
+
+                a[v.DocumentType] = { entities: [], enricher };
             }
-            a[v.DocumentType].push(v)
+
+            a[v.DocumentType].entities.push(v)
 
             return a;
-        }, {} as { [key: string]: TEntity[] });
+        }, {} as { [key: string]: { entities: TEntity[], enricher: (entity: TEntity) => TEntity } });
 
         return Object.keys(grouped).reduce((a, v) => {
-
-            const persisted = this._changeTrackers[v].enrichment.composers.persisted(modificationResult);
-            const enricher = this._changeTrackers[v].enrichment.compose(persisted, "deserialize", "changeTracking", "enhance");
-            const entities = grouped[v];
+            const { entities, enricher } = grouped[v];
 
             a.push(...entities.map(enricher));
-
-            return a;
 
             return a;
         }, [] as TEntity[]);

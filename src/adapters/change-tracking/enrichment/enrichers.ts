@@ -4,6 +4,9 @@ import { IDbSetProps } from '../../../types/dbset-types';
 import { IDbRecord } from '../../../types/entity-types';
 import { IChangeTrackingCache } from '../../../types/memory-cache-types';
 
+
+// the start of an enricher should spread the entity, then we can run the functions and spread the result
+// can we componse the functions together as a string?
 export const documentTypeEnrichmentCreator = <TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity>(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: EnrichmentCreatorProps<TDocumentType, TEntity>) => {
     return [(entity: Readonly<TEntity>) => ({ ...entity, DocumentType: dbSetProps.documentType } as TEntity)];
 }
@@ -46,9 +49,11 @@ export const enhancementEnrichmentCreator = <TDocumentType extends string, TEnti
         return [(w: TEntity) => {
             const enhanced = enhancer(w);
 
+            // can we make this a string to be faster?
             for (const key in enhanced) {
                 w[key] = enhanced[key];
             }
+            
             return w;
         }]
     }
