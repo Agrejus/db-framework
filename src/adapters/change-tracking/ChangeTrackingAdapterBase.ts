@@ -74,7 +74,7 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
 
             const found = this.attachments.get(id)
 
-            if (found != null && this.attachments.includes(id) === true && this.processChanges(found).isDirty === true) {
+            if (found != null && this.attachments.has(id) === true && this.processChanges(found).isDirty === true) {
                 reselectIds.push(id);
             }
 

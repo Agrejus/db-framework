@@ -7,7 +7,6 @@ export interface IList<T> {
     get length(): number;
     all(): T[];
     put(...items: T[]): void;
-    includes(key: keyof T): boolean;
     get(id: keyof T): T | undefined;
     has(id: keyof T): boolean;
     remove(...items: T[]): void;

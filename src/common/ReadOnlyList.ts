@@ -55,7 +55,10 @@ export class ReadOnlyList<T> {
         for (const entity of entities) {
             const id: keyof T = entity[this.key as string | number] as any;
             const found: TMatch | undefined = this.data[id] as any
-            result.push(found);
+
+            if (found != null) {
+                result.push(found);
+            }
         }
 
         return result;
