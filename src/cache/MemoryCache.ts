@@ -18,19 +18,23 @@ class MemoryCache {
         delete this._data[id];
     }
 
-    get<T extends {}>(id: string): T | null {
+    get<T>(id: string): T | null {
         return this._data[id] as T | null;
     }
 
-    find<T extends {}>(selector: (entity: T, index?: number, array?: T[]) => boolean): T | undefined {
+    has(id: string): boolean {
+        return !!this._data[id];
+    }
+
+    find<T>(selector: (entity: T, index?: number, array?: T[]) => boolean): T | undefined {
         return Object.values(this._data).find(selector)
     }
 
-    filter<T extends {}>(selector: (entity: T, index?: number, array?: T[]) => boolean): T[] {
+    filter<T>(selector: (entity: T, index?: number, array?: T[]) => boolean): T[] {
         return Object.values(this._data).filter(selector)
     }
 
-    all<T extends {}>(): T[] {
+    all<T>(): T[] {
         return Object.values(this._data);
     }
 }

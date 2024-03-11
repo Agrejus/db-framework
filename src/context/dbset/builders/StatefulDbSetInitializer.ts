@@ -4,7 +4,7 @@ import { IDbPluginOptions } from "../../../types/plugin-types";
 import { DataContext } from "../../DataContext";
 import { DbSetInitializer } from "./DbSetInitializer";
 
-export class StatefulDbSetInitializer<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase, TPluginOptions extends IDbPluginOptions> extends DbSetInitializer<TDocumentType, TEntityBase, TExclusions, TPluginOptions> {
+export class StatefulDbSetInitializer<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase, TPluginOptions extends IDbPluginOptions, TDbPlugin> extends DbSetInitializer<TDocumentType, TEntityBase, TExclusions, TPluginOptions, TDbPlugin> {
 
     constructor(onAddDbSet: (dbset: IDbSetBase<TDocumentType>) => void, context: DataContext<TDocumentType, TEntityBase, TExclusions, TPluginOptions>) {
         super(onAddDbSet, context);

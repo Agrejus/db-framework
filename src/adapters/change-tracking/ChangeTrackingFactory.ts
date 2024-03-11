@@ -7,14 +7,14 @@ import { CustomChangeTrackingAdapter } from "./CustomChangeTrackingAdapter";
 import { EntityChangeTrackingAdapter } from "./EntityChangeTrackingAdapter";
 import { ReadonlyChangeTrackingAdapter } from "./ReadonlyChangeTrackingAdapter";
 
-export class ChangeTrackingFactory<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> {
+export class ChangeTrackingFactory<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity, TDbPlugin> {
 
     private readonly _props: IDbSetProps<TDocumentType, TEntity, TExclusions>;
     private readonly _environment: DbFrameworkEnvironment;
     private readonly _contextName: string;
-    private readonly _dbPlugin: IDbPlugin<TDocumentType, TEntity, TExclusions>;
+    private readonly _dbPlugin: TDbPlugin;
 
-    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, dbPlugin: IDbPlugin<TDocumentType, TEntity, TExclusions>, contextName: string, environment: DbFrameworkEnvironment) {
+    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, dbPlugin: TDbPlugin, contextName: string, environment: DbFrameworkEnvironment) {
         this._props = props;
         this._environment = environment;
         this._contextName = contextName;
@@ -35,7 +35,7 @@ export class ChangeTrackingFactory<TDocumentType extends string, TEntity extends
                 environment: this._environment,
                 contextName: this._contextName,
                 untrackedPropertyNames
-            }, this._dbPlugin);
+            }, this._dbPlugin as IDbPlugin<TDocumentType, TEntity, TExclusions>);
         }
 
         if (this._props.entityComparator != null) {
@@ -43,13 +43,13 @@ export class ChangeTrackingFactory<TDocumentType extends string, TEntity extends
                 environment: this._environment,
                 contextName: this._contextName,
                 untrackedPropertyNames: new Set<string>()
-            }, this._dbPlugin, this._props.entityComparator);
+            }, this._dbPlugin as IDbPlugin<TDocumentType, TEntity, TExclusions>, this._props.entityComparator);
         }
 
         return new EntityChangeTrackingAdapter(this._props, {
             environment: this._environment,
             contextName: this._contextName,
             untrackedPropertyNames
-        }, this._dbPlugin);
+        }, this._dbPlugin as IDbPlugin<TDocumentType, TEntity, TExclusions>);
     }
 }

@@ -3,7 +3,6 @@ import { DbSetPickDefaultActionRequired, EntityComparator, EntitySelector } from
 import { ContextOptions, DbFrameworkEnvironment, IDataContext } from "./context-types";
 import { CustomIdCreator, Deserializer, EntityEnhancer, Serializer } from "./dbset-builder-types";
 import { IDbRecord, OmittedEntity, IDbRecordBase } from "./entity-types";
-import { IDbPlugin } from "./plugin-types";
 
 export type IDbSetTypes<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> = {
     modify: OmittedEntity<TEntity, TExclusions>;
@@ -51,8 +50,9 @@ export interface IDbSetEnumerable<TDocumentType extends string, TEntity extends 
 export interface IStatefulDbSet<
     TDocumentType extends string,
     TEntity extends IDbRecord<TDocumentType>,
-    TExclusions extends keyof TEntity = never,
-> extends IDbSet<TDocumentType, TEntity, TExclusions> {
+    TExclusions extends keyof TEntity,
+    TDbPlugin
+> extends IDbSet<TDocumentType, TEntity, TExclusions, TDbPlugin> {
     /**
      * Load existing data into the memory store
      * @returns {Promise<number>}
@@ -68,14 +68,27 @@ export interface IStatefulDbSet<
 export interface IDbSet<
     TDocumentType extends string,
     TEntity extends IDbRecord<TDocumentType>,
-    TExclusions extends keyof TEntity = never,
+    TExclusions extends keyof TEntity,
+    TDbPlugin
 > extends IDbSetEnumerable<TDocumentType, TEntity> {
 
+    readonly dbPlugin: TDbPlugin;
+    readonly changeTracker: IDbSetChangeTracker<TEntity["DocumentType"], TEntity, TExclusions>;
     get types(): IDbSetTypes<TDocumentType, TEntity, TExclusions>;
+
+    registerMonitoringMixin(instance: any, ...methodNames: string[]): void;
 
     serialize(...entities: TEntity[]): any[];
 
     deserialize(...entities: any[]): TEntity[];
+
+    /**
+     * Use the cache for the next fetch request.  The TTL is in seconds
+     * @param configuration { ttl: number, key: string }
+     */
+    useCache(configuration: { ttl: number, key: string }): this
+
+    clearCache(...keys: string[]): void;
 
     /**
      * Add a tag to the transaction (one or more entites from add/remove/upsert) and make available for onAfterSaveChanges or onBeforeSaveChanges.
@@ -205,8 +218,8 @@ export type SaveChangesEventData<TDocumentType extends string, TEntityBase exten
     updates: EntityAndTag<TEntityBase>[],
 }
 
-export interface IDbSetApi<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase> {
-    dbPlugin: IDbPlugin<TDocumentType, TEntityBase, TExclusions>;
+export interface IDbSetApi<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase, TDbPlugin> {
+    dbPlugin: TDbPlugin;
     contextOptions: ContextOptions;
     readonly contextId: string;
     tag(id: TEntityBase[keyof TEntityBase], value: unknown): void;
@@ -247,7 +260,7 @@ export interface IDbSetProps<TDocumentType extends string, TEntity extends IDbRe
 export type DbSetType = "default" | "stateful";
 export type EntityAndTag<T extends IDbRecordBase = IDbRecordBase> = { entity: T, tag?: unknown }
 
-export type DbSetMap = { [key: string]: IDbSet<string, any, any> }
+export type DbSetMap = { [key: string]: IDbSet<string, any, any, any> }
 
 export interface IDbSetState<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase = never> extends IDataContextState<TDocumentType, TEntityBase> {
     add: (...entities: OmittedEntity<TEntityBase, TExclusions>[]) => Promise<TEntityBase[]>
@@ -266,4 +279,9 @@ export type ChangeTrackingOptions<
     untrackedPropertyNames: Set<string>,
     contextName: string,
     environment?: DbFrameworkEnvironment
+}
+
+export type DbSetCacheConfiguration = {
+    ttl: number;
+    key: string;
 }

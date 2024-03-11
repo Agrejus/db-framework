@@ -6,7 +6,6 @@ import { DefaultDbSetBuilder } from "../../../context/dbset/builders/DefaultDbSe
 import { PouchDbPlugin } from "@agrejus/db-framework-plugin-pouchdb";
 import { ContextOptions } from "../../../types/context-types";
 import { IDbPluginOptions } from "../../../types/plugin-types";
-import { performance } from "perf_hooks";
 
 const dataContextWithParamsCreator = (type: string, name?: string) => new class extends DataContext<DocumentTypes, IPouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, IPouchDbRecord<DocumentTypes>, IDbPluginOptions>> {
 
@@ -28,7 +27,7 @@ const dataContextWithParamsCreator = (type: string, name?: string) => new class 
 
 export class ExternalDataContext extends DataContext<DocumentTypes, IPouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, IPouchDbRecord<DocumentTypes>, IDbPluginOptions>> {
 
-    constructor(name: string, contextOptions: ContextOptions = { environment: "development" }) {
+    constructor(name: string, contextOptions: ContextOptions = { environment: "development", performance: { enabled: false } }) {
         super({ dbName: name.endsWith("-db") ? name : `${name}-db` }, PouchDbPlugin, contextOptions);
     }
 
@@ -40,7 +39,7 @@ export class ExternalDataContext extends DataContext<DocumentTypes, IPouchDbReco
         return this.dbPlugin.doWork(w => w.get(id));
     }
 
-    private creator<TDocumentType extends string, TEntityBase extends ISyncDocument<TDocumentType>, TBuilder extends DefaultDbSetBuilder<TDocumentType, TEntityBase, "_id" | "_rev">>(builder: TBuilder) {
+    private creator<TDocumentType extends string, TEntityBase extends ISyncDocument<TDocumentType>, TBuilder extends DefaultDbSetBuilder<TDocumentType, TEntityBase, "_id" | "_rev", PouchDbPlugin<DocumentTypes, IPouchDbRecord<DocumentTypes>, IDbPluginOptions>>>(builder: TBuilder) {
 
         return builder.defaults({ SyncRetryCount: 0, SyncStatus: "Pending" } as any).exclude("SyncStatus", "SyncRetryCount").create((Instance, props) => {
             return new class extends Instance {
@@ -97,7 +96,7 @@ export class ExternalDataContext extends DataContext<DocumentTypes, IPouchDbReco
             return result
         })
         .deserialize((w) => {
-            
+
             w.publishDate = w.publishDate == null ? null : new Date(w.publishDate);
             w.createdDate = new Date(w.createdDate);
 
@@ -111,7 +110,7 @@ export class ExternalDataContext extends DataContext<DocumentTypes, IPouchDbReco
     booksNoKey = this.dbset().default<IBook>(DocumentTypes.BooksNoKey).exclude("status", "rejectedCount").keys(w => w.none()).create();
     notes = this.dbset().default<INote>(DocumentTypes.Notes).create();
     contacts = this.dbset().default<IContact>(DocumentTypes.Contacts).keys(w => w.add("firstName").add("lastName")).create();
-    booksV3 = this.creator<DocumentTypes, IBookV3, DefaultDbSetBuilder<DocumentTypes, IBookV3, "_id" | "_rev">>(this.dbset().default<IBookV3>(DocumentTypes.BooksV3));
+    booksV3 = this.creator<DocumentTypes, IBookV3, DefaultDbSetBuilder<DocumentTypes, IBookV3, "_id" | "_rev", PouchDbPlugin<DocumentTypes, IPouchDbRecord<DocumentTypes>, IDbPluginOptions>>>(this.dbset().default<IBookV3>(DocumentTypes.BooksV3));
 
     cars = this.dbset().default<ICar>(DocumentTypes.Cars).enhance((e) => {
         return {
@@ -231,9 +230,7 @@ export class DbContextFactory {
 
     createContext<T extends typeof ExternalDataContext>(Context: T, dbname?: string, type?: string) {
         const name = dbname ?? `${uuidv4()}-db`;
-        const s = performance.now();
         const result = new Context(name);
-        console.log(performance.now() - s)
         this._dbs[name] = result;
         return result;
     }

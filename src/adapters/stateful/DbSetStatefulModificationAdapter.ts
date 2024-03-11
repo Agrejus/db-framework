@@ -4,7 +4,7 @@ import { DbSetModificationAdapter } from "../DbSetModificationAdapter";
 import { CacheDataStore } from '../../cache/CacheDataStore';
 import { IDbSetChangeTracker } from "../../types/change-tracking-types";
 
-export class DbSetStatefulModificationAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> extends DbSetModificationAdapter<TDocumentType, TEntity, TExclusions> {
+export class DbSetStatefulModificationAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity, TDbPlugin> extends DbSetModificationAdapter<TDocumentType, TEntity, TExclusions, TDbPlugin> {
 
     private _store: CacheDataStore<TDocumentType, TEntity>;
     private _onChange: DbSetOnChangeEvent<TDocumentType, TEntity> | null;

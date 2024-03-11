@@ -59,9 +59,37 @@ export const generateRandomId = () => {
 }
 
 export const toDictionary = <T>(data: T[], idPropertyName: keyof T) => {
-    return data.reduce((a, v) => ({ ...a, [v[idPropertyName] as string | number]: v }), {} as IDictionary<T>)
+
+    const result = {} as IDictionary<T>;
+
+    for (let i = 0; i < data.length; i++) {
+        const item = data[i];
+
+        result[item[idPropertyName] as string | number] = item;
+    }
+
+    return result;
 }
 
 export const toReadOnlyList = <T>(data: T[], idPropertyName: keyof T) => {
     return new ReadOnlyList<T>(idPropertyName, data);
+}
+
+export const stringifyCircular = (value: any) => {
+    try {
+        return JSON.stringify(value, null, 2);
+    } catch (e: any) {
+        return JSON.stringify(value, () => {
+            const visited = new WeakSet();
+            return (_: any, value: any) => {
+                if (typeof value === "object" && value !== null) {
+                    if (visited.has(value)) {
+                        return;
+                    }
+                    visited.add(value);
+                }
+                return value;
+            };
+        }, 2)
+    }
 }

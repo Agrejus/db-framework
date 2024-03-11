@@ -431,7 +431,7 @@ describe('data context', () => {
         const interation = jest.fn();
         const context = dbFactory(ExternalDataContext);
 
-        for (let dbset of context) {
+        for (let dbset of context.dbsets.all()) {
             interation();
         }
 

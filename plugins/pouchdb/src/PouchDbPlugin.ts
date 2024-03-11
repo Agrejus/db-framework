@@ -220,7 +220,7 @@ export class PouchDbPlugin<TDocumentType extends string, TEntityBase extends Pou
             successes_count: 0
         };
 
-        for (let item of response) {
+        for (const item of response) {
             if ('error' in item) {
                 const error = item as PouchDB.Core.Error;
 

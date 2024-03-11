@@ -16,7 +16,7 @@
 
 ---
 
-<p align="center"> Create a versatile Data Interaction Layer for Node.js and web development that seamlessly handles database interactions. Effortlessly abstract database interactions using the DB Framework, simplifying the process of switching databases or incorporating two different databases.
+<p align="center"> Create a versatile Data Interaction Layer for Node.js and the web that seamlessly handles database interactions. Effortlessly abstract database interactions using DB Framework, simplifying the process of switching databases or incorporating two different databases.
     <br> 
 </p>
 
@@ -122,7 +122,7 @@
 - [Examples](https://github.com/agrejus/db-framework/tree/main/examples)
 
 ## About <a name = "about"></a>
-Db Framework is a TypeScript first ORM desiged to wrap existing database frameworks such as PouchDB to augment its functionality.  Db Framework aims to take the headaches out of other ORMs and provide repeatable processes for CRUD operations with minimal code.  Inspired by .NET's Entity Framework, Db Framework operates the same way and tries to keep method names as close as possible.
+Db Framework is a TypeScript first ORM designed to wrap existing database frameworks such as PouchDB to augment its functionality.  Db Framework aims to take the headaches out of other ORMs and provide repeatable processes for CRUD operations with minimal code.  Inspired by .NET's Entity Framework, Db Framework operates the same way and tries to keep method names as close as possible.
 
 Db Framework provides a ton of flexibility, even going as far as offering a local state store (think Redux).
 

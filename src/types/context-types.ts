@@ -75,12 +75,26 @@ export interface ITrackedChanges<TDocumentType extends string, TEntityBase exten
     transactions: Transactions;
 }
 
-export interface IPrivateContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase> extends IDataContext<TDocumentType, TEntityBase> {
-    _getApi: () => IDbSetApi<TDocumentType, TEntityBase, TExclusions>;
+export interface IPrivateContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase, TDbPlugin> extends IDataContext<TDocumentType, TEntityBase> {
+    _getApi: () => IDbSetApi<TDocumentType, TEntityBase, TExclusions, TDbPlugin>;
 }
 
 export type DbFrameworkEnvironment = "development" | "production"
 
-export type ContextOptions = {
-    environment?: DbFrameworkEnvironment
+export type LoggerPayload = { name: string, delta?: number, args?: any[] }
+export type MonitoringOptions = {
+    performance?: {
+        enabled: boolean;
+        threshold?: number;
+        only?: string[];
+    };
+    profiler?: {
+        enabled: boolean;
+        only?: string[];
+    },
+    logger?: (data: LoggerPayload) => void;
 }
+
+export type ContextOptions = {
+    environment?: DbFrameworkEnvironment;
+} & MonitoringOptions;

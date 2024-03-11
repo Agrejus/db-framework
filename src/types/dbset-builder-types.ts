@@ -1,4 +1,4 @@
-import { DbSetPickDefaultActionRequired, DeepPartial, EntityComparator, EntitySelector } from './common-types';
+import { DbSetPickDefaultActionRequired, EntityComparator, EntitySelector } from './common-types';
 import { EntityIdKey, IDbRecord } from './entity-types';
 import { DbSetOnChangeEvent, IDbSet, IDbSetProps, IStatefulDbSet, IStoreDbSetProps } from './dbset-types';
 import { DbSet } from '../context/dbset/DbSet';
@@ -25,8 +25,8 @@ export interface IDbSetBuilderParams<TDocumentType extends string, TEntity exten
 
 
 export type ConvertDateToString<T> = T extends Date ? string : T;
-export type DbSetStoreExtenderCreator<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity, TResult extends IStatefulDbSet<TDocumentType, TEntity, TExclusions>> = (i: DbSetExtender<TDocumentType, TEntity, TExclusions>, args: IStoreDbSetProps<TDocumentType, TEntity, TExclusions>) => TResult
-export type DbSetExtenderCreator<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity, TResult extends IDbSet<TDocumentType, TEntity, TExclusions>> = (i: DbSetExtender<TDocumentType, TEntity, TExclusions>, args: IDbSetProps<TDocumentType, TEntity, TExclusions>) => TResult
+export type DbSetStoreExtenderCreator<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity, TDbPlugin, TResult extends IStatefulDbSet<TDocumentType, TEntity, TExclusions, TDbPlugin>> = (i: DbSetExtender<TDocumentType, TEntity, TExclusions, TDbPlugin>, args: IStoreDbSetProps<TDocumentType, TEntity, TExclusions>) => TResult
+export type DbSetExtenderCreator<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity, TDbPlugin, TResult extends IDbSet<TDocumentType, TEntity, TExclusions, TDbPlugin>> = (i: DbSetExtender<TDocumentType, TEntity, TExclusions, TDbPlugin>, args: IDbSetProps<TDocumentType, TEntity, TExclusions>) => TResult
 
 export type Serializer<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = (entity: TEntity) => any;
 export type Deserializer<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = (raw: any) => TEntity;
@@ -64,6 +64,6 @@ export interface IIdBuilderBase<TDocumentType extends string, TEntity extends ID
 
 export type CustomIdCreator<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = (entity: TEntity) => string;
 
-export type DbSetExtender<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> = new (props: IDbSetProps<TDocumentType, TEntity, TExclusions>) => DbSet<TDocumentType, TEntity, TExclusions>;
+export type DbSetExtender<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity, TDbPlugin> = new (props: IDbSetProps<TDocumentType, TEntity, TExclusions>) => DbSet<TDocumentType, TEntity, TExclusions, TDbPlugin>;
 
 export type EntityEnhancer<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = (entity: TEntity) => TEntity

@@ -1,5 +1,5 @@
 import { IDbRecord, IDbRecordBase, OmittedEntity } from './entity-types';
-import { IDbSetInfo } from './dbset-types';
+import { DbSetCacheConfiguration, IDbSetInfo } from './dbset-types';
 import { EntitySelector } from './common-types';
 
 export interface IDbSetFetchAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> {
@@ -9,6 +9,11 @@ export interface IDbSetFetchAdapter<TDocumentType extends string, TEntity extend
     all(): Promise<TEntity[]>;
     get(...ids: string[]): Promise<TEntity[]>;
     pluck<TKey extends keyof TEntity>(selector: EntitySelector<TDocumentType, TEntity>, propertySelector: TKey): Promise<TEntity[TKey]>
+}
+
+export interface IDbSetFetchMediator<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> extends IDbSetFetchAdapter<TDocumentType, TEntity, TExclusions> {
+    useCache(configuration: DbSetCacheConfiguration): void;
+    clearCache(...keys: string[]): void;
 }
 
 export interface IDbSetGeneralAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> {

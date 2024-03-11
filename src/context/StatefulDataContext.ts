@@ -25,8 +25,8 @@ export abstract class StatefulDataContext<TDocumentType extends string, TEntityB
         super(options, Plugin, contextOptions)
     }
 
-    private _forEachStoreDbSet(callback: (dbset: IStatefulDbSet<TDocumentType, TEntityBase>) => void | false) {
-        for (const dbset of this) {
+    private _forEachStoreDbSet(callback: (dbset: IStatefulDbSet<TDocumentType, TEntityBase, TExclusions, TDbPlugin>) => void | false) {
+        for (const dbset of this.dbsets.all()) {
             if (dbset.types.dbsetType === "stateful") {
 
                 if (callback(dbset as any) === false) {
@@ -99,12 +99,12 @@ export abstract class StatefulDataContext<TDocumentType extends string, TEntityB
         }
     }
 
-    protected override dbset(): StatefulDbSetInitializer<TDocumentType, TEntityBase, TExclusions, TPluginOptions> {
-        return new StatefulDbSetInitializer<TDocumentType, TEntityBase, TExclusions, TPluginOptions>(this.addDbSet.bind(this), this);
+    protected override dbset(): StatefulDbSetInitializer<TDocumentType, TEntityBase, TExclusions, TPluginOptions, TDbPlugin> {
+        return new StatefulDbSetInitializer<TDocumentType, TEntityBase, TExclusions, TPluginOptions, TDbPlugin>(this.addDbSet.bind(this), this);
     }
 
     async hydrate() {
-        const dbsets: IStatefulDbSet<TDocumentType, TEntityBase>[] = [];
+        const dbsets: IStatefulDbSet<TDocumentType, TEntityBase, TExclusions, TDbPlugin>[] = [];
 
         this._forEachStoreDbSet(storeDbSet => {
             dbsets.push(storeDbSet);
@@ -114,8 +114,8 @@ export abstract class StatefulDataContext<TDocumentType extends string, TEntityB
     }
 
     protected override async onSaveError() {
-        const dbsets: IStatefulDbSet<TDocumentType, any>[] = [];
-        for (const dbset of this) {
+        const dbsets: IStatefulDbSet<TDocumentType, any, TExclusions, TDbPlugin>[] = [];
+        for (const dbset of this.dbsets.all()) {
             if (dbset.types.dbsetType === "stateful") {
                 dbsets.push(dbset as any);
                 continue;

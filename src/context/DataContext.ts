@@ -1,13 +1,15 @@
 import { Changes, DeepPartial, SaveResult } from "../types/common-types";
-import { ContextOptions, IDataContext, OnChangeEvent } from "../types/context-types";
+import { ContextOptions, IDataContext, IProcessedUpdates, OnChangeEvent } from "../types/context-types";
 import { DbSetMap, EntityAndTag, IDbSet, IDbSetApi, SaveChangesEventData } from "../types/dbset-types";
 import { IDbRecord, IRemovalRecord } from "../types/entity-types";
 import { DbSetInitializer } from './dbset/builders/DbSetInitializer';
-import { DbPluginInstanceCreator, IDbPlugin, IDbPluginOptions } from '../types/plugin-types';
+import { DbPluginInstanceCreator, IBulkOperationsResponse, IDbPlugin, IDbPluginOptions } from '../types/plugin-types';
 import { ContextChangeTrackingAdapter } from '../adapters/change-tracking/ContextChangeTrackingAdapter';
 import { toReadOnlyList } from "../common/helpers";
 import { ReadOnlyList } from "../common/ReadOnlyList";
 import { DbSetCollection } from "../common/DbSetCollection";
+import { Transactions } from "../common/Transactions";
+import { MonitoringMixin } from "./monitoring/MonitoringMixin";
 
 export abstract class DataContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase, TPluginOptions extends IDbPluginOptions = IDbPluginOptions, TDbPlugin extends IDbPlugin<TDocumentType, TEntityBase, TExclusions> = IDbPlugin<TDocumentType, TEntityBase, TExclusions>> implements IDataContext<TDocumentType, TEntityBase> {
 
@@ -35,6 +37,23 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
         this._contextOptions = contextOptions;
         this.dbPlugin = new Plugin(options);
         this._changeTracker = new ContextChangeTrackingAdapter();
+
+        MonitoringMixin.register(this.contextId(), this._contextOptions, this, DataContext as any);
+    }
+
+    clearCache() {
+        for(const dbset of this.dbsets.all()) {
+            dbset.clearCache();
+        }
+    }
+
+    /**
+     * Get all documents in the database
+     * @returns {Promise<TEntityBase[]>}
+     * @deprecated use all() instead
+     */
+    async getAllDocs() {
+        return await this.all();
     }
 
     async all() {
@@ -49,7 +68,7 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
      * @returns IData
      */
     private _getApi() {
-        const api: IDbSetApi<TDocumentType, TEntityBase, TExclusions> = {
+        const api: IDbSetApi<TDocumentType, TEntityBase, TExclusions, TDbPlugin> = {
             dbPlugin: this.dbPlugin,
             contextOptions: this._contextOptions,
             tag: this._tag.bind(this),
@@ -72,9 +91,9 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
         this._tags[id] = value;
     }
 
-    protected addDbSet(dbset: IDbSet<string, any, any>) {
+    protected addDbSet(dbset: IDbSet<string, any, any, any>) {
 
-        const info = (dbset as IDbSet<string, any, any>).info();
+        const info = (dbset as IDbSet<string, any, any, any>).info();
 
         if (this.dbsetMap[info.DocumentType] != null) {
             throw new Error(`Can only have one DbSet per document type in a context, please create a new context instead`)
@@ -171,65 +190,100 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
         }
     }
 
+    protected async _preProcessChanges() {
+        const { tags, changes } = await this._beforeSaveChanges();
+        const { adds, removes, updates, transactions } = changes;
+        const updatedItems = Object.values(updates.docs);
+
+        // check for readonly updates, they are not allowed
+        if (updatedItems.length > 0) {
+
+            const readonlyDocumentTypes = Object.keys(updatedItems.filter(w => this._readonlyDocumentTypes[w.DocumentType] === true).reduce((a, v) => ({ ...a, [v.DocumentType]: v.DocumentType }), {} as { [key: string]: string }));
+
+            if (readonlyDocumentTypes.length > 0) {
+                throw new Error(`Cannot save readonly entities.  Document Types: ${readonlyDocumentTypes.join(', ')}`);
+            }
+        }
+
+        transactions.appendUpdates(updates);
+
+        return {
+            tags,
+            transactions,
+            adds,
+            removes,
+            updates: updatedItems,
+            processedUpdates: updates
+        }
+    }
+
+    protected _enrichBeforeSave(data: { adds: TEntityBase[], removes: TEntityBase[], updates: TEntityBase[] }) {
+        // strip updates/adds and process removals
+        const { adds, removes, updates } = data;
+        const strippedAdds = this._changeTracker.enrich(adds, "strip", "serialize");
+        const strippedUpdates = this._changeTracker.enrich(updates, "strip", "serialize");
+        const formattedRemovals = this._changeTracker.enrich(removes, "remove") as IRemovalRecord<TDocumentType, TEntityBase>[];
+
+        return {
+            strippedAdds,
+            strippedUpdates,
+            formattedRemovals
+        }
+    }
+
+    protected async _bulkOperations(operations: { adds: TEntityBase[]; removes: TEntityBase[]; updates: TEntityBase[] }, transactions: Transactions) {
+        return await this.dbPlugin.bulkOperations(operations, transactions);
+    }
+
+    protected _enrichAfterSave(data: { adds: TEntityBase[], updates: TEntityBase[] }, modificationResult: IBulkOperationsResponse) {
+        const { adds, updates } = data;
+        this._changeTracker.enrichAfterPersisted(adds, modificationResult);
+
+        // map generated values and other enrichments
+        const persistedAdds = this._changeTracker.enrichAfterPersisted(adds, modificationResult);
+        const persistedUpdates = this._changeTracker.enrichAfterPersisted(updates, modificationResult);
+
+        return {
+            persistedAdds,
+            persistedUpdates
+        }
+    }
+
+    protected _convertToSaveResult(data: { adds: TEntityBase[], removes: IRemovalRecord<TDocumentType, TEntityBase>[], updates: TEntityBase[], processedUpdates: IProcessedUpdates<TDocumentType, TEntityBase> }, modificationResult: IBulkOperationsResponse) {
+
+        const { adds, removes, updates, processedUpdates } = data;
+        const result: SaveResult<TDocumentType, TEntityBase> = {
+            adds: toReadOnlyList(adds, this.dbPlugin.idPropertyName),
+            removes: toReadOnlyList(removes, this.dbPlugin.idPropertyName),
+            updates: {
+                docs: toReadOnlyList(updates, this.dbPlugin.idPropertyName),
+                deltas: toReadOnlyList(Object.values(processedUpdates.deltas), this.dbPlugin.idPropertyName as any),
+                originals: toReadOnlyList(Object.values(processedUpdates.originals), this.dbPlugin.idPropertyName)
+            },
+            successes_count: modificationResult.successes_count
+        }
+
+        return result;
+    }
+
     async saveChanges(): Promise<SaveResult<TDocumentType, TEntityBase>> {
         try {
-            const beforeSaveStart = performance.now();
-            const { tags, changes } = await this._beforeSaveChanges();
-            const { adds, removes, updates, transactions } = changes;
-            const updatedItems = Object.values(updates.docs);
+            const { tags, adds, removes, transactions, updates, processedUpdates } = await this._preProcessChanges()
 
-            // check for readonly updates, they are not allowed
-            if (updatedItems.length > 0) {
-
-                const readonlyDocumentTypes = Object.keys(updatedItems.filter(w => this._readonlyDocumentTypes[w.DocumentType] === true).reduce((a, v) => ({ ...a, [v.DocumentType]: v.DocumentType }), {} as { [key: string]: string }));
-
-                if (readonlyDocumentTypes.length > 0) {
-                    throw new Error(`Cannot save readonly entities.  Document Types: ${readonlyDocumentTypes.join(', ')}`);
-                }
-            }
-            console.log("beforeSaveStart", performance.now() - beforeSaveStart);
-
-            const firstEnrich = performance.now();
             // strip updates/adds and process removals
-            const strippedAdds = this._changeTracker.enrich(adds, "strip", "serialize");
-            const strippedUpdates = this._changeTracker.enrich(updatedItems, "strip", "serialize");
-            const formattedRemovals = this._changeTracker.enrich(removes, "remove") as IRemovalRecord<TDocumentType, TEntityBase>[];
+            const { formattedRemovals, strippedAdds, strippedUpdates } = this._enrichBeforeSave({ adds, removes, updates })
 
-            transactions.appendUpdates(updates);
-            console.log("firstEnrich", performance.now() - firstEnrich);
-
-            const bulkStart = performance.now();
             // perform operation on the database
-            const modificationResult = await this.dbPlugin.bulkOperations({ adds: strippedAdds, removes: formattedRemovals, updates: strippedUpdates }, transactions);
-            console.log("bulkOperations", performance.now() - bulkStart);
+            const modificationResult = await this._bulkOperations({ adds: strippedAdds, removes: formattedRemovals, updates: strippedUpdates }, transactions);
 
-            const enrichStart = performance.now();
-            
-            this._changeTracker.enrichAfterPersisted(strippedAdds, modificationResult);
-
-            // map generated values and other enrichments
-            const persistedAdds = this._changeTracker.enrichAfterPersisted(strippedAdds, modificationResult);
-            const persistedUpdates = this._changeTracker.enrichAfterPersisted(strippedUpdates, modificationResult);
+            const { persistedAdds, persistedUpdates } = this._enrichAfterSave({ adds: strippedAdds, updates: strippedUpdates }, modificationResult);
 
             this._changeTracker.reinitialize(formattedRemovals, persistedAdds, persistedUpdates);
 
-            console.log("enrich", performance.now() - enrichStart);
-
-            const afterSaveStart = performance.now();
-            const result: SaveResult<TDocumentType, TEntityBase> = {
-                adds: toReadOnlyList(persistedAdds, this.dbPlugin.idPropertyName),
-                removes: toReadOnlyList(formattedRemovals, this.dbPlugin.idPropertyName),
-                updates: {
-                    docs: toReadOnlyList(persistedUpdates, this.dbPlugin.idPropertyName),
-                    deltas: toReadOnlyList(Object.values(updates.deltas), this.dbPlugin.idPropertyName as any),
-                    originals: toReadOnlyList(Object.values(updates.originals), this.dbPlugin.idPropertyName)
-                },
-                successes_count: modificationResult.successes_count
-            }
+            const result = this._convertToSaveResult({ adds: persistedAdds, removes: formattedRemovals, updates: persistedUpdates, processedUpdates }, modificationResult);
 
             await this._onAfterSaveChanges(persistedAdds, persistedUpdates, formattedRemovals, tags);
 
-            console.log("afterSaveStart", performance.now() - afterSaveStart);
             return result;
         } catch (e: any) {
             this._changeTracker.reinitialize();
@@ -293,8 +347,8 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
     /**
      * Starts the dbset fluent API.  Only required function call is create(), all others are optional
      */
-    protected dbset(): DbSetInitializer<TDocumentType, TEntityBase, TExclusions, TPluginOptions> {
-        return new DbSetInitializer<TDocumentType, TEntityBase, TExclusions, TPluginOptions>(this.addDbSet.bind(this), this);
+    protected dbset(): DbSetInitializer<TDocumentType, TEntityBase, TExclusions, TPluginOptions, TDbPlugin> {
+        return new DbSetInitializer<TDocumentType, TEntityBase, TExclusions, TPluginOptions, TDbPlugin>(this.addDbSet.bind(this), this);
     }
 
     hasPendingChanges() {
@@ -306,6 +360,16 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
         for (let dbset of this.dbsets.all()) {
             await dbset.empty();
         }
+    }
+
+    /**
+     * Gets a DbSet for the matching document type
+     * @param documentType 
+     * @returns {IDbSet<TDocumentType, TEntityBase, TExclusions>}
+     * @deprecated use dbsets.get(documentType) instead
+     */
+    getDbSet(documentType: TDocumentType) {
+        return this.dbsets.get(documentType);
     }
 
     async destroyDatabase() {
