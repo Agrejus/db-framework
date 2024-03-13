@@ -141,7 +141,7 @@ export const run = async () => {
 
         const contextFactory = new DbContextFactory();
         const dbname = contextFactory.getRandomDbName();
-        const context = contextFactory.createContext(ExternalDataContext, dbname);
+        const context = contextFactory.createContext(ExternalDataContext, "performance-db");
         const rnd = faker.random.words(10000);
 
         // for(let i = 0; i < 10000; i++) {
@@ -160,17 +160,20 @@ export const run = async () => {
         // console.log(saved)
         // debugger;
 
-        await context.books.add({
-            author: "James",
-            publishDate: faker.date.between('2010-01-01', '2024-01-01')
-        });
+        debugger;
+        const found = await context.books.useCache({ ttl: 10, key: "test" }).find(w => w.author === "James");
+        const found1 = await context.books.useCache({ ttl: 10, key: "test" }).find(w => w.author === "James");
+
+        // await context.books.add({
+        //     author: "James",
+        //     publishDate: faker.date.between('2010-01-01', '2024-01-01')
+        // });
 
         const saved2 = await context.saveChanges();
-        debugger;
-
-        const found = await context.books.useCache({ ttl: 10, key: "test" }).find(w => w.author === "James");
 
         const found2 = await context.books.useCache({ ttl: 10, key: "test" }).find(w => w.author === "James");
+        debugger;
+        const found3 = await context.books.find(w => w.author === "James");
 
         if (found != null) {
 

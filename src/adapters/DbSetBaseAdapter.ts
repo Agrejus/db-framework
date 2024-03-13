@@ -37,16 +37,6 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
         this.api.registerOnBeforeSaveChanges(props.documentType, this.onBeforeSaveChanges.bind(this));
     }
 
-    protected async allDataAndMakeTrackable() {
-        const data = await this.getAllData();
-        const enrich = this.changeTracker.enrichment.compose("deserialize", "defaultRetrieve", "changeTracking", "enhance")
-
-        // process the mappings when we make the item trackable.  We are essentially prepping the entity
-        const result = data.map(enrich);
-
-        return this.filterResult(result);
-    }
-
     protected async onAfterDataFetched(data: TEntity[]) {
 
     }
@@ -58,27 +48,5 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
 
     protected async onAfterSaveChanges(getChanges: <T extends SaveChangesEventData<TDocumentType, TEntity>>() => T) {
 
-    }
-
-    protected async _all() {
-        const result = await this.allDataAndMakeTrackable();
-
-        await this.onAfterDataFetched(result);
-
-        const attached = this.changeTracker.attach(...result);
-
-        return this.filterResult(attached);
-    }
-
-    protected filterResult(result: TEntity[]) {
-        if (this.filterSelector == null) {
-            return result;
-        }
-
-        return result.filter(w => this.filterSelector(w));
-    }
-
-    protected async getAllData() {
-        return await this.api.dbPlugin.all({ DocumentType: this.documentType });
     }
 }

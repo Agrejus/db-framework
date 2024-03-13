@@ -17,6 +17,10 @@ export class DbSetCollection<TDocumentType extends string, TEntityBase extends I
         return Object.values(this._dbsets);
     }
 
+    get length() {
+        return Object.values(this._dbsets).length;
+    }
+
     filter(predicate: (dbset: IDbSet<TDocumentType, TEntityBase, TExclusions, TDbPlugin>, index: number, array: IDbSet<TDocumentType, TEntityBase, TExclusions, TDbPlugin>[]) => boolean) {
         return Object.values(this._dbsets).filter((w, i, a) => predicate(w as IDbSet<TDocumentType, TEntityBase, TExclusions, TDbPlugin>, i, a as IDbSet<TDocumentType, TEntityBase, TExclusions, TDbPlugin>[]));
     }

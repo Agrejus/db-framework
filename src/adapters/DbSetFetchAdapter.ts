@@ -1,3 +1,4 @@
+import { SearchResult } from '../common/SearchResult';
 import { IDbSetFetchAdapter } from '../types/adapter-types';
 import { IDbSetChangeTracker } from '../types/change-tracking-types';
 import { EntitySelector } from '../types/common-types';
@@ -11,79 +12,25 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
         super(props, type, changeTracker);
     }
 
-    async pluck<TKey extends keyof TEntity>(selector: EntitySelector<TDocumentType, TEntity>, propertySelector: TKey) {
-        const found = await this.find(selector);
-
-        if (found == null) {
-            throw new Error('Entity not found for pluck')
-        }
-
-        return found[propertySelector];
+    async all() {
+        const data = await this.api.dbPlugin.all({ DocumentType: this.documentType });
+        const filtered = this.filterSelector == null ? data : data.filter(this.filterSelector);
+        return new SearchResult<TDocumentType, TEntity, TExclusions>(filtered, this.changeTracker);
     }
 
     async filter(selector: EntitySelector<TDocumentType, TEntity>) {
-        const data = await this.allDataAndMakeTrackable();
-
-        const result = [...data].filter(selector);
-
-        await this.onAfterDataFetched(result);
-
-        const attached = this.changeTracker.attach(...result)
-
-        return attached;
+        const data = await this.all();
+        return data.filter(selector);
     }
 
-    async all() {
-        return await this._all()
+    async find(selector: EntitySelector<TDocumentType, TEntity>) {
+        const data = await this.all();
+        return data.find(selector);
     }
 
     async get(...ids: string[]) {
-
         const entities = await this.api.dbPlugin.getStrict(this.documentType, ...ids);
-        const enrich = this.changeTracker.enrichment.compose("deserialize", "defaultRetrieve", "changeTracking", "enhance");
-
-        const result = entities.map(enrich);
-        const filteredResult = this.filterResult(result)
-        await this.onAfterDataFetched(filteredResult);
-
-        if (filteredResult.length > 0) {
-            return this.changeTracker.attach(...filteredResult)
-        }
-
-        return filteredResult;
-    }
-
-
-    async find(selector: EntitySelector<TDocumentType, TEntity>): Promise<TEntity | undefined> {
-
-        const data = await this.allDataAndMakeTrackable();
-        const result = [...data].find(selector);
-
-        if (result) {
-
-            await this.onAfterDataFetched([result]);
-
-            const [attached] = this.changeTracker.attach(result);
-
-            return attached;
-        }
-
-        return result;
-    }
-
-    async first() {
-        const data = await this.allDataAndMakeTrackable();
-        const result = data[0];
-
-        if (result) {
-
-            await this.onAfterDataFetched([result]);
-
-            const [attached] = this.changeTracker.attach(result);
-
-            return attached;
-        }
-
-        return result as TEntity | undefined;
+        const filtered = this.filterSelector == null ? entities : entities.filter(this.filterSelector);
+        return new SearchResult<TDocumentType, TEntity, TExclusions>(filtered, this.changeTracker);
     }
 }

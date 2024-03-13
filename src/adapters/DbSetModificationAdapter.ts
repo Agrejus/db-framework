@@ -1,17 +1,20 @@
 import { Transaction } from '../common/Transaction';
-import { IDbSetModificationAdapter } from '../types/adapter-types';
+import { IDbSetFetchAdapter, IDbSetModificationAdapter } from '../types/adapter-types';
 import { IDbSetChangeTracker } from '../types/change-tracking-types';
 import { ITrackedData } from '../types/context-types';
 import { DbSetType, IDbSetProps } from '../types/dbset-types';
 import { IDbRecord, OmittedEntity, IIndexableEntity } from '../types/entity-types';
 import { DbSetBaseAdapter } from './DbSetBaseAdapter';
+import { DbSetFetchAdapter } from './DbSetFetchAdapter';
 
 export class DbSetModificationAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity, TDbPlugin> extends DbSetBaseAdapter<TDocumentType, TEntity, TExclusions, TDbPlugin> implements IDbSetModificationAdapter<TDocumentType, TEntity, TExclusions> {
 
     private _tag: unknown | null = null;
+    protected readonly fetchAdapter: IDbSetFetchAdapter<TDocumentType, TEntity, TExclusions>;
 
     constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType, changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>) {
         super(props, type, changeTracker);
+        this.fetchAdapter = new DbSetFetchAdapter<TDocumentType, TEntity, TExclusions, TDbPlugin>(props, type, changeTracker);
     }
 
     tag(value: unknown) {
@@ -73,7 +76,8 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
 
     async upsert(...entities: (OmittedEntity<TEntity, TExclusions> | Omit<TEntity, "DocumentType">)[]) {
 
-        const all = await this.getAllData();
+        const allResult = await this.fetchAdapter.all();
+        const all = allResult.toResult();
         const allDictionary: { [key: string]: TEntity } = all.reduce((a, v) => {
 
             const id = v[this.api.dbPlugin.idPropertyName] as string;
@@ -145,8 +149,9 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
     }
 
     async empty() {
-        const items = await this._all();
-        await this.remove(...items);
+        const allResult = await this.fetchAdapter.all();
+        const all = allResult.toResult();
+        await this.remove(...all);
     }
 
     private async _remove(entity: TEntity, transaction: Transaction, data: ITrackedData<TDocumentType, TEntity>) {

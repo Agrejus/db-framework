@@ -61,14 +61,19 @@ export const generateRandomId = () => {
 export const toDictionary = <T>(data: T[], idPropertyName: keyof T) => {
 
     const result = {} as IDictionary<T>;
+    const documentTypes = new Set<string>();
 
     for (let i = 0; i < data.length; i++) {
         const item = data[i];
 
         result[item[idPropertyName] as string | number] = item;
+
+        if (item != null && (item as any)["DocumentType"]) {
+            documentTypes.add((item as any)["DocumentType"]);
+        }
     }
 
-    return result;
+    return { result, documentTypes };
 }
 
 export const toReadOnlyList = <T>(data: T[], idPropertyName: keyof T) => {

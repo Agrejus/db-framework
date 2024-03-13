@@ -42,7 +42,7 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
     }
 
     clearCache() {
-        for(const dbset of this.dbsets.all()) {
+        for (const dbset of this.dbsets.all()) {
             dbset.clearCache();
         }
     }
@@ -282,6 +282,8 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
 
             const result = this._convertToSaveResult({ adds: persistedAdds, removes: formattedRemovals, updates: persistedUpdates, processedUpdates }, modificationResult);
 
+            this._clearCaches(result);
+
             await this._onAfterSaveChanges(persistedAdds, persistedUpdates, formattedRemovals, tags);
 
             return result;
@@ -291,6 +293,24 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
             await this.onSaveError(e);
 
             throw e;
+        }
+    }
+
+    protected _clearCaches(saveResult: SaveResult<TDocumentType, TEntityBase>) {
+
+        // we need to bust the caches here... do we bust by document type or filter down and only busy if it has changed?
+        // we can cache the filter function and then check for adds/updates
+        // always bust on removes
+        const { adds, removes, updates } = saveResult;
+
+        for (const dbset of this.dbsets.all()) {
+            const info = dbset.info();
+            const documentType = info.DocumentType;
+
+            if (removes.hasDocumentType(documentType) || adds.hasDocumentType(documentType) || updates.docs.hasDocumentType(documentType)) {
+                dbset.clearCache();
+            }
+
         }
     }
 

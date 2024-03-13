@@ -48,7 +48,8 @@ export class DbSetStatefulModificationAdapter<TDocumentType extends string, TEnt
     }
 
     async hydrate() {
-        const all = await this._all();
+        const allResult = await this.fetchAdapter.all();
+        const all = allResult.toResult();
 
         this._store.putMany(...all);
 

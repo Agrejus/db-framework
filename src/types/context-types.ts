@@ -9,6 +9,8 @@ export type OnChangeEvent<TDocumentType extends string, TEntityBase extends IDbR
 
 export interface IDataContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> {
 
+    contextId(): string;
+
     /**
      * Persist changes to the underlying data store.  Returns number of documents modified
      * @returns {Promise<number>}

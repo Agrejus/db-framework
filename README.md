@@ -58,6 +58,7 @@
         - [onBeforeSaveChanges()](#data_context_on_before_save_changes)
         - [onAfterSaveChanges()](#data_context_on_after_save_changes)
         - [onSaveError()](#data_context_on_save_error)
+        - [clearCache()](#data_context_on_clear_cache)
     - [Middleware](#data_context_middleware)
         - [History Tracking](#data_context_middleware_history_tracking)
         - [Making Your Own Middleware](#data_context_making_your_own_middleware)
@@ -87,6 +88,8 @@
         - [create()](#default_dbset_builder_api_create)
     - [Methods](#default_dbset_methods)
         - [info()](#default_dbset_methods_info)
+        - [useCache()](#default_dbset_methods_use_cache)
+        - [clearCache()](#default_dbset_methods_clear_cache)
         - [tag()](#default_dbset_methods_tag)
         - [instance()](#default_dbset_methods_instance)
         - [add()](#default_dbset_methods_add)
@@ -182,6 +185,10 @@ export interface IBook extends PouchDbRecord<MyDocumentTypes.Book> {
 
 // Create Data context using a provider
 export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<MyDocumentTypes>, "_id" | "_rev"> {
+
+    contextId() {
+        return MyDataContext.name;
+    }
 
     constructor() {
         super({ dbName: "some-new-database" }, PouchDbPlugin)
@@ -505,6 +512,19 @@ const context = new MyDataContext();
 const allDocs = await context.getAllDocs();
 ```
 
+
+### `.clearCache` <a name = "data_context_on_clear_cache"></a>
+Clears the cache for all dbsets.
+
+**Type:** `.clearCache(): void`
+
+**Usage:**
+```typescript
+const context = new MyDataContext();
+
+const allDocs = await context.clearCache();
+```
+
 ### `.hasPendingChanges` <a name = "data_context_has_pending_changes"></a>
 Returns boolean flag of whether or not the context has any pending changes.
 
@@ -577,6 +597,10 @@ Function that is called before changes are persisted to the underlying data stor
 ```typescript
 export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<MyDocumentTypes>, "_id" | "_rev"> {
 
+    contextId() {
+        return MyDataContext.name;
+    }
+
     constructor() {
         super({ dbName: "some-new-database" }, PouchDbPlugin)
     }
@@ -599,6 +623,10 @@ Function that is called after changes are persisted to the underlying data store
 ```typescript
 export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<MyDocumentTypes>, "_id" | "_rev"> {
 
+    contextId() {
+        return MyDataContext.name;
+    }
+
     constructor() {
         super({ dbName: "some-new-database" }, PouchDbPlugin)
     }
@@ -620,6 +648,10 @@ Function that is called when there is an error saving data.
 **Usage:**
 ```typescript
 export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<MyDocumentTypes>, "_id" | "_rev"> {
+
+    contextId() {
+        return MyDataContext.name;
+    }
 
     constructor() {
         super({ dbName: "some-new-database" }, PouchDbPlugin)
@@ -646,6 +678,10 @@ Below is an example of history tracking middleware that aims to keep history of 
 const cacheStore = [];
 
 export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<MyDocumentTypes>, "_id" | "_rev"> {
+
+    contextId() {
+        return MyDataContext.name;
+    }
 
     constructor() {
         super({ dbName: "some-new-database" }, PouchDbPlugin)
@@ -943,6 +979,30 @@ Info is used to information about the dbset, such as it's defaults, keys, readon
 const context = new MyDataContext();
 
 const info = context.vehicles.info();
+```
+
+### `.useCache` <a name = "default_dbset_methods_use_cache"></a>
+Used to cache the result of a request.  Null/empty results are not cached.  TTL (in seconds) is the time to live before the cache is cleared and the key is used to identify the cache.  Cache is automatically cleared when the dbset has changes.  If a different dbset has changes, but the cached one does not, the cache will not be cleared.  This is to avoid clearing the cache when it is not needed.
+
+**Type:** `.useCache(options: { ttl: number, key: string }): this`
+
+**Usage:**
+```typescript
+const context = new MyDataContext();
+
+const found = context.vehicles.useCache({ ttl: 10, key: "cache_me" }).find(w => w.year === 2021);
+```
+
+### `.clearCache` <a name = "default_dbset_methods_clear_cache"></a>
+Used to cache the result of a request.  Null/empty results are not cached.  TTL (in seconds) is the time to live before the cache is cleared and the key is used to identify the cache.
+
+**Type:** `.clearCache(): void`
+
+**Usage:**
+```typescript
+const context = new MyDataContext();
+
+const found = context.vehicles.clearCache();
 ```
 
 ### `.tag` <a name = "default_dbset_methods_tag"></a>
@@ -1279,6 +1339,10 @@ By marking a db set as readonly, it allows only inserts and removes from the und
 ```typescript
 export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<MyDocumentTypes>, "_id" | "_rev"> {
 
+    contextId() {
+        return MyDataContext.name;
+    }
+
     constructor() {
         super({ dbName: "some-new-database" }, PouchDbPlugin)
     }
@@ -1297,6 +1361,10 @@ Key generation can be customized to almost anything.  Out of the box, the id pro
 **Usage:**
 ```typescript
 export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<MyDocumentTypes>, "_id" | "_rev"> {
+
+    contextId() {
+        return MyDataContext.name;
+    }
 
     constructor() {
         super({ dbName: "some-new-database" }, PouchDbPlugin)
@@ -1330,6 +1398,10 @@ Defaults are very powerful when paired with exclusions and can be used to set de
 ```typescript
 export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<MyDocumentTypes>, "_id" | "_rev"> {
 
+    contextId() {
+        return MyDataContext.name;
+    }
+
     constructor() {
         super({ dbName: "some-new-database" }, PouchDbPlugin)
     }
@@ -1351,6 +1423,10 @@ Exclude is almost always paired with defaults and can be used to exclude the req
 ```typescript
 export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<MyDocumentTypes>, "_id" | "_rev"> {
 
+    contextId() {
+        return MyDataContext.name;
+    }
+
     constructor() {
         super({ dbName: "some-new-database" }, PouchDbPlugin)
     }
@@ -1371,6 +1447,10 @@ Serialize is used to change the entity before it is saved.  For example, if we w
 **Usage:**
 ```typescript
 export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<MyDocumentTypes>, "_id" | "_rev"> {
+
+    contextId() {
+        return MyDataContext.name;
+    }
 
     constructor() {
         super({ dbName: "some-new-database" }, PouchDbPlugin)
@@ -1399,6 +1479,10 @@ Deserialize is used to change the entity after it is retrieved from the database
 ```typescript
 export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<MyDocumentTypes>, "_id" | "_rev"> {
 
+    contextId() {
+        return MyDataContext.name;
+    }
+
     constructor() {
         super({ dbName: "some-new-database" }, PouchDbPlugin)
     }
@@ -1421,6 +1505,10 @@ Enhance can be used to add more properties (untracked) or even functions to an o
 **Usage:**
 ```typescript
 export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<MyDocumentTypes>, "_id" | "_rev"> {
+
+    contextId() {
+        return MyDataContext.name;
+    }
 
     constructor() {
         super({ dbName: "some-new-database" }, PouchDbPlugin)
@@ -1448,6 +1536,10 @@ Filter can be used to set a permanent filter on all documents in the db set.  Th
 ```typescript
 export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<MyDocumentTypes>, "_id" | "_rev"> {
 
+    contextId() {
+        return MyDataContext.name;
+    }
+
     constructor() {
         super({ dbName: "some-new-database" }, PouchDbPlugin)
     }
@@ -1467,6 +1559,10 @@ Used to enable custom change tracking on the db set.  The provided function will
 **Usage:**
 ```typescript
 export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<MyDocumentTypes>, "_id" | "_rev"> {
+
+    contextId() {
+        return MyDataContext.name;
+    }
 
     constructor() {
         super({ dbName: "some-new-database" }, PouchDbPlugin)
@@ -1496,6 +1592,10 @@ Must be called to create the db set and use it within the context.  Can be used 
 ```typescript
 export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<MyDocumentTypes>, "_id" | "_rev"> {
 
+    contextId() {
+        return MyDataContext.name;
+    }
+
     constructor() {
         super({ dbName: "some-new-database" }, PouchDbPlugin)
     }
@@ -1507,6 +1607,10 @@ export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<My
 **Usage (With Extension):**
 ```typescript
 export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<MyDocumentTypes>, "_id" | "_rev"> {
+
+    contextId() {
+        return MyDataContext.name;
+    }
 
     constructor() {
         super({ dbName: "some-new-database" }, PouchDbPlugin)
@@ -1546,6 +1650,10 @@ Used to create a stateful db set that stores data locally and in the database.  
 **Usage:**
 ```typescript
 export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<MyDocumentTypes>, "_id" | "_rev"> {
+
+    contextId() {
+        return MyDataContext.name;
+    }
 
     constructor() {
         super({ dbName: "some-new-database" }, PouchDbPlugin)

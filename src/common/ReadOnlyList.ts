@@ -4,6 +4,7 @@ export class ReadOnlyList<T> {
 
     protected readonly data: { [key in keyof T]: T } = {} as any;
     protected readonly key: keyof T;
+    protected readonly documentTypes: Set<string> = new Set<string>();
 
     get length() {
         return Object.values(this.data).length;
@@ -11,13 +12,19 @@ export class ReadOnlyList<T> {
 
     constructor(key: keyof T, data: T[] = []) {
         this.key = key;
-        this.data = toDictionary(data, key) as { [key in keyof T]: T };
+        const result = toDictionary(data, key);
+        this.documentTypes = result.documentTypes;
+        this.data = result.result as { [key in keyof T]: T };
     }
 
     map<TResult>(predicate: (value: T, index: number, array: T[]) => TResult): TResult[] {
 
         const values = Object.values(this.data) as T[];
         return values.map(predicate)
+    }
+
+    hasDocumentType(documentType: string) {
+        return this.documentTypes.has(documentType);
     }
 
     all() {

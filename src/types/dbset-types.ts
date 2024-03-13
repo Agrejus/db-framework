@@ -285,3 +285,5 @@ export type DbSetCacheConfiguration = {
     ttl: number;
     key: string;
 }
+
+export type DbSetCacheOptions = { activeCacheKey: string | null, cacheConfiguration: { [key: string]: number } }
