@@ -1,8 +1,8 @@
 import { DbContextFactory, ExternalDataContext } from "./shared/context";
 import { v4 as uuidv4 } from 'uuid';
-import {memoryCache} from '../../cache/MemoryCache';
+import * as cache from '../../cache/DbSetCache';
 
-describe('DbSet Cache Tests', () => {
+describe('DbSet Cache TTL Tests', () => {
 
     const contextFactory = new DbContextFactory();
 
@@ -17,10 +17,9 @@ describe('DbSet Cache Tests', () => {
     it('should add entity and not use cache', async () => {
         const context = contextFactory.createContext(ExternalDataContext, uuidv4());
 
-        const mockGetDbSetCacheValue = jest.spyOn(memoryCache, "get");
-        const mockSetDbSetCacheValue = jest.spyOn(memoryCache, "put");
-        const mockClearDbSetCache = jest.spyOn(memoryCache, "remove");
-        const cacheKey = 'Cache:ExternalDataContext:contacts';
+        const mockGetDbSetCacheValue = jest.spyOn(cache, "getDbSetCacheValue");
+        const mockSetDbSetCacheValue = jest.spyOn(cache, "setDbSetCacheValue");
+        const mockClearDbSetCache = jest.spyOn(cache, "clearDbSetCache");
 
         await context.contacts.add({
             firstName: "James",
@@ -34,18 +33,17 @@ describe('DbSet Cache Tests', () => {
         const found = await context.contacts.find(w => w.firstName === "James");
 
         expect(found).toBeDefined();
-        expect(mockGetDbSetCacheValue).not.toHaveBeenCalledWith(cacheKey);
-        expect(mockSetDbSetCacheValue).not.toHaveBeenCalledWith(cacheKey, expect.anything());
+        expect(mockGetDbSetCacheValue).not.toHaveBeenCalled();
+        expect(mockSetDbSetCacheValue).not.toHaveBeenCalled();
         expect(mockClearDbSetCache).toHaveBeenCalled();
     });
 
     it('should add entity and cache', async () => {
         const context = contextFactory.createContext(ExternalDataContext, uuidv4());
-        const cacheKey = 'Cache:ExternalDataContext:contacts';
 
-        const mockGetDbSetCacheValue = jest.spyOn(memoryCache, "get")
-        const mockSetDbSetCacheValue = jest.spyOn(memoryCache, "put");
-        const mockClearDbSetCache = jest.spyOn(memoryCache, "remove");
+        const mockGetDbSetCacheValue = jest.spyOn(cache, "getDbSetCacheValue")
+        const mockSetDbSetCacheValue = jest.spyOn(cache, "setDbSetCacheValue");
+        const mockClearDbSetCache = jest.spyOn(cache, "clearDbSetCache");
 
         await context.contacts.add({
             firstName: "James",
@@ -54,13 +52,14 @@ describe('DbSet Cache Tests', () => {
             address: "1234 Test St"
         });
 
+
         await context.saveChanges();
 
         const found = await context.contacts.useCache({ key: "test" }).find(w => w.firstName === "James");
 
         expect(found).toBeDefined();
-        expect(mockGetDbSetCacheValue).toHaveBeenCalledWith(cacheKey);
-        expect(mockSetDbSetCacheValue).toHaveBeenCalledWith(cacheKey, [found]);
+        expect(mockGetDbSetCacheValue).toHaveBeenCalled();
+        expect(mockSetDbSetCacheValue).toHaveBeenCalled();
         expect(mockClearDbSetCache).toHaveBeenCalledTimes(1);
     });
 
@@ -200,6 +199,4 @@ describe('DbSet Cache Tests', () => {
         expect(mockSetDbSetCacheValue).toHaveBeenCalledTimes(0);
         expect(mockClearDbSetCache).toHaveBeenCalledTimes(context.dbsets.length);
     });
-
-    // need a test to make sure that clearning the cache for a dbset does not clear the cache for other dbsets
 });

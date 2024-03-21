@@ -1,7 +1,8 @@
+import { SaveResult } from '../common/SaveResult';
 import { ReadOnlyList } from '../common/ReadOnlyList';
 import { Transactions } from '../common/Transactions';
 import { IList } from './change-tracking-types';
-import { DeepPartial, Changes, SaveResult, IDictionary } from './common-types';
+import { DeepPartial, Changes, IDictionary } from './common-types';
 import { IDbSetApi, SaveChangesEventData } from './dbset-types';
 import { IDbRecord, IdRemoval } from './entity-types';
 
@@ -73,6 +74,13 @@ export interface ITrackedChanges<TDocumentType extends string, TEntityBase exten
     adds: TEntityBase[];
     removes: TEntityBase[];
     removesById: IdRemoval<TDocumentType>[];
+    updates: IProcessedUpdates<TDocumentType, TEntityBase>;
+    transactions: Transactions;
+}
+
+export interface IEntityModifications<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> {
+    adds: TEntityBase[];
+    removes: TEntityBase[];
     updates: IProcessedUpdates<TDocumentType, TEntityBase>;
     transactions: Transactions;
 }

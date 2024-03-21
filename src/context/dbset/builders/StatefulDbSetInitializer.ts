@@ -10,6 +10,13 @@ export class StatefulDbSetInitializer<TDocumentType extends string, TEntityBase 
         super(onAddDbSet, context);
     }
 
+    /**
+     * Create a DbSet with an internal state
+     * @param documentType 
+     * @param builder 
+     * @deprecated use default DbSet with useCache and subscribe to events
+     * @returns 
+     */
     stateful<TEntity extends TEntityBase>(documentType: TEntity["DocumentType"]) {
         return super._stateful<TEntity>(documentType)
     }

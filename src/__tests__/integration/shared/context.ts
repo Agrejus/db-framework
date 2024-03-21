@@ -216,7 +216,7 @@ export class DbContextFactory {
 
     createContext<T extends typeof ExternalDataContext>(Context: T, dbname?: string, type?: string) {
         const name = dbname ?? `${uuidv4()}-db`;
-        const result = new Context(name);
+        const result = new Context(name.endsWith("-db") ? name : `${name}-db`);
         this._dbs[name] = result;
         return result;
     }

@@ -1,69 +1,124 @@
+import { CacheType, EntityCache, MatchType } from "../types/common-types";
 import { DbSetCacheConfiguration } from "../types/dbset-types";
-import { memoryCache } from './MemoryCache';
+import { IDbRecord } from "../types/entity-types";
+import { DbSetCacheBase } from "./base/DbSetCacheBase";
 
-type CacheEntry<T> = {
-    value: T;
-    expiration: number;
-}
+export class DbSetCache<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> extends DbSetCacheBase<TDocumentType, TEntity, TExclusions> {
 
-type CacheSection<T> = { [key: string]: CacheEntry<T> }
-
-export const createSectionCacheKey = (documentType: string, prefix: string) => {
-    return `${prefix}:${documentType}`;
-}
-
-export const getDbSetCacheValue = <TDocumentType extends string, TResult>(prefix: string, documentType: TDocumentType, configuration: DbSetCacheConfiguration) => {
-    const cacheSectionKey = createSectionCacheKey(documentType, prefix);
-    const cacheSection = memoryCache.get<CacheSection<TResult>>(cacheSectionKey);
-
-    if (cacheSection == null) {
-        return null;
+    constructor(dataContextId: string, documentType: TDocumentType, idPropertyName: keyof TEntity) {
+        super("Cache", dataContextId, documentType, idPropertyName);
     }
 
-    const result = cacheSection[configuration.key];
+    put(configuration: DbSetCacheConfiguration, type: CacheType, matchType: MatchType, value: TEntity[]) {
 
-    if (result == null) {
-        return null;
-    }
-
-    const now = Date.now();
-
-    if (now > result.expiration) {
-        memoryCache.remove(cacheSectionKey);
-        return null; // null to trigger a fetch
-    }
-
-    return result.value;
-}
-
-export const setDbSetCacheValue = <TDocumentType extends string, TValue>(prefix: string, documentType: TDocumentType, configuration: DbSetCacheConfiguration, value: TValue) => {
-    const cacheSectionKey = createSectionCacheKey(documentType, prefix);
-    const cacheSection = memoryCache.get<CacheSection<TValue>>(cacheSectionKey) ?? {};
-
-    const expiration = Date.now() + (configuration.ttl * 1000);
-
-    cacheSection[configuration.key] = {
-        value,
-        expiration
-    }
-
-    memoryCache.put<CacheSection<TValue>>(cacheSectionKey, cacheSection);
-}
-
-export const clearDbSetCache = <TDocumentType extends string>(prefix: string, documentType: TDocumentType, keys: string[]) => {
-
-    const cacheSectionKey = createSectionCacheKey(documentType, prefix);
+        if (value.length === 0) {
+            return [];
+        }   
     
-    if (keys.length === 0) {
-        memoryCache.remove(cacheSectionKey);
-        return;
+        const cacheSection = this.getValue<EntityCache<TDocumentType, TEntity>>() ?? { cache: {} } as EntityCache<TDocumentType, TEntity>;
+    
+        if (cacheSection.cache[type] == null) {
+            cacheSection.cache[type] = {};
+        }
+
+        const result = this.toDictionary(value);
+
+        if (type === "all") {
+            
+    
+            // re-cache/cache all data
+            cacheSection.cache[type][configuration.key] = result;
+    
+            if (matchType === "missing") {
+                // partial or all, it's already cached
+                cacheSection.data = result;
+            }
+    
+            this.putValue<EntityCache<TDocumentType, TEntity>>(cacheSection);
+    
+            // because we are putting items into a dictionary, the order can change, lets keep the ording the same like the get method does
+            return Object.values(cacheSection.data);
+        }
+    
+        // order does not matter here, we are selecting by specific id
+        cacheSection.cache[type][configuration.key] = result;
+    
+        if (matchType === "missing") {
+            // partial or all, it's already cached
+            cacheSection.data = {
+                ...cacheSection.data,
+                ...result
+            }
+        }
+    
+        this.putValue<EntityCache<TDocumentType, TEntity>>(cacheSection);
+    
+        return value;
     }
 
-    const cacheSection = memoryCache.get<CacheSection<any>>(cacheSectionKey);
+    get(configuration: DbSetCacheConfiguration, type: CacheType): { matchType: MatchType, data: TEntity[] } {
+        const cacheSection = this.getValue<EntityCache<TDocumentType, TEntity>>();
 
-    for(const key of keys) {
-        delete cacheSection[key];
+        if (cacheSection == null) {
+            return {
+                matchType: "missing",
+                data: []
+            };
+        }
+
+        const tagsDictionary = cacheSection.cache[type];
+
+        if (tagsDictionary == null) {
+
+            if (type === "get") {
+                const allTagsDictionary = cacheSection.cache["all"];
+
+                if (allTagsDictionary == null) {
+                    return {
+                        matchType: "missing",
+                        data: []
+                    };
+                }
+
+                // return all beecause it will be filtered down
+                return {
+                    matchType: "queried",
+                    data: Object.values(cacheSection.data)
+                };
+            }
+
+            return {
+                matchType: "missing",
+                data: []
+            };
+        }
+
+        const tagCache = tagsDictionary[configuration.key];
+
+        if (tagCache == null) {
+
+            const allTagsDictionary = cacheSection.cache["all"];
+
+            if (allTagsDictionary != null) {
+                return {
+                    matchType: "queried",
+                    data: Object.values(cacheSection.data)
+                };
+            }
+
+            return {
+                matchType: "missing",
+                data: []
+            };
+        }
+
+        return {
+            matchType: "exact",
+            data: Object.values(tagCache)
+        }
     }
 
-    memoryCache.put<CacheSection<any>>(cacheSectionKey, cacheSection);
+    clear(...keys: string[]) {
+        this.clearValue(...keys);
+    }
 }

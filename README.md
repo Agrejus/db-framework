@@ -16,7 +16,7 @@
 
 ---
 
-<p align="center"> Create a versatile Data Interaction Layer for Node.js and the web that seamlessly handles database interactions. Effortlessly abstract database interactions using DB Framework, simplifying the process of switching databases or incorporating two different databases.
+<p align="center"> Create an agile Data Interaction Layer catering to both Node.js and web environments, adeptly managing a spectrum of database and HTTP interactions. Through DB Framework, abstracting database interactions becomes a seamless endeavor, easing the complexity of transitioning between databases or integrating disparate ones. Furthermore, empower entities with the capability to encompass functions or non-persistent data, enabling developers to seamlessly integrate business logic into entities.
     <br> 
 </p>
 
@@ -69,6 +69,7 @@
         - [removeAllEventListeners()](#remove_all_event_listeners)
         - [hydrate()](#stateful_data_context_hydrate)
 - [Model Declaration](#model_declaration)
+- [Performance and Profiling](#performance_and_profiling)
 - [Concepts](#concepts)
     - [State Management](#state_management)
     - [Logging](#logging)
@@ -130,7 +131,7 @@ Db Framework is a TypeScript first ORM designed to wrap existing database framew
 Db Framework provides a ton of flexibility, even going as far as offering a local state store (think Redux).
 
 Why it's great:
-- Works with many different databases
+- Works with many different databases or even HTTP APIs
 - Can easily add/augment current functionality
 - Can create plugins to use with any database
 - Fast, uses bulk operations for all data manipulation
@@ -882,6 +883,27 @@ export interface SomePouchDbRecord extends PouchDbRecord<"YourDocumentType"> {
     trim: string;
 }
 ```
+## Performance and Profiling <a name = "performance_and_profiling"></a>
+DB Framework comes with performance monitoring and profiling tools.  These tools can be used to track performance and profile calls to the data context/dbsets with arguments. The tools are disabled by default, but can be enabled by setting the `performance` or `profiler` properties on the context options.  
+
+Performance monitoring can be enabled by setting the `performance` property to `true`.  Other configuration options are:
+
+- `enabled` - Whether or not to enable performance monitoring.  Defaults to `false`.
+- `threshold` - The minimum time in milliseconds to track a performance event.  All events with a time less than the threshold are ignored.  Defaults to -1, which means no threshold is set.
+- `only` - An array of event names to track.  Defaults to an empty array, which means all events are tracked.  Should be the name of the function or method being tracked with no arguments or parentheses.
+
+Profiling can be enabled by setting the `profiler` property to `true`.  Other configuration options are:
+
+- `only` - An array of event names to track.  Defaults to an empty array, which means all events are tracked.  Should be the name of the function or method being tracked with no arguments or parentheses.
+- `enabled` - Whether or not to enable profiling.  Defaults to `false`.
+
+A custom logger can be set by setting the `logger` property to a function that takes a single argument.  The argument is an object with the following properties:
+
+- `name` - The name of the event being tracked.
+- `delta` - The time in milliseconds between the start and end of the event.
+- `args` - An array of arguments passed to the event.
+
+NOTE: Performance and profiling can be enabled at the same time, but the performance will not be be accurate due to serialization of logging.
 
 ## Concepts <a name = "concepts"></a>
 DB Framework is very flexible letting developers use it for more than data interaction.  Though the use of it's API's, DB Framework can have automatic logging, entity tagging, history tracking, and even replace your state management tool.  There is even a [React Hook](#react_state_hook) for state management

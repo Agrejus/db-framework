@@ -144,6 +144,13 @@ export const run = async () => {
         const context = contextFactory.createContext(ExternalDataContext, "performance-db");
         const rnd = faker.random.words(10000);
 
+        await context.books.add({
+            author: "James",
+            publishDate: faker.date.between('2010-01-01', '2024-01-01')
+        });
+        
+        await context.saveChanges();
+
         // for(let i = 0; i < 10000; i++) {
         //     await context.books.add({
         //         author: rnd,
@@ -161,17 +168,24 @@ export const run = async () => {
         // debugger;
 
         debugger;
-        const found = await context.books.useCache({ ttl: 10, key: "test" }).find(w => w.author === "James");
-        const found1 = await context.books.useCache({ ttl: 10, key: "test" }).find(w => w.author === "James");
+        const found = await context.books.useCache({ key: "woot" }).first();
+        const found1 = await context.books.useCache({ key: "test" }).find(w => w.author === "James");
 
         // await context.books.add({
         //     author: "James",
         //     publishDate: faker.date.between('2010-01-01', '2024-01-01')
         // });
 
+        found!.author = faker.name.firstName();
+        debugger;
+        const unsubscribe = context.books.subscribe((adds, updates) => {
+            debugger;
+            console.log('sub', adds, updates);
+        });
+
         const saved2 = await context.saveChanges();
 
-        const found2 = await context.books.useCache({ ttl: 10, key: "test" }).find(w => w.author === "James");
+        const found2 = await context.books.useCache({ key: "test", ttl: 10 }).find(w => w.author === "James");
         debugger;
         const found3 = await context.books.find(w => w.author === "James");
 
@@ -191,7 +205,7 @@ export const run = async () => {
         const authors = await context.notes.all();
 
         console.log(author)
-       
+
     } catch (e) {
         console.error(e)
     }

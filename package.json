@@ -1,7 +1,7 @@
 {
   "name": "@agrejus/db-framework",
-  "version": "1.1.0",
-  "description": "JavaScript ORM modeled after .NET Entity Framework",
+  "version": "1.1.0-beta.6",
+  "description": "JavaScript Data Interaction Layer modeled after .NET Entity Framework",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "source": "./src/index.ts",

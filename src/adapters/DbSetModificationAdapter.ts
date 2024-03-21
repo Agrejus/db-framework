@@ -2,19 +2,29 @@ import { Transaction } from '../common/Transaction';
 import { IDbSetFetchAdapter, IDbSetModificationAdapter } from '../types/adapter-types';
 import { IDbSetChangeTracker } from '../types/change-tracking-types';
 import { ITrackedData } from '../types/context-types';
-import { DbSetType, IDbSetProps } from '../types/dbset-types';
+import { DbSetType, IDbSetProps, SaveChangesEventData } from '../types/dbset-types';
 import { IDbRecord, OmittedEntity, IIndexableEntity } from '../types/entity-types';
 import { DbSetBaseAdapter } from './DbSetBaseAdapter';
+import { DbSetSubscriptionsAdapter } from './DbSetSubscriptionsAdapter';
 import { DbSetFetchAdapter } from './DbSetFetchAdapter';
 
 export class DbSetModificationAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity, TDbPlugin> extends DbSetBaseAdapter<TDocumentType, TEntity, TExclusions, TDbPlugin> implements IDbSetModificationAdapter<TDocumentType, TEntity, TExclusions> {
 
     private _tag: unknown | null = null;
     protected readonly fetchAdapter: IDbSetFetchAdapter<TDocumentType, TEntity, TExclusions>;
+    protected readonly subscriptionsAdapter: DbSetSubscriptionsAdapter<TDocumentType, TEntity, TExclusions>;
+    public subscribe: typeof this.subscriptionsAdapter.subscribe;
 
-    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType, changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>) {
+    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType, idPropertyName: keyof TEntity, changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>) {
         super(props, type, changeTracker);
-        this.fetchAdapter = new DbSetFetchAdapter<TDocumentType, TEntity, TExclusions, TDbPlugin>(props, type, changeTracker);
+        this.fetchAdapter = new DbSetFetchAdapter<TDocumentType, TEntity, TExclusions, TDbPlugin>(props, type, idPropertyName, changeTracker);
+        this.subscriptionsAdapter = new DbSetSubscriptionsAdapter<TDocumentType, TEntity, TExclusions>(props);
+        this.subscribe = this.subscriptionsAdapter.subscribe.bind(this.subscriptionsAdapter);
+        this.api.registerOnAfterSaveChanges(props.documentType, this.onAfterSaveChanges.bind(this));
+    }
+
+    hasSubscriptions() {
+        return this.subscriptionsAdapter.getSubscribers().length > 0;
     }
 
     tag(value: unknown) {
@@ -24,6 +34,31 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
     instance(...entities: OmittedEntity<TEntity, TExclusions>[]) {
         const enrich = this.changeTracker.enrichment.compose("documentType", "id", "defaultAdd", "enhance");
         return entities.map(entity => enrich(entity as TEntity));
+    }
+
+    protected async onAfterSaveChanges(getChanges: () => SaveChangesEventData<TDocumentType, TEntity>) {
+
+        const subscribers = this.subscriptionsAdapter.getSubscribers();
+
+        if (subscribers.length === 0) {
+            return;
+        }
+
+        const { adds, removes, updates } = getChanges();
+
+        if (adds.length === 0 && updates.length === 0 && removes.length === 0) {
+            return;
+        }
+
+        for (const subscriber of subscribers) {
+            if (subscriber.selector == null) {
+                setTimeout(() => subscriber.callback(adds, updates, removes), 5);
+                continue;
+            }
+
+            const selector = subscriber.selector;
+            setTimeout(() => subscriber.callback(adds.filter(selector), updates.filter(selector), removes.filter(selector)), 5);
+        }
     }
 
     private async _add(...entities: OmittedEntity<TEntity, TExclusions>[]) {
@@ -56,7 +91,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
 
     async add(...entities: OmittedEntity<TEntity, TExclusions>[]) {
 
-        
+
         const result = await this._add(...entities);
 
         this._disposeMetaData();
@@ -76,7 +111,21 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
 
     async upsert(...entities: (OmittedEntity<TEntity, TExclusions> | Omit<TEntity, "DocumentType">)[]) {
 
-        const allResult = await this.fetchAdapter.all();
+        const ids = entities.map(w => {
+
+            const id = w[this.api.dbPlugin.idPropertyName as keyof (OmittedEntity<TEntity, TExclusions> | Omit<TEntity, "DocumentType">)] as string;
+
+            // if we are missing an id, try to build it from the entity
+            // if we are truly missing an id, it's an insert
+            if (id == null) {
+                const [instance] = this.instance(w as any)
+                return instance[this.api.dbPlugin.idPropertyName] as string;
+            }
+
+            return id;
+        }).filter(w => w != null);
+
+        const allResult = await this.fetchAdapter.get(...ids);
         const all = allResult.toResult();
         const allDictionary: { [key: string]: TEntity } = all.reduce((a, v) => {
 

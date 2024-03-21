@@ -10,8 +10,8 @@ export class DbSetStatefulModificationAdapter<TDocumentType extends string, TEnt
     private _onChange: DbSetOnChangeEvent<TDocumentType, TEntity> | null;
     private _remotes: TEntity[] = [];
 
-    constructor(props: IStoreDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType, changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>) {
-        super(props, type, changeTracker);
+    constructor(props: IStoreDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType, idPropertyName: keyof TEntity, changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>) {
+        super(props, type, idPropertyName, changeTracker);
         this._onChange = props.onChange
         this._store = new CacheDataStore<TDocumentType, TEntity>(this.api.dbPlugin.idPropertyName);
     }

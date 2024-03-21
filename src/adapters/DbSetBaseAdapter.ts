@@ -32,21 +32,9 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
         this.changeTracker = changeTracker;
 
         this.api = this.context._getApi() as IDbSetApi<TDocumentType, TEntity, TExclusions, IDbPlugin<TDocumentType, TEntity, TExclusions>>;
-
-        this.api.registerOnAfterSaveChanges(props.documentType, this.onAfterSaveChanges.bind(this));
-        this.api.registerOnBeforeSaveChanges(props.documentType, this.onBeforeSaveChanges.bind(this));
     }
 
     protected async onAfterDataFetched(data: TEntity[]) {
-
-    }
-
-    protected async onBeforeSaveChanges(getChanges: <T extends SaveChangesEventData<TDocumentType, TEntity>>() => T) {
-
-    }
-
-
-    protected async onAfterSaveChanges(getChanges: <T extends SaveChangesEventData<TDocumentType, TEntity>>() => T) {
 
     }
 }

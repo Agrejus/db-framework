@@ -13,3 +13,6 @@
 - Refactored core fetching mechanism
 - Added `.clearCache()` to `DataContext` for easy clearing of cache
 - Fixed speed issue when saving a large number of entities (>1000)
+- Added `subscribe()` to `DbSet` for easy subscriptions to changes
+- Changed `saveChanges()` to return a `SaveResult` instead of a `Promise<number>`
+- Changed `onAfterSaveChanges` to a non blocking call to allow for better performance
