@@ -16,7 +16,7 @@
 
 ---
 
-<p align="center"> Create an agile Data Interaction Layer catering to both Node.js and web environments, adeptly managing a spectrum of database and HTTP interactions. Through DB Framework, abstracting database interactions becomes a seamless endeavor, easing the complexity of transitioning between databases or integrating disparate ones. Furthermore, empower entities with the capability to encompass functions or non-persistent data, enabling developers to seamlessly integrate business logic into entities.
+<p align="center"> Create a versatile Data Interaction Layer for Node.js and/or the web that seamlessly handles database or HTTP interactions. Effortlessly abstract database interactions using DB Framework, simplifying the process of switching databases or incorporating two different databases.  Furthermore, empower entities with the ability to encompass functions or non-persistent data, enabling developers to seamlessly integrate business logic into entities.
     <br> 
 </p>
 
@@ -1006,24 +1006,29 @@ const info = context.vehicles.info();
 ### `.useCache` <a name = "default_dbset_methods_use_cache"></a>
 Used to cache the result of a request.  Null/empty results are not cached.  TTL (in seconds) is the time to live before the cache is cleared and the key is used to identify the cache.  Cache is automatically cleared when the dbset has changes.  If a different dbset has changes, but the cached one does not, the cache will not be cleared.  This is to avoid clearing the cache when it is not needed.
 
-**Type:** `.useCache(options: { ttl: number, key: string }): this`
+TTL should only be used when the underlying data store consists of HTTP requests and not a database.  Automatic cache clearing solves the need for TTL.  Any TTL caches will be cleared automatically when the dbset has changes, not just on expiration.
+
+**Type:** `.useCache(options: DbSetCacheConfiguration | DbSetTtlCacheConfiguration): this`
 
 **Usage:**
 ```typescript
 const context = new MyDataContext();
 
-const found = context.vehicles.useCache({ ttl: 10, key: "cache_me" }).find(w => w.year === 2021);
+const foundWithTtl = context.vehicles.useCache({ ttl: 10, key: "ttl_cache_me" }).find(w => w.year === 2021);
+// or
+const foundNoTtl = context.vehicles.useCache({ key: "no_ttl_cache_me" }).find(w => w.year === 2021);
 ```
 
 ### `.clearCache` <a name = "default_dbset_methods_clear_cache"></a>
 Used to cache the result of a request.  Null/empty results are not cached.  TTL (in seconds) is the time to live before the cache is cleared and the key is used to identify the cache.
 
-**Type:** `.clearCache(): void`
+**Type:** `.clearCache(...keys: string[]): void`
 
 **Usage:**
 ```typescript
 const context = new MyDataContext();
 
+// clears the entire cache
 const found = context.vehicles.clearCache();
 ```
 

@@ -8,7 +8,7 @@
 - Enhancers can now modify an entity and changes will be tracked
 - Added transactions to bulkOperations for DB Plugins.  Now devs can see what properties have changed
 - Core updates to enrichment processors
-- Added ability to cache requests using `useCache()`
+- Added ability to cache requests using `useCache()`.  Caching can have a TTL (time to live) or no TTL and rely on automatic cache clearing when a dbset has changes.
 - Added `.dbsets` to `DataContext` for easy access to all DbSets
 - Refactored core fetching mechanism
 - Added `.clearCache()` to `DataContext` for easy clearing of cache
