@@ -43,8 +43,8 @@ export type TagsCollection = { [entityId: string]: unknown; }
 
 export type CacheType = "all" | "get";
 export type MatchType = "missing" | "exact" | "queried";
-export type EntityCache<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = {
-    data: IDictionary<TEntity>;
+
+export type CacheBase<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = {
     cache: {
         [cacheType in CacheType]: {
             [cacheKey: string]: IDictionary<TEntity>
@@ -52,7 +52,11 @@ export type EntityCache<TDocumentType extends string, TEntity extends IDbRecord<
     }
 }
 
-export type TtlEntityCache<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = EntityCache<TDocumentType, TEntity> & {
+export type EntityCache<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = {
+    data: IDictionary<TEntity>;
+} & CacheBase<TDocumentType, TEntity>;
+
+export type TtlEntityCache<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = CacheBase<TDocumentType, TEntity> & {
     expirations: IDictionary<number>
 }
 

@@ -142,7 +142,20 @@ export const run = async () => {
         const contextFactory = new DbContextFactory();
         const dbname = contextFactory.getRandomDbName();
         const context = contextFactory.createContext(ExternalDataContext, "performance-db");
+
         const rnd = faker.random.words(10000);
+
+        const [added] = await context.contacts.add({
+            firstName: "James",
+            lastName: "DeMeuse",
+            phone: "111-111-1111",
+            address: "1234 Test St"
+        });
+
+        await context.saveChanges();
+
+        await context.contacts.useCache({ key: "test" }).find(w => w.firstName === "James");
+        debugger;
 
         await context.books.add({
             author: "James",

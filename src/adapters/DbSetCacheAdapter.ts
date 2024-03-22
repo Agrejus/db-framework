@@ -23,9 +23,7 @@ export class DbSetCacheAdapter<TDocumentType extends string, TEntity extends IDb
 
         if (ids.length === 0) {
             // all request
-            const x = await this._resovleAllRequest(fetch, key);
-            debugger;
-            return x;
+            return await this._resovleAllRequest(fetch, key);
         }
 
         return await this._resovleGetRequest(fetch, key, ids);

@@ -23,7 +23,7 @@ export class DbSetTtlCache<TDocumentType extends string, TEntity extends IDbReco
             return [];
         }
 
-        const cacheSection = this.getValue<TtlEntityCache<TDocumentType, TEntity>>() ?? { cache: {} } as TtlEntityCache<TDocumentType, TEntity>;
+        const cacheSection = this.getValue<TtlEntityCache<TDocumentType, TEntity>>() ?? { cache: {}, expirations: {} } as TtlEntityCache<TDocumentType, TEntity>;
 
         if (cacheSection.cache[type] == null) {
             cacheSection.cache[type] = {};
@@ -38,12 +38,8 @@ export class DbSetTtlCache<TDocumentType extends string, TEntity extends IDbReco
 
         this.putValue<TtlEntityCache<TDocumentType, TEntity>>(cacheSection);
 
-        if (type === "all") {
-            // because we are putting items into a dictionary, the order can change, lets keep the ording the same like the get method does
-            return Object.values(cacheSection.data);
-        }
-
-        return value;
+        // we always want to return the data for the matching key
+        return Object.values(result);
     }
 
     get(configuration: DbSetTtlCacheConfiguration, type: CacheType): { matchType: MatchType, data: TEntity[] } {

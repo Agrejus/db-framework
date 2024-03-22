@@ -1,4 +1,3 @@
-import { IDictionary } from "../../types/common-types";
 import { IDbRecord } from "../../types/entity-types";
 import { memoryCache } from "../MemoryCache";
 

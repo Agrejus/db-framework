@@ -135,7 +135,7 @@ export class DbSet<TDocumentType extends string, TEntity extends IDbRecord<TDocu
 
     async find(selector: EntitySelector<TDocumentType, TEntity>): Promise<TEntity | undefined> {
         const result = await this._fetchAdapter.find(selector);
-        debugger;
+
         if (result == null) {
             return undefined;
         }

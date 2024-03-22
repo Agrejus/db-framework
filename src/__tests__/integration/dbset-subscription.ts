@@ -257,7 +257,7 @@ describe('DbSet Subscription Tests', () => {
 
             await context.contacts.remove(found);
             await context.saveChanges();
-            debugger;
+
             setTimeout(() => {
                 expect(fn).toHaveBeenCalledTimes(1);
                 done();
