@@ -1,13 +1,17 @@
 import { IDbRecord, IDbRecordBase, OmittedEntity } from './entity-types';
-import { IDbSetInfo } from './dbset-types';
+import { DbSetCacheConfiguration, DbSetSubscriptionCallback, DbSetTtlCacheConfiguration, IDbSetInfo } from './dbset-types';
 import { EntitySelector } from './common-types';
+import { SearchResult } from '../common/SearchResult';
 
 export interface IDbSetFetchAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> {
-    filter(selector: (entity: TEntity, index?: number, array?: TEntity[]) => boolean): Promise<TEntity[]>;
-    find(selector: (entity: TEntity, index?: number, array?: TEntity[]) => boolean): Promise<TEntity | undefined>;
-    first(): Promise<TEntity | undefined>;
-    all(): Promise<TEntity[]>;
-    get(...ids: string[]): Promise<TEntity[]>;
+    useCache(configuration: DbSetCacheConfiguration | DbSetTtlCacheConfiguration): void;
+    clearCache(...keys: string[]): void;
+    filter(selector: (entity: TEntity, index?: number, array?: TEntity[]) => boolean): Promise<SearchResult<TDocumentType, TEntity, TExclusions>>;
+    find(selector: (entity: TEntity, index?: number, array?: TEntity[]) => boolean): Promise<SearchResult<TDocumentType, TEntity, TExclusions> | undefined>;
+    first(): Promise<SearchResult<TDocumentType, TEntity, TExclusions> | undefined>;
+    all(): Promise<SearchResult<TDocumentType, TEntity, TExclusions>>;
+    get(...ids: string[]): Promise<SearchResult<TDocumentType, TEntity, TExclusions>>;
+    getStrict(...ids: string[]): Promise<SearchResult<TDocumentType, TEntity, TExclusions>>;
     pluck<TKey extends keyof TEntity>(selector: EntitySelector<TDocumentType, TEntity>, propertySelector: TKey): Promise<TEntity[TKey]>
 }
 
@@ -31,5 +35,13 @@ export interface IDbSetModificationAdapter<TDocumentType extends string, TEntity
     remove(...ids: string[]): Promise<void>;
     remove(...entities: TEntity[]): Promise<void>;
     empty(): Promise<void>;
+    hasSubscriptions(): boolean;
     tag(value: unknown): void;
+    subscribe(selectorOrCallback: EntitySelector<TDocumentType, TEntity> | DbSetSubscriptionCallback<TDocumentType, TEntity, TExclusions>, callback?: DbSetSubscriptionCallback<TDocumentType, TEntity, TExclusions>): () => void;
+}
+
+
+export interface IDbSetCacheAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> {
+    resolve(fetch: () => Promise<TEntity[]>, cacheOptions: DbSetCacheConfiguration | DbSetTtlCacheConfiguration, ...ids: string[]): Promise<TEntity[]>
+    clear(...keys: string[]): void;
 }

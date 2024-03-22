@@ -4,14 +4,14 @@ import { DbSetModificationAdapter } from "../DbSetModificationAdapter";
 import { CacheDataStore } from '../../cache/CacheDataStore';
 import { IDbSetChangeTracker } from "../../types/change-tracking-types";
 
-export class DbSetStatefulModificationAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> extends DbSetModificationAdapter<TDocumentType, TEntity, TExclusions> {
+export class DbSetStatefulModificationAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity, TDbPlugin> extends DbSetModificationAdapter<TDocumentType, TEntity, TExclusions, TDbPlugin> {
 
     private _store: CacheDataStore<TDocumentType, TEntity>;
     private _onChange: DbSetOnChangeEvent<TDocumentType, TEntity> | null;
     private _remotes: TEntity[] = [];
 
-    constructor(props: IStoreDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType, changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>) {
-        super(props, type, changeTracker);
+    constructor(props: IStoreDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType, idPropertyName: keyof TEntity, changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>) {
+        super(props, type, idPropertyName, changeTracker);
         this._onChange = props.onChange
         this._store = new CacheDataStore<TDocumentType, TEntity>(this.api.dbPlugin.idPropertyName);
     }
@@ -48,7 +48,8 @@ export class DbSetStatefulModificationAdapter<TDocumentType extends string, TEnt
     }
 
     async hydrate() {
-        const all = await this._all();
+        const allResult = await this.fetchAdapter.all();
+        const all = allResult.toResult();
 
         this._store.putMany(...all);
 

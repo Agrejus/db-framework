@@ -1,4 +1,4 @@
-import type { IDbPlugin, IDbPluginOptions, IBulkOperationsResponse, IQueryParams } from '@agrejus/db-framework';
+import type { IDbPlugin, IDbPluginOptions, IBulkOperationsResponse, IQueryParams, DbPluginOperations, Transactions } from '@agrejus/db-framework';
 import { validateAttachedEntity } from './validator';
 import { v4 as uuidv4 } from 'uuid';
 import { CapacitorSqlite, CapacitorSqliteRecord } from '.';
@@ -6,7 +6,7 @@ import { CapacitorSqlite, CapacitorSqliteRecord } from '.';
 export class CapacitorSqlitePlugin<TDocumentType extends string, TEntityBase extends CapacitorSqliteRecord<TDocumentType>, TDbPluginOptions extends IDbPluginOptions = IDbPluginOptions> implements IDbPlugin<TDocumentType, TEntityBase, "_id" | "_rev"> {
 
     protected readonly options: TDbPluginOptions;
-    readonly idPropertName = "_id";
+    readonly idPropertyName = "_id";
 
     readonly types = {
         exclusions: "" as "_id" | "_rev"
@@ -24,28 +24,25 @@ export class CapacitorSqlitePlugin<TDocumentType extends string, TEntityBase ext
         return await CapacitorSqlite.all<TDocumentType, TEntityBase>(payload);
     }
 
-    async getStrict(...ids: string[]) {
 
-        const result = await this.get(...ids)
+    async getStrict(documentType: TDocumentType, ...ids: string[]) {
 
-        if (result.length !== ids.length) {
-            throw new Error('Could not find document')
-        }
+        const result = await this.get(documentType, ...ids)
 
         return result as TEntityBase[];
     }
 
-    async get(...ids: string[]) {
+    async get(_: TDocumentType, ...ids: string[]) {
         if (ids.length === 0) {
             return [];
         }
-        CapacitorSqlite
+
         const result = await CapacitorSqlite.get(...ids);
 
         return result as TEntityBase[];
     }
 
-    async bulkOperations(operations: { adds: TEntityBase[]; removes: TEntityBase[]; updates: TEntityBase[]; }) {
+    async bulkOperations(operations: { adds: TEntityBase[]; removes: TEntityBase[]; updates: TEntityBase[]; }, _: Transactions) {
         return await CapacitorSqlite.bulkDocs({
             adds: operations.adds.map(w => ({ ...w, _rev: `1-${uuidv4()}` })),
             removes: operations.removes.map(w => ({ ...w })),
@@ -67,9 +64,14 @@ export class CapacitorSqlitePlugin<TDocumentType extends string, TEntityBase ext
             return result;
         }
 
-        const found = await this.getStrict(...entities.map(w => w._id));
-        const foundDictionary = found.reduce((a, v) => ({ ...a, [v._id]: v._rev }), {} as { [key: string]: any });
-        result.docs = entities.map(w => ({ ...w, _rev: foundDictionary[w._id] } as TEntityBase));
+        const groups = entities.reduce((a, v) => ({ ...a, [v.DocumentType]: [...(a[v.DocumentType] || []), v] }), {} as { [key: string]: TEntityBase[] });
+
+        for (const group in groups) {
+            const foundEntities = groups[group as TDocumentType];
+            const found = await this.getStrict(group as TDocumentType, ...foundEntities.map(w => w._id));
+            const foundDictionary = found.reduce((a, v) => ({ ...a, [v._id]: v._rev }), {} as { [key: string]: any });
+            result.docs.push(...entities.map(w => ({ ...w, _rev: foundDictionary[w._id] } as TEntityBase)));
+        }
 
         return result;
     }
@@ -79,10 +81,27 @@ export class CapacitorSqlitePlugin<TDocumentType extends string, TEntityBase ext
 
         // cannot add an entity that already has a rev, means its in the database already
         if (!!indexableEntity["_rev"]) {
-            return false
+            return {
+                ok: false,
+                error: "Cannot add entity that is already in the database, please modify entites by reference or attach an existing entity"
+            }
         }
 
-        return true;
+        return { ok: true };
+    }
+
+    private _isRemovalAllowed(entity: TEntityBase) {
+        const indexableEntity = entity as any;
+
+        // cannot add an entity that already has a rev, means its in the database already
+        if (!indexableEntity["_rev"]) {
+            return {
+                ok: false,
+                error: "Cannot remove entity that is not in the database, please supply _rev property"
+            }
+        }
+
+        return { ok: true };
     }
 
     formatDeletions(...entities: TEntityBase[]): TEntityBase[] {
@@ -94,13 +113,19 @@ export class CapacitorSqlitePlugin<TDocumentType extends string, TEntityBase ext
         })
     }
 
-    isOperationAllowed(entity: TEntityBase, operation: 'add') {
+    isOperationAllowed(entity: TEntityBase, operation: DbPluginOperations) {
 
         if (operation === "add") {
-            return this._isAdditionAllowed(entity);
+            return this._isAdditionAllowed(entity)
         }
 
-        return false
+        if (operation === "remove") {
+            return this._isRemovalAllowed(entity)
+        }
+
+        return {
+            ok: true
+        }
     }
 
     prepareDetachments(...entities: TEntityBase[]): { ok: boolean; errors: string[]; docs: TEntityBase[]; } {
@@ -121,16 +146,18 @@ export class CapacitorSqlitePlugin<TDocumentType extends string, TEntityBase ext
         return result;
     }
 
-    setDbGeneratedValues(response: IBulkOperationsResponse, entities: TEntityBase[]): void {
-        for (let i = 0; i < entities.length; i++) {
-            const modification = entities[i];
-            const found = response.successes[modification._id];
+    enrichGenerated(response: IBulkOperationsResponse, entity: TEntityBase) {
 
-            // update the rev in case we edit the record again
-            if (found && found.ok === true) {
-                const indexableEntity = modification as any;
-                indexableEntity._rev = found.rev;
-            }
+        const found = response.successes[entity._id];
+
+        if (found && found.ok === true) {
+            return { ...entity, _rev: found.rev }
         }
+
+        return entity;
+    }
+
+    enrichRemoval(entity: TEntityBase) {
+        return { ...entity }
     }
 }

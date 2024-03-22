@@ -1,9 +1,8 @@
 import { IDbSetChangeTracker } from "./change-tracking-types";
-import { DbSetPickDefaultActionRequired, EntityComparator, EntitySelector } from "./common-types";
+import { DbSetPickDefaultActionRequired, EntityComparator, EntitySelector, GenericSelector, TagsCollection } from "./common-types";
 import { ContextOptions, DbFrameworkEnvironment, IDataContext } from "./context-types";
 import { CustomIdCreator, Deserializer, EntityEnhancer, Serializer } from "./dbset-builder-types";
 import { IDbRecord, OmittedEntity, IDbRecordBase } from "./entity-types";
-import { IDbPlugin } from "./plugin-types";
 
 export type IDbSetTypes<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> = {
     modify: OmittedEntity<TEntity, TExclusions>;
@@ -51,8 +50,9 @@ export interface IDbSetEnumerable<TDocumentType extends string, TEntity extends 
 export interface IStatefulDbSet<
     TDocumentType extends string,
     TEntity extends IDbRecord<TDocumentType>,
-    TExclusions extends keyof TEntity = never,
-> extends IDbSet<TDocumentType, TEntity, TExclusions> {
+    TExclusions extends keyof TEntity,
+    TDbPlugin
+> extends IDbSet<TDocumentType, TEntity, TExclusions, TDbPlugin> {
     /**
      * Load existing data into the memory store
      * @returns {Promise<number>}
@@ -68,14 +68,36 @@ export interface IStatefulDbSet<
 export interface IDbSet<
     TDocumentType extends string,
     TEntity extends IDbRecord<TDocumentType>,
-    TExclusions extends keyof TEntity = never,
+    TExclusions extends keyof TEntity,
+    TDbPlugin
 > extends IDbSetEnumerable<TDocumentType, TEntity> {
 
+    readonly dbPlugin: TDbPlugin;
+    readonly changeTracker: IDbSetChangeTracker<TEntity["DocumentType"], TEntity, TExclusions>;
     get types(): IDbSetTypes<TDocumentType, TEntity, TExclusions>;
+
+    hasSubscriptions(): boolean;
+
+    registerMonitoringMixin(instance: any, ...methodNames: string[]): void;
 
     serialize(...entities: TEntity[]): any[];
 
     deserialize(...entities: any[]): TEntity[];
+
+    subscribe(callback: DbSetSubscriptionCallback<TDocumentType, TEntity, TExclusions>): () => void;
+    subscribe(selector: EntitySelector<TDocumentType, TEntity>, callback: DbSetSubscriptionCallback<TDocumentType, TEntity, TExclusions>): () => void;
+
+    /**
+     * Caches the corresponding data for the next fetch request (find/all/filter/get).  Cache is automatically cleared when any changes are made to the dbset (add, update, remove).  Changes to other dbsets will not clear the cache for this dbset.
+     * @param configuration { key: string }
+     */
+    useCache(configuration: DbSetCacheConfiguration | DbSetTtlCacheConfiguration): this
+
+    /**
+     * Clears the cache only for the DbSet for the given keys.  If no keys are provided, all cache is cleared.
+     * @param keys 
+     */
+    clearCache(...keys: string[]): void;
 
     /**
      * Add a tag to the transaction (one or more entites from add/remove/upsert) and make available for onAfterSaveChanges or onBeforeSaveChanges.
@@ -200,13 +222,13 @@ export interface IDbSetBase<TDocumentType extends string> {
 }
 
 export type SaveChangesEventData<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> = {
-    adds: EntityAndTag<TEntityBase>[],
-    removes: EntityAndTag<TEntityBase>[],
-    updates: EntityAndTag<TEntityBase>[],
+    adds: EntityAndTag<TEntityBase>[];
+    removes: EntityAndTag<TEntityBase>[];
+    updates: EntityAndTag<TEntityBase>[];
 }
 
-export interface IDbSetApi<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase> {
-    dbPlugin: IDbPlugin<TDocumentType, TEntityBase, TExclusions>;
+export interface IDbSetApi<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase, TDbPlugin> {
+    dbPlugin: TDbPlugin;
     contextOptions: ContextOptions;
     readonly contextId: string;
     tag(id: TEntityBase[keyof TEntityBase], value: unknown): void;
@@ -247,7 +269,7 @@ export interface IDbSetProps<TDocumentType extends string, TEntity extends IDbRe
 export type DbSetType = "default" | "stateful";
 export type EntityAndTag<T extends IDbRecordBase = IDbRecordBase> = { entity: T, tag?: unknown }
 
-export type DbSetMap = { [key: string]: IDbSet<string, any, any> }
+export type DbSetMap = { [key: string]: IDbSet<string, any, any, any> }
 
 export interface IDbSetState<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase = never> extends IDataContextState<TDocumentType, TEntityBase> {
     add: (...entities: OmittedEntity<TEntityBase, TExclusions>[]) => Promise<TEntityBase[]>
@@ -266,4 +288,20 @@ export type ChangeTrackingOptions<
     untrackedPropertyNames: Set<string>,
     contextName: string,
     environment?: DbFrameworkEnvironment
+}
+
+export type DbSetCacheConfiguration = {
+    key: string;
+}
+
+export type DbSetTtlCacheConfiguration = DbSetCacheConfiguration & {
+    ttl: number
+}
+
+export type DbSetSubscriptionCallback<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> = (adds: EntityAndTag<TEntity>[], updates: EntityAndTag<TEntity>[], removes: EntityAndTag<TEntity>[]) => void
+
+export type DbSetSubscription<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> = {
+    callback: DbSetSubscriptionCallback<TDocumentType, TEntity, TExclusions>;
+    selector?: GenericSelector<EntityAndTag<TEntity>>;
+    id: string;
 }

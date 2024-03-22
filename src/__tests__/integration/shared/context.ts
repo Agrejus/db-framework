@@ -4,9 +4,8 @@ import { DocumentTypes, ISyncDocument, ISetStatus, IComputer, IBook, IBookV4, IN
 import { v4 as uuidv4 } from 'uuid';
 import { DefaultDbSetBuilder } from "../../../context/dbset/builders/DefaultDbSetBuilder";
 import { PouchDbPlugin } from "@agrejus/db-framework-plugin-pouchdb";
-import { ContextOptions } from "../../../types/context-types";
+import { ContextOptions, LoggerPayload } from "../../../types/context-types";
 import { IDbPluginOptions } from "../../../types/plugin-types";
-import { performance } from "perf_hooks";
 
 const dataContextWithParamsCreator = (type: string, name?: string) => new class extends DataContext<DocumentTypes, IPouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, IPouchDbRecord<DocumentTypes>, IDbPluginOptions>> {
 
@@ -40,7 +39,7 @@ export class ExternalDataContext extends DataContext<DocumentTypes, IPouchDbReco
         return this.dbPlugin.doWork(w => w.get(id));
     }
 
-    private creator<TDocumentType extends string, TEntityBase extends ISyncDocument<TDocumentType>, TBuilder extends DefaultDbSetBuilder<TDocumentType, TEntityBase, "_id" | "_rev">>(builder: TBuilder) {
+    private creator<TDocumentType extends string, TEntityBase extends ISyncDocument<TDocumentType>, TBuilder extends DefaultDbSetBuilder<TDocumentType, TEntityBase, "_id" | "_rev", PouchDbPlugin<DocumentTypes, IPouchDbRecord<DocumentTypes>, IDbPluginOptions>>>(builder: TBuilder) {
 
         return builder.defaults({ SyncRetryCount: 0, SyncStatus: "Pending" } as any).exclude("SyncStatus", "SyncRetryCount").create((Instance, props) => {
             return new class extends Instance {
@@ -77,7 +76,9 @@ export class ExternalDataContext extends DataContext<DocumentTypes, IPouchDbReco
         .defaults({ status: "pending" })
         .exclude("status", "rejectedCount")
         .enhance((w) => ({
-            someProperty: w.author
+            setPublishDate: () => {
+                w.publishDate = new Date()
+            }
         }))
         .create();
     booksWithDateMapped = this.dbset().default<IBookV4>(DocumentTypes.BooksWithDateMapped)
@@ -95,7 +96,7 @@ export class ExternalDataContext extends DataContext<DocumentTypes, IPouchDbReco
             return result
         })
         .deserialize((w) => {
-            
+
             w.publishDate = w.publishDate == null ? null : new Date(w.publishDate);
             w.createdDate = new Date(w.createdDate);
 
@@ -109,7 +110,7 @@ export class ExternalDataContext extends DataContext<DocumentTypes, IPouchDbReco
     booksNoKey = this.dbset().default<IBook>(DocumentTypes.BooksNoKey).exclude("status", "rejectedCount").keys(w => w.none()).create();
     notes = this.dbset().default<INote>(DocumentTypes.Notes).create();
     contacts = this.dbset().default<IContact>(DocumentTypes.Contacts).keys(w => w.add("firstName").add("lastName")).create();
-    booksV3 = this.creator<DocumentTypes, IBookV3, DefaultDbSetBuilder<DocumentTypes, IBookV3, "_id" | "_rev">>(this.dbset().default<IBookV3>(DocumentTypes.BooksV3));
+    booksV3 = this.creator<DocumentTypes, IBookV3, DefaultDbSetBuilder<DocumentTypes, IBookV3, "_id" | "_rev", PouchDbPlugin<DocumentTypes, IPouchDbRecord<DocumentTypes>, IDbPluginOptions>>>(this.dbset().default<IBookV3>(DocumentTypes.BooksV3));
 
     cars = this.dbset().default<ICar>(DocumentTypes.Cars).enhance((e) => {
         return {
@@ -201,20 +202,6 @@ export class BooksWithOneDefaultContext extends DataContext<DocumentTypes, IPouc
     });
 }
 
-
-// export class BooksWithTwoDefaultContext extends DataContext<DocumentTypes, IPouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, IPouchDbRecord<DocumentTypes>, IDbPluginOptions>> {
-
-//     constructor(name: string) {
-//         super({ dbName: name.endsWith("-db") ? name : `${name}-db` }, PouchDbPlugin);
-//     }
-
-//     contextId(): string {
-//         return BooksWithTwoDefaultContext.name
-//     }
-
-//     booksWithTwoDefaults = this.dbset().default<IBook>(DocumentTypes.BooksWithTwoDefaults).exclude("status", "rejectedCount").create();
-// }
-
 export class DbContextFactory {
 
     private _dbs: { [key: string]: DataContext<DocumentTypes, IPouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, IPouchDbRecord<DocumentTypes>, IDbPluginOptions>> } = {}
@@ -229,9 +216,14 @@ export class DbContextFactory {
 
     createContext<T extends typeof ExternalDataContext>(Context: T, dbname?: string, type?: string) {
         const name = dbname ?? `${uuidv4()}-db`;
-        const s = performance.now();
-        const result = new Context(name);
-        console.log(performance.now() - s)
+        const result = new Context(name.endsWith("-db") ? name : `${name}-db`);
+        this._dbs[name] = result;
+        return result;
+    }
+
+    createCacheContext<T extends typeof ExternalDataContext>(Context: T, dbname: string, logger: (data: LoggerPayload) => void) {
+        const name = dbname ?? `${uuidv4()}-db`;
+        const result = new Context(name, { environment: "development", performance: { enabled: true }, logger });
         this._dbs[name] = result;
         return result;
     }
@@ -252,20 +244,3 @@ export class DbContextFactory {
         await Promise.all(dbNames.map(w => this._dbs[w].destroyDatabase()));
     }
 }
-
-// export type DeepOmit<T, K extends PropertyKey> = {
-//     [P in keyof T as P extends K ? never : P]: DeepOmit<T[P], K extends `${Exclude<P, symbol>}.${infer R}` ? R : never>
-// }
-
-// // https://medium.com/xgeeks/typescript-utility-keyof-nested-object-fa3e457ef2b2
-// export type DeepKeyOf<T> = {
-//     [Key in keyof T & (string | number)]: T[Key] extends object ? `${Key}` | `${Key}.${DeepKeyOf<T[Key]>}` : `${Key}`
-// }[keyof T & (string | number)];
-
-// export type DocumentKeySelector<T> = (entity: T) => any
-// export type KeyOf<T> = keyof T | DocumentKeySelector<T>;
-// export type IdKeys<T> = KeyOf<T>[];
-// export type IdKey<T> = KeyOf<T>;
-// export type DeepPartial<T> = T extends object ? {
-//     [P in keyof T]?: DeepPartial<T[P]>;
-// } : T;

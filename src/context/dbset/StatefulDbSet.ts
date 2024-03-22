@@ -4,14 +4,14 @@ import { DbSetType, IDbSetState, IStatefulDbSet, IStoreDbSetProps } from '../../
 import { IDbRecord, OmittedEntity } from '../../types/entity-types';
 import { DbSet } from './DbSet';
 
-export class StatefulDbSet<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> extends DbSet<TDocumentType, TEntity, TExclusions> implements IStatefulDbSet<TDocumentType, TEntity, TExclusions> {
+export class StatefulDbSet<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity, TDbPlugin> extends DbSet<TDocumentType, TEntity, TExclusions, TDbPlugin> implements IStatefulDbSet<TDocumentType, TEntity, TExclusions, TDbPlugin> {
 
     constructor(props: IStoreDbSetProps<TDocumentType, TEntity, TExclusions>) {
         super(props);
     }
 
     private get storeModificationAdapter() {
-        return this._modificationAdapter as DbSetStatefulModificationAdapter<TDocumentType, TEntity, TExclusions>;
+        return this._modificationAdapter as DbSetStatefulModificationAdapter<TEntity["DocumentType"], TEntity, TExclusions, TDbPlugin>;
     }
 
     async hydrate() {

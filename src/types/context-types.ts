@@ -1,12 +1,16 @@
+import { SaveResult } from '../common/SaveResult';
 import { ReadOnlyList } from '../common/ReadOnlyList';
+import { Transactions } from '../common/Transactions';
 import { IList } from './change-tracking-types';
-import { DeepPartial, Changes, SaveResult, IDictionary } from './common-types';
+import { DeepPartial, Changes, IDictionary } from './common-types';
 import { IDbSetApi, SaveChangesEventData } from './dbset-types';
 import { IDbRecord, IdRemoval } from './entity-types';
 
 export type OnChangeEvent<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> = (getChanges: () => SaveChangesEventData<TDocumentType, TEntityBase>) => Promise<void>
 
 export interface IDataContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> {
+
+    contextId(): string;
 
     /**
      * Persist changes to the underlying data store.  Returns number of documents modified
@@ -18,7 +22,7 @@ export interface IDataContext<TDocumentType extends string, TEntityBase extends 
      * Get all documents in the underlying data store
      * @returns {Promise<TEntityBase[]>}
      */
-    getAllDocs(): Promise<TEntityBase[]>;
+    all(): Promise<TEntityBase[]>;
 
     /**
      * Check to see if there are any unsaved changes
@@ -49,7 +53,8 @@ export interface ITrackedData<TDocumentType extends string, TEntityBase extends 
     adds: TEntityBase[];
     removes: TEntityBase[];
     attachments: IList<TEntityBase>;
-    removesById: IdRemoval<TDocumentType>[]
+    removesById: IdRemoval<TDocumentType>[];
+    transactions: Transactions;
 }
 
 export type IEntityUpdates<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> = {
@@ -62,6 +67,7 @@ export interface IProcessedUpdates<TDocumentType extends string, TEntityBase ext
     docs: IDictionary<TEntityBase>;
     deltas: IDictionary<DeepPartial<TEntityBase>>;
     originals: IDictionary<TEntityBase>;
+    timestamp: { [id: string | number]: number };
 }
 
 export interface ITrackedChanges<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> {
@@ -69,14 +75,36 @@ export interface ITrackedChanges<TDocumentType extends string, TEntityBase exten
     removes: TEntityBase[];
     removesById: IdRemoval<TDocumentType>[];
     updates: IProcessedUpdates<TDocumentType, TEntityBase>;
+    transactions: Transactions;
 }
 
-export interface IPrivateContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase> extends IDataContext<TDocumentType, TEntityBase> {
-    _getApi: () => IDbSetApi<TDocumentType, TEntityBase, TExclusions>;
+export interface IEntityModifications<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>> {
+    adds: TEntityBase[];
+    removes: TEntityBase[];
+    updates: IProcessedUpdates<TDocumentType, TEntityBase>;
+    transactions: Transactions;
+}
+
+export interface IPrivateContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase, TDbPlugin> extends IDataContext<TDocumentType, TEntityBase> {
+    _getApi: () => IDbSetApi<TDocumentType, TEntityBase, TExclusions, TDbPlugin>;
 }
 
 export type DbFrameworkEnvironment = "development" | "production"
 
-export type ContextOptions = {
-    environment?: DbFrameworkEnvironment
+export type LoggerPayload = { name: string, delta?: number, args?: any[] }
+export type MonitoringOptions = {
+    performance?: {
+        enabled: boolean;
+        threshold?: number;
+        only?: string[];
+    };
+    profiler?: {
+        enabled: boolean;
+        only?: string[];
+    },
+    logger?: (data: LoggerPayload) => void;
 }
+
+export type ContextOptions = {
+    environment?: DbFrameworkEnvironment;
+} & MonitoringOptions;

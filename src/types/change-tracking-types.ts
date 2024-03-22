@@ -35,7 +35,8 @@ export type ProcessedChangesResult<TDocumentType extends string, TEntity extends
     isDirty: boolean,
     deltas: DeepPartial<TEntity> | null,
     doc: TEntity,
-    original: TEntity
+    original: TEntity,
+    timestamp: number;
 }
 
 export interface IDbSetChangeTracker<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> extends IChangeTrackerBase<TDocumentType, TEntity, TExclusions> {
@@ -45,38 +46,40 @@ export interface IDbSetChangeTracker<TDocumentType extends string, TEntity exten
     processChanges(entity: TEntity): ProcessedChangesResult<TDocumentType, TEntity>;
     detach(ids: (keyof TEntity)[]): void;
     attach(...data: TEntity[]): TEntity[];
-    readonly enrichment: Enrichment<TDocumentType, TEntity, TExclusions>;
+    readonly enrichment: IEnrichmentComposer<TDocumentType, TEntity, TExclusions>;
     isAttached(id: keyof TEntity): boolean;
     isLinked(entity: TEntity): boolean;
     link(foundEntities: TEntity[], attachEntities: TEntity[]): TEntity[];
 }
 
 export interface IChangeTrackerBase<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> {
-    enableChangeTracking(...entities: TEntity[]): TEntity[];
     getPendingChanges(): ITrackedChanges<TDocumentType, TEntity>;
     reinitialize(removals?: TEntity[], add?: TEntity[], updates?: TEntity[]): void;
     asUntracked(...entities: TEntity[]): TEntity[];
 }
 
-export interface IContextChangeTracker<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> extends IChangeTrackerBase<TDocumentType, TEntity, TExclusions> {
-    registerChangeTracker(documentType: TDocumentType, tracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>): void;
-    readonly enrichment: Enrichment<TDocumentType, TEntity, TExclusions>;
-
+export interface IEnrichers<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> {
+    documentType: (entity: Readonly<TEntity>) => TEntity,
+    id: (entity: Readonly<TEntity>) => TEntity,
+    defaultAdd: (entity: Readonly<TEntity>) => TEntity,
+    defaultRetrieve: (entity: Readonly<TEntity>) => TEntity,
+    serialize: (entity: Readonly<TEntity>) => TEntity,
+    deserialize: (entity: Readonly<TEntity>) => TEntity,
+    enhance: (entity: TEntity) => TEntity,
+    strip: (entity: Readonly<TEntity>) => TEntity
+    remove: (entity: Readonly<TEntity>) => TEntity;
+    changeTracking: (entity: Readonly<TEntity>) => TEntity;
 }
 
-export type Enrichment<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> = {
-    create: (entity: TEntity) => TEntity;
-    upsert: (entity: TEntity) => TEntity;
-    link: (entity: TEntity) => TEntity;
-    retrieve: (entity: TEntity) => TEntity;
-    deserialize: (entity: TEntity) => TEntity;
-    serialize: (entity: TEntity) => TEntity;
-    enhance: (entity: TEntity) => TEntity;
-    prepare: (entity: TEntity) => TEntity;
-    remove: (entity: TEntity) => TEntity;
-    composers: {
-        persisted: (generatedData: IBulkOperationsResponse) => (entity: TEntity) => TEntity;
-    }
+export interface IComposeEnrichers<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> {
+    persisted(response: IBulkOperationsResponse): (entity: Readonly<TEntity>) => TEntity;
+}
+
+export type EnrichmentPick<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> = (keyof IEnrichers<TDocumentType, TEntity, TExclusions>) | ((entity: TEntity) => TEntity)
+
+export type IEnrichmentComposer<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> = {
+    compose(...enrichers: EnrichmentPick<TDocumentType, TEntity, TExclusions>[]): (entity: TEntity) => TEntity;
+    composers: IComposeEnrichers<TDocumentType, TEntity, TExclusions>;
 }
 
 export type EnrichmentCreatorProps<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = {

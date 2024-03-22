@@ -1,15 +1,17 @@
-import { Enrichment, IList, ProcessedChangesResult } from "../../types/change-tracking-types";
+import { IEnrichmentComposer, IList, ProcessedChangesResult } from "../../types/change-tracking-types";
 import { ITrackedChanges, ITrackedData } from "../../types/context-types";
 import { ChangeTrackingOptions, IDbSetProps } from "../../types/dbset-types";
 import { IDbRecord, IdRemoval } from "../../types/entity-types";
 import { IDbPlugin } from "../../types/plugin-types";
 import { EntityEnricher } from './enrichment/EntityEnricher';
+import { Transactions } from '../../common/Transactions';
 
 export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> {
 
     protected removals: TEntity[] = [];
     protected additions: TEntity[] = [];
     protected removeById: IdRemoval<TDocumentType>[] = [];
+    protected readonly transactions: Transactions;
 
     protected abstract attachments: IList<TEntity>;
 
@@ -18,9 +20,10 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
     abstract markDirty(...entities: TEntity[]): Promise<TEntity[]>;
     abstract processChanges(entity: TEntity): ProcessedChangesResult<TDocumentType, TEntity>;
     abstract asUntracked(...entities: TEntity[]): TEntity[];
+    protected abstract enableChangeTracking(entity: TEntity): TEntity;
 
     private readonly _enricher: EntityEnricher<TDocumentType, TEntity, TExclusions>;
-    readonly enrichment: Enrichment<TDocumentType, TEntity, TExclusions>;
+    readonly enrichment: IEnrichmentComposer<TDocumentType, TEntity, TExclusions>;
 
     protected readonly changeTrackingOptions: ChangeTrackingOptions<TDocumentType, TEntity>;
     protected readonly dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>;
@@ -31,11 +34,10 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
         this.changeTrackingOptions = changeTrackingOptions;
         this.dbSetProps = dbSetProps;
         this.dbPlugin = dbPlugin;
+        this.transactions = new Transactions();
 
         this.changeTrackingId = `${this.changeTrackingOptions.contextName}-${this.dbSetProps.documentType}`
-
-        this._enricher = new EntityEnricher(dbSetProps, changeTrackingOptions, dbPlugin);
-        this.enrichment = this._enricher.compose();
+        this.enrichment = new EntityEnricher(dbSetProps, changeTrackingOptions, dbPlugin, this.enableChangeTracking.bind(this));
     }
 
     isAttached(id: keyof TEntity) {
@@ -55,6 +57,7 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
 
         // move additions to attachments so we can track changes
         this.attachments.put(...add);
+        this.transactions.endAll();
     }
 
     detach(ids: (keyof TEntity)[]) {
@@ -91,7 +94,8 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
             adds: this.additions,
             removes: this.removals,
             attachments: this.attachments,
-            removesById: this.removeById
+            removesById: this.removeById,
+            transactions: this.transactions
         };
 
         return result;

@@ -4,14 +4,14 @@ import { IDbSetProps, IDbSetInfo, DbSetType } from '../types/dbset-types';
 import { IDbRecord, IDbRecordBase } from '../types/entity-types';
 import { DbSetBaseAdapter } from './DbSetBaseAdapter';
 
-export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> extends DbSetBaseAdapter<TDocumentType, TEntity, TExclusions> implements IDbSetGeneralAdapter<TDocumentType, TEntity, TExclusions> {
+export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity, TDbPlugin> extends DbSetBaseAdapter<TDocumentType, TEntity, TExclusions, TDbPlugin> implements IDbSetGeneralAdapter<TDocumentType, TEntity, TExclusions> {
 
     constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType, changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>) {
         super(props, type, changeTracker);
     }
 
     isMatch(first: TEntity, second: any) {
-        return this.getKeyFromEntity(first) === this.getKeyFromEntity(second);
+        return this.idCreator(first) === this.idCreator(second);
     }
 
     isLinked(entity: TEntity) {
@@ -67,11 +67,8 @@ export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends I
     }
 
     linkUnsafe(...entites: TEntity[]) {
-        const result = entites.map(w => {
-            const enriched = this.changeTracker.enrichment.create(w);
-            const [tracked] = this.changeTracker.enableChangeTracking(enriched);
-            return tracked;
-        });
+        const enrich = this.changeTracker.enrichment.compose("documentType", "id", "defaultAdd", "changeTracking", "enhance");
+        const result = entites.map(enrich);
         return this.changeTracker.attach(...result);
     }
 

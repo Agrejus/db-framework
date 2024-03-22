@@ -247,8 +247,7 @@ describe('DbSet Add Tests', () => {
         expect(found?._id).toBeDefined();
         expect(found?._rev).toBeDefined();
 
-        expect(found?.someProperty).toBeDefined();
-        expect(found?.someProperty).toBe(found?.author);
+        expect(found?.setPublishDate).toBeDefined();
         expect(found?.author).toBe("James DeMeuse");
         expect(found?.publishDate).toBeDefined();
         expect(found?.status).toBe("pending");
@@ -384,7 +383,7 @@ describe('DbSet Add Tests', () => {
 
         await missingContext.saveChanges();
 
-        const all = await context.getAllDocs();
+        const all = await context.all();
         const [retrievedBook] = context.booksWithTwoDefaults.match(...all)
 
         const [addedBook] = await context.booksWithTwoDefaults.add({

@@ -9,7 +9,6 @@ import { StatefulDataContext } from "../../src/context/StatefulDataContext";
 import { DbContextFactory, ExternalDataContext } from "../../src/__tests__/integration/shared/context";
 import { faker } from "@faker-js/faker";
 import PouchDB from 'pouchdb';
-import { performance } from "perf_hooks";
 import { shouldFilterEntitiesWithDefaults } from "../../src/__tests__/integration/shared/common-tests";
 
 enum DocumentTypes {
@@ -113,6 +112,10 @@ const PerformanceDataContext = contextBuilder<DocumentTypes>()
     });
 
 
+const context = new ExternalDataContext("performance-db");
+
+export type EnhancedBook = typeof context.books.types.result;
+
 export const run = async () => {
     try {
         //const contextFactory = new DbContextFactory();
@@ -138,50 +141,84 @@ export const run = async () => {
 
         const contextFactory = new DbContextFactory();
         const dbname = contextFactory.getRandomDbName();
-        const context = contextFactory.createContext(ExternalDataContext, dbname);
+        const context = contextFactory.createContext(ExternalDataContext, "performance-db");
 
-        const s1 = performance.now();
+        const rnd = faker.random.words(10000);
 
-        for(let i = 0; i < 1000; i++) {
-            await context.books.add({
-                author: faker.random.word(),
-                publishDate: faker.date.between('2010-01-01', '2024-01-01')
-            });
-        }
+        const [added] = await context.contacts.add({
+            firstName: "James",
+            lastName: "DeMeuse",
+            phone: "111-111-1111",
+            address: "1234 Test St"
+        });
 
-        console.log('adds', performance.now() - s1)
+        await context.saveChanges();
+
+        await context.contacts.useCache({ key: "test" }).find(w => w.firstName === "James");
+        debugger;
+
+        await context.books.add({
+            author: "James",
+            publishDate: faker.date.between('2010-01-01', '2024-01-01')
+        });
+        
+        await context.saveChanges();
+
+        // for(let i = 0; i < 10000; i++) {
+        //     await context.books.add({
+        //         author: rnd,
+        //         publishDate: faker.date.between('2010-01-01', '2024-01-01')
+        //     });
+        // }
 
 
         // const x = await context.booksV3.first();
         // const y = await context2.booksV3.first();
 
-        const s = performance.now();
-        const saved = await context.saveChanges();
-        console.log(performance.now() - s)
-        console.log(saved)
-       
 
-        for(let i = 0; i < 1000; i++) {
-            await context.books.add({
-                author: faker.random.word(),
-                publishDate: faker.date.between('2010-01-01', '2024-01-01')
-            });
-        }
+        // const saved = await context.saveChanges();
+        // console.log(saved)
+        // debugger;
 
-        const s2 = performance.now();
+        debugger;
+        const found = await context.books.useCache({ key: "woot" }).first();
+        const found1 = await context.books.useCache({ key: "test" }).find(w => w.author === "James");
+
+        // await context.books.add({
+        //     author: "James",
+        //     publishDate: faker.date.between('2010-01-01', '2024-01-01')
+        // });
+
+        found!.author = faker.name.firstName();
+        debugger;
+        const unsubscribe = context.books.subscribe((adds, updates) => {
+            debugger;
+            console.log('sub', adds, updates);
+        });
+
         const saved2 = await context.saveChanges();
-        console.log(performance.now() - s2)
 
-        const found = await context.books.find(w => w.author === "James");
+        const found2 = await context.books.useCache({ key: "test", ttl: 10 }).find(w => w.author === "James");
+        debugger;
+        const found3 = await context.books.find(w => w.author === "James");
 
         if (found != null) {
-            console.log(found.someProperty)
+
+            found.setPublishDate();
+
+            debugger;
+
+            found.status = "rejected";
+            await context.saveChanges();
+
         }
 
-        const author = await context.books.pluck(w => w.author === "James", "someProperty");
+        const author = await context.books.pluck(w => w.author === "James", "author");
+
+        const authors = await context.notes.all();
 
         console.log(author)
-       
+
     } catch (e) {
         console.error(e)
     }
