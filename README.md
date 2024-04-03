@@ -7,6 +7,7 @@
 
 <div align="center">
 
+  [![Downloads](https://img.shields.io/npm/dm/%40agrejus%2Fdb-framework.svg)]() 
   [![Status](https://img.shields.io/badge/status-active-success.svg)]() 
   [![GitHub Issues](https://img.shields.io/github/issues/agrejus/db-framework.svg)](https://github.com/agrejus/db-framework/issues)
   [![GitHub Pull Requests](https://img.shields.io/github/issues-pr/agrejus/db-framework.svg)](https://github.com/agrejus/db-framework/pulls)
@@ -399,6 +400,9 @@ class CustomDbPlugin<TDocumentType extends string, TEntityBase extends MyDbRecor
 
     protected readonly options: TDbPluginOptions;
 
+    // Property that is used to identity whether or not an entity was saved to the database.  If this property is set, then we know an entity was saved to the database.
+    readonly identifier = "_rev";
+
     // Universal Id Property Name, must be the same for all entities
     readonly idPropertName = "_id";
 
@@ -414,6 +418,12 @@ class CustomDbPlugin<TDocumentType extends string, TEntityBase extends MyDbRecor
         // this function destroys the underlying database
 
         // Example:  For PouchDB, we destroy the database
+    }
+
+    validateEntity(entity: TEntityBase): IValidationResult<TDocumentType, TEntityBase>[] {
+        // Runs validation on an entity to ensure it can be linked or unlinked from the dbset.  Entities that are linked or unlinked must already exist in the database, otherwise we need to use a different function such as upsert.
+
+        // Example:  For PouchDB, we can check if the entity has an _id and _rev property set
     }
 
     async all(payload?: IQueryParams<TDocumentType>): Promise<TEntityBase[]> {
@@ -434,25 +444,25 @@ class CustomDbPlugin<TDocumentType extends string, TEntityBase extends MyDbRecor
        // Example:  For PouchDB, we get an list of entites by Id
     }
 
-    async bulkOperations(operations: { adds: TEntityBase[]; removes: TEntityBase[]; updates: TEntityBase[]; }): Promise<IBulkOperationsResponse> {
+    async bulkOperations(operations: { adds: TEntityBase[]; removes: TEntityBase[]; updates: TEntityBase[]; }, transactions: Transactions): Promise<IBulkOperationsResponse> {
         // Performs bulk operation, meaning, all adds/removes/updates are done in one operation.  For other databases that do not have this functionality, adds/removes/updates can be done separately.
 
         // Example:  For PouchDB, adds/removes/updates can all be done in one operation, so we group all items together and perform the operation
     }
 
     async prepareAttachments(...entities: TEntityBase[]): Promise<{ ok: boolean, errors: string[], docs: TEntityBase[] }> {
-        // Prepares entities to be attached to the Db Set.  Used when .link() is called on a Db Set.  This method is responsible for finding the existing entity and merging it with the entity passed into this function.  Should set any propertyes and return the result of the merge
+        // Prepares entities to be attached to the Db Set.  Used when .link() is called on a Db Set.  This method is responsible for finding the existing entity and merging it with the entity passed into this function.  Should set any properties and return the result of the merge
 
-        // Example:  For PouchDB, we try and find existing documents by Id, then we use only the _rev property from the found document, and set it on the entity from the parameters.  This function also verifies that the _rev, DocumentType, and _id properties are set.  We look up the entity, because we want to ensure the entity being passed in has the latest _rev so it is saved properly
+        // Example:  For PouchDB, we try and find existing documents by _id, then we use only the _rev property from the found document, and set it on the entity from the parameters.  This function also verifies that the _rev, DocumentType, and _id properties are set.  We look up the entity, because we want to ensure the entity being passed in has the latest _rev so it is saved properly
     }
 
-    formatDeletions(...entities: TEntityBase[]): TEntityBase[] {
+    enrichRemoval(entity: TEntityBase): TEntityBase {
         // Some databases only do soft deletes and work by setting an flag like _deleted to deleted items.  If this is not the case, we can just return the passed in entites.  Otherise format entites as needed so they can be deleted properly.
 
         // Example:  For PouchDB, this function maps entites to remove all properties but _id, _rev, and adds the _deleted flag
     }
 
-    isOperationAllowed(entity: TEntityBase, operation: 'add'): boolean {
+    isOperationAllowed(entity: TEntityBase, operation: DbPluginOperations): { ok: boolean, error?: string } {
         // Given an entity and operation, we can determine if we are allowed to do an operation.  This function is used when .add() is called on a Db Set.  
 
         // Example: For PouchDB, this function is used to check whether or not an entity has a _rev property set, if it does, that means it is not an add because that property is set only after saving an entity.
@@ -464,8 +474,8 @@ class CustomDbPlugin<TDocumentType extends string, TEntityBase extends MyDbRecor
         // Example:  For PouchDB, entities that can be detached must have an _id, _rev, and DocumentType set.  If they are missing these properties, we cannot detach properly and should return errors.
     }
 
-    setDbGeneratedValues(response: IBulkOperationsResponse, entities: TEntityBase[]): void {
-        // Takes in the reponse from saving to the database, the entities that were acted on and should set any DB generated values.  NOTE:  Ids should not be auto generated by the database, if they are, we cannot correctly identify an entity, because it has no identifying information.  If we cannot identify an entity, then we cannot set DB generated values.
+    enrichGenerated(response: IBulkOperationsResponse, entity: TEntityBase): TEntityBase {
+        // Takes in the reponse from saving to the database, the entities that were acted on and should set any DB generated values.  NOTE:  Ids should not be auto generated by the database, if they are, we cannot correctly identify an entity, because it has no identifying information for DB Framework to use.  If we cannot identify an entity, then we cannot set DB generated values.
 
         // Example:  For PouchDB, entities that are saved to the database, this function is used to set the DB generated _rev value.
     }

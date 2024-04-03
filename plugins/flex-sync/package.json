@@ -1,7 +1,7 @@
 {
-  "name": "@agrejus/db-framework",
-  "version": "1.2.0-beta.1",
-  "description": "JavaScript Data Interaction Layer modeled after .NET Entity Framework",
+  "name": "@agrejus/db-framework-plugin-flex-sync",
+  "version": "0.0.1",
+  "description": "Sync Plugin for DB Framework",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "source": "./src/index.ts",
@@ -15,59 +15,41 @@
   },
   "author": "James DeMeuse <james.demeuse@gmail.com>",
   "license": "MIT",
-  "repository": "Agrejus/db-framework",
+  "repository": "Agrejus/db-framework-plugin-flex-sync",
   "keywords": [
+    "pouchdb",
     "orm",
     "typescript",
-    "javascript",
     "web",
     "indexeddb",
-    "electron",
-    "data access layer",
-    "entities",
-    "entity framework",
-    "database",
-    "json",
-    "pouchdb",
-    "sqlite",
-    "memory",
-    "local storage",
-    "in-memory",
-    "state management",
-    "db framework",
-    "db",
-    "data",
-    "db-framework",
-    "idb",
-    "indexed",
-    "storage",
-    "nosql",
-    "sql"
+    "electron"
   ],
   "files": [
     "dist"
   ],
   "devDependencies": {
-    "@agrejus/db-framework-plugin-pouchdb": "file:./plugins/pouchdb",
+    "@agrejus/db-framework": "../..",
     "@babel/preset-env": "^7.18.0",
     "@babel/preset-typescript": "^7.17.12",
     "@faker-js/faker": "^7.1.0",
     "@jest/types": "^28.1.0",
     "@types/jest": "^27.5.1",
+    "@types/lodash": "^4.14.182",
     "@types/node": "^17.0.35",
-    "@types/pouchdb": "^6.4.2",
-    "@types/uuid": "^8.3.4",
+    "@types/semver": "^7.3.10",
     "babel-jest": "^28.1.0",
     "cross-env": "^7.0.3",
     "directory-tree": "^3.3.0",
     "jest": "^28.1.0",
-    "pouchdb": "^8.0.1",
+    "lodash": "^4.17.21",
     "rimraf": "^3.0.2",
+    "semver": "^7.3.7",
     "ts-jest": "^28.0.2",
     "ts-node": "^10.8.0",
     "typescript": "5.0.2"
   },
-  "dependencies": {
-    "uuid": "^8.3.2"
-  }
+  "peerDependencies": {
+    "@agrejus/db-framework": "^1.1.0"
+  },
+  "dependencies": {}
 }

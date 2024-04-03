@@ -1,0 +1,43 @@
+{
+  "name": "@agrejus/db-framework-plugin-idb",
+  "version": "1.0.0",
+  "description": "IndexedDB plugin for DB Framework",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "source": "./src/index.ts",
+  "scripts": {
+    "test": "jest --runInBand --silent --no-cache",
+    "build": "npm run clean && tsc",
+    "build:ci": "tsc",
+    "clean": "./node_modules/.bin/rimraf ./dist/*"
+  },
+  "author": "James DeMeuse <james.demeuse@gmail.com>",
+  "license": "MIT",
+  "repository": "Agrejus/db-framework-plugin-idb",
+  "keywords": [
+    "idb",
+    "orm",
+    "typescript",
+    "web",
+    "indexeddb",
+    "electron"
+  ],
+  "files": [
+    "dist"
+  ],
+  "devDependencies": {
+    "@agrejus/db-framework": "../..",
+    "@types/node": "^17.0.35",
+    "rimraf": "^3.0.2",
+    "semver": "^7.3.7",
+    "ts-jest": "^28.0.2",
+    "ts-node": "^10.8.0",
+    "typescript": "5.0.2"
+  },
+  "peerDependencies": {
+    "@agrejus/db-framework": "^1.1.0"
+  },
+  "dependencies": {
+    "idb": "^8.0.0"
+  }
+}

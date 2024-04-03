@@ -1,4 +1,4 @@
-import { DataContext } from '../src/context/DataContext';
+import { DataContext } from '../../../src/context/DataContext';
 import { PouchDbPlugin, PouchDbRecord } from '@agrejus/db-framework-plugin-pouchdb';
 
 // Declare document types
@@ -15,16 +15,15 @@ export interface ICar extends PouchDbRecord<MyDocumentTypes.Cars> {
     trim: string;
 }
 
-// Create Data context using a provider
-export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<MyDocumentTypes>, "_id" | "_rev"> {
+export class MyDataContextWithReadonly extends DataContext<MyDocumentTypes, PouchDbRecord<MyDocumentTypes>, "_id" | "_rev"> {
 
     constructor() {
         super({ dbName: "some-new-database" }, PouchDbPlugin)
     }
 
     contextId() {
-        return MyDataContext.name;
+        return MyDataContextWithReadonly.name;
     }
 
-    cars = this.dbset().default<ICar>(MyDocumentTypes.Cars).create();
+    cars = this.dbset().default<ICar>(MyDocumentTypes.Cars).readonly().create();
 }

@@ -1,4 +1,5 @@
 import { Transactions } from '../common/Transactions';
+import { groupBy, toDictionary } from '../common/helpers';
 import { IDbRecord } from '../types/entity-types'
 
 export interface IQueryParams<TDocumentType extends string> {
@@ -9,8 +10,8 @@ export interface IQueryParams<TDocumentType extends string> {
 export interface IBulkOperation {
     ok: boolean;
     id: string;
-    rev?: string;
     error?: string;
+    [key: string | number]: unknown;
 }
 
 export interface IBulkOperationsResponse {
@@ -35,7 +36,6 @@ export interface IDbPlugin<TDocumentType extends string, TEntityBase extends IDb
     isOperationAllowed(entity: TEntityBase, operation: DbPluginOperations): { ok: boolean, error?: string };
     enrichRemoval(entity: TEntityBase): TEntityBase;
     enrichGenerated(response: IBulkOperationsResponse, entity: TEntityBase): TEntityBase;
-
 }
 
 export type IDbPluginOptions = {
@@ -43,3 +43,10 @@ export type IDbPluginOptions = {
 }
 
 export type DbPluginInstanceCreator<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase, TDbPlugin extends IDbPlugin<TDocumentType, TEntityBase, TExclusions>> = new (options: IDbPluginOptions) => TDbPlugin;
+
+export interface IValidationResult<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> {
+    propertyName: keyof TEntity;
+    ok: boolean;
+    error: string;
+    entity: TEntity
+}

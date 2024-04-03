@@ -58,6 +58,23 @@ export const generateRandomId = () => {
     return result;
 }
 
+export const groupBy = <T>(data: T[], groupByKey: keyof T) => {
+
+    const result = {} as { [key in keyof T]: T[] };
+
+    for (let i = 0; i < data.length; i++) {
+        const item = data[i];
+
+        if (result[item[groupByKey] as keyof T] == null) {
+            result[item[groupByKey] as keyof T] = [];
+        }
+
+        result[item[groupByKey] as keyof T].push(item);
+    }
+
+    return result;
+}
+
 export const toDictionary = <T>(data: T[], idPropertyName: keyof T) => {
 
     const result = {} as IDictionary<T>;
