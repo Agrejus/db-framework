@@ -3,7 +3,7 @@ import { EntitySelector } from '../types/common-types';
 import { ContextOptions } from '../types/context-types';
 import { DbSetChanges, IDataContextState, IStatefulDbSet } from '../types/dbset-types';
 import { IDbRecord } from '../types/entity-types';
-import { DbPluginInstanceCreator, IDbPlugin, IDbPluginOptions } from '../types/plugin-types';
+import { IDbPlugin, IDbPluginOptions } from '../types/plugin-types';
 import { DataContext } from './DataContext';
 import { StatefulDbSetInitializer } from './dbset/builders/StatefulDbSetInitializer';
 
@@ -19,9 +19,13 @@ export type OnChangeHandlerDictionary = {
 }
 const onChangeHandlers: OnChangeHandlerDictionary = {};
 
+/**
+ * StatefulDataContext
+ * @deprecated use default dbset with useCache and subscribe to events
+ */
 export abstract class StatefulDataContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase, TPluginOptions extends IDbPluginOptions = IDbPluginOptions, TDbPlugin extends IDbPlugin<TDocumentType, TEntityBase, TExclusions> = IDbPlugin<TDocumentType, TEntityBase, TExclusions>> extends DataContext<TDocumentType, TEntityBase, TExclusions, TPluginOptions, TDbPlugin> {
 
-    constructor(options: TPluginOptions, Plugin: DbPluginInstanceCreator<TDocumentType, TEntityBase, TExclusions, TDbPlugin>, contextOptions: ContextOptions = { environment: "development" }) {
+    constructor(options: TPluginOptions, Plugin: new (options: TPluginOptions) => TDbPlugin, contextOptions: ContextOptions = { environment: "development" }) {
         super(options, Plugin, contextOptions)
     }
 

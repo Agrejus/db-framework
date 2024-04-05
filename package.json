@@ -49,6 +49,7 @@
   ],
   "devDependencies": {
     "@agrejus/db-framework-plugin-pouchdb": "file:./plugins/pouchdb",
+    "@agrejus/db-framework-plugin-local-storage": "file:./plugins/local-storage",
     "@babel/preset-env": "^7.18.0",
     "@babel/preset-typescript": "^7.17.12",
     "@faker-js/faker": "^7.1.0",

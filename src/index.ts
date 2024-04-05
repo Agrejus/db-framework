@@ -10,6 +10,6 @@ export { IdKeys, DeepPartial, DeepOmit, DeepKeyOf, DeepReadOnly } from './types/
 export { SaveResult } from './common/SaveResult';
 export { Transaction } from './common/Transaction';
 export { Transactions } from './common/Transactions';
-export { DbPluginInstanceCreator, IBulkOperation, IBulkOperationsResponse, IDbPlugin, IValidationResult, IDbPluginOptions, IQueryParams, DbPluginOperations } from './types/plugin-types';
+export { IBulkOperation, IBulkOperationsResponse, IDbPlugin, IValidationResult, IDbPluginOptions, IQueryParams, DbPluginOperations } from './types/plugin-types';
 export { contextBuilder } from './context/builder/context-builder';
 export { DbPlugin } from './plugin/DbPlugin'; 

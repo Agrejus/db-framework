@@ -10,6 +10,7 @@ import { DbContextFactory, ExternalDataContext } from "../../src/__tests__/integ
 import { faker } from "@faker-js/faker";
 import PouchDB from 'pouchdb';
 import { shouldFilterEntitiesWithDefaults } from "../../src/__tests__/integration/shared/common-tests";
+import { LocalStorageDbRecord, LocalStorageDbPlugin } from "@agrejus/db-framework-plugin-local-storage";
 
 enum DocumentTypes {
     Notes = "Notes",
@@ -78,38 +79,9 @@ interface ICar extends PouchDbRecord<DocumentTypes.Cars> {
     manufactureDate: string;
 }
 
-const PerformanceDataContext = contextBuilder<DocumentTypes>()
-    .useBaseRecord<PouchDbRecord<DocumentTypes>>()
-    .useExclusions()
-    .usePlugin({ dbName: "performance-db" }, PouchDbPlugin)
-    .createDefault("createDefault", (Base) => {
-        return class extends Base {
-
-            contextId() {
-                return "some-name"
-            }
-
-            cars = this.dbset().default<ICar>(DocumentTypes.Cars)
-                .keys(w => w.auto())
-                .create();
-
-            books = this.dbset().default<IBook>(DocumentTypes.Books)
-                .keys(w => w.auto())
-                .create();
-
-            notes = this.dbset().default<INote>(DocumentTypes.Notes)
-                .keys(w => w.auto())
-                .create();
-
-            preferences = this.dbset().default<IPreference>(DocumentTypes.Preference)
-                .keys(w => w.auto())
-                .create();
-
-            configurations = this.dbset().default<IConfiguration>(DocumentTypes.Configuration)
-                .keys(w => w.auto())
-                .create();
-        }
-    });
+interface ITest extends LocalStorageDbRecord<DocumentTypes.Cars> {
+    someProperty_1: string;
+}
 
 
 const context = new ExternalDataContext("performance-db");

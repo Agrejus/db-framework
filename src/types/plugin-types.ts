@@ -42,8 +42,6 @@ export type IDbPluginOptions = {
     dbName: string;
 }
 
-export type DbPluginInstanceCreator<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase, TDbPlugin extends IDbPlugin<TDocumentType, TEntityBase, TExclusions>> = new (options: IDbPluginOptions) => TDbPlugin;
-
 export interface IValidationResult<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> {
     propertyName: keyof TEntity;
     ok: boolean;

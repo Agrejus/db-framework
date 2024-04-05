@@ -3,7 +3,7 @@ import { ContextOptions, IDataContext, IEntityModifications, IProcessedUpdates, 
 import { DbSetMap, EntityAndTag, IDbSet, IDbSetApi, SaveChangesEventData } from "../types/dbset-types";
 import { IDbRecord, IRemovalRecord } from "../types/entity-types";
 import { DbSetInitializer } from './dbset/builders/DbSetInitializer';
-import { DbPluginInstanceCreator, IBulkOperationsResponse, IDbPlugin, IDbPluginOptions } from '../types/plugin-types';
+import { IBulkOperationsResponse, IDbPlugin, IDbPluginOptions } from '../types/plugin-types';
 import { ContextChangeTrackingAdapter } from '../adapters/change-tracking/ContextChangeTrackingAdapter';
 import { toReadOnlyList } from "../common/helpers";
 import { ReadOnlyList } from "../common/ReadOnlyList";
@@ -33,7 +33,7 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
         return this._options.dbName;
     }
 
-    constructor(options: TPluginOptions, Plugin: DbPluginInstanceCreator<TDocumentType, TEntityBase, TExclusions, TDbPlugin>, contextOptions: ContextOptions = { environment: "development" }) {
+    constructor(options: TPluginOptions, Plugin: new (options: TPluginOptions) => TDbPlugin, contextOptions: ContextOptions = { environment: "development" }) {
         this._options = options;
         this._contextOptions = contextOptions;
         this.dbPlugin = new Plugin(options);
