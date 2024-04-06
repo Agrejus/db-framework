@@ -10,8 +10,8 @@
   [![Downloads](https://img.shields.io/npm/dm/%40agrejus%2Fdb-framework.svg)]() 
   [![Status](https://img.shields.io/badge/status-active-success.svg)]() 
   [![GitHub Issues](https://img.shields.io/github/issues/agrejus/db-framework.svg)](https://github.com/agrejus/db-framework/issues)
-  [![GitHub Pull Requests](https://img.shields.io/github/issues-pr/agrejus/db-framework.svg)](https://github.com/agrejus/db-framework/pulls)
   [![License](https://img.shields.io/badge/license-MIT-blue.svg)](/LICENSE)
+  [![Discord](https://img.shields.io/discord/1225536931736195072?color=blue&label=Discord&logo=discord&logoColor=white)](https://discord.gg/yfwtfcqE55)
 
 </div>
 
@@ -23,6 +23,7 @@
 
 ## Table of Contents
 - [About](#about)
+- [Help](https://discord.gg/yfwtfcqE55)
 - [Getting Started](#getting_started)
   - [Installation](#installation)
   - [Basic Usage](#basic_usage_example)

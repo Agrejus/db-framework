@@ -14,7 +14,7 @@ export class SchemaOptional<T extends any> extends SchemaBase<T> {
         const result = new SchemaNullable<typeof this.instance | null>();
         result.isNullable = true;
         result.isOptional = this.isOptional;
-        result.name = this.name;
+        result.type = this.type;
         return result;
     }
 }

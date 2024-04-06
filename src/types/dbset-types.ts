@@ -1,3 +1,4 @@
+import { SchemaDefinition } from "../schema/types/Definition";
 import { IDbSetChangeTracker } from "./change-tracking-types";
 import { DbSetPickDefaultActionRequired, EntityComparator, EntitySelector, GenericSelector, TagsCollection } from "./common-types";
 import { ContextOptions, DbFrameworkEnvironment, IDataContext } from "./context-types";
@@ -264,6 +265,7 @@ export interface IDbSetProps<TDocumentType extends string, TEntity extends IDbRe
     serializer: Serializer<TDocumentType, TEntity> | null;
     deserializer: Deserializer<TDocumentType, TEntity> | null;
     enhancer?: EntityEnhancer<TDocumentType, TEntity>;
+    schema?: SchemaDefinition<TDocumentType, any>;
 }
 
 export type DbSetType = "default" | "stateful";

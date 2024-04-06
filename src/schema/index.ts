@@ -2,6 +2,8 @@ import { SchemaArray } from "./types/Array";
 import { SchemaBase } from "./types/Base";
 import { SchemaBoolean } from "./types/Boolean";
 import { SchemaDate } from "./types/Date";
+import { SchemaDefinition } from "./types/Definition";
+import { SchemaId } from "./types/Id";
 import { SchemaNumber } from "./types/Number";
 import { SchemaObject } from "./types/Object";
 import { SchemaString } from "./types/String";
@@ -19,7 +21,8 @@ export enum SchemaTypes {
     Date = "Date",
     Number = "Number",
     Object = "Object",
-    String = "String"
+    String = "String",
+    Definition = "Definition"
 }
 
 export type SchemaBaseCheck<T> = T extends SchemaBase<any> ? InferType<T["instance"]> : ReturnIfObject<T, DeepSchemaCheck<T>>;
@@ -29,12 +32,12 @@ export type ReturnIfObject<T, R> = T extends object ? R : T
 export type DeepSchemaCheck<T> = ReturnIfNotDate<T, ReturnIfObject<T, { [P in keyof T]: NestedSchemaCheck<T[P]> }>>;
 export type InferType<T extends SchemaBase<any>> = { [P in keyof T]: SchemaBaseCheck<T[P]>; }["instance"];
 
-
 export const s = {
-    number: <T extends number = number>() => new SchemaNumber<T>(),
-    string: <T extends string = string>() => new SchemaString<T>(),
+    number: <T extends number = number>(options?: { isId: boolean; }) => new SchemaNumber<T>(options),
+    string: <T extends string = string>(options?: { isId: boolean; }) => new SchemaString<T>(options),
     boolean: <T extends boolean = boolean>() => new SchemaBoolean<T>(),
     date: <T extends Date = Date>() => new SchemaDate<T>(),
     array: <T extends any>(schema?: T) => new SchemaArray<T>(schema),
     object: <T extends {} = {}>(schema: T) => new SchemaObject<T>(schema),
+    define: <TDocumentType extends string, T extends {}>(documentType: TDocumentType, schema: T) => new SchemaDefinition<TDocumentType, T & { DocumentType: TDocumentType }>(documentType, { ...schema, DocumentType: documentType })
 }

@@ -3,6 +3,7 @@ import { EntityIdKey, IDbRecord } from './entity-types';
 import { DbSetOnChangeEvent, IDbSet, IDbSetProps, IStatefulDbSet, IStoreDbSetProps } from './dbset-types';
 import { DbSet } from '../context/dbset/DbSet';
 import { IDataContext } from './context-types';
+import { SchemaDefinition } from '../schema/types/Definition';
 
 export interface IDbSetStatefulBuilderParams<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity>
     extends IDbSetBuilderParams<TDocumentType, TEntity, TExclusions> {
@@ -21,6 +22,7 @@ export interface IDbSetBuilderParams<TDocumentType extends string, TEntity exten
     entityComparator: EntityComparator<TDocumentType, TEntity> | null;
     idCreator: CustomIdCreator<TDocumentType, TEntity>;
     enhancer?: EntityEnhancer<TDocumentType, TEntity>;
+    schema?: SchemaDefinition<TDocumentType, any>;
 }
 
 

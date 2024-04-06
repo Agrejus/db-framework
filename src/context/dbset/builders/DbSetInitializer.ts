@@ -1,13 +1,14 @@
 import { IDataContext } from "../../../types/context-types";
 import { IDbSetBase } from "../../../types/dbset-types";
 import { IDbRecord } from "../../../types/entity-types";
-import { IDbPlugin, IDbPluginOptions } from "../../../types/plugin-types";
+import { IDbPluginOptions } from "../../../types/plugin-types";
 import { DataContext } from "../../DataContext";
 import { DbSet } from "../DbSet";
 import { StatefulDbSet } from "../StatefulDbSet";
 import { DefaultDbSetBuilder } from "./DefaultDbSetBuilder";
 import { StatefulDbSetBuilder } from "./StatefulDbSetBuilder";
 import { IdBuilder } from '../../builder/IdBuilder';
+import { SchemaDefinition } from "../../../schema/types/Definition";
 
 export class DbSetInitializer<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase, TPluginOptions extends IDbPluginOptions, TDbPlugin> {
 
@@ -19,7 +20,7 @@ export class DbSetInitializer<TDocumentType extends string, TEntityBase extends 
         this.context = context;
     }
 
-    default<TEntity extends TEntityBase>(documentType: TEntity["DocumentType"]) {
+    default<TEntity extends TEntityBase>(documentType: TEntity["DocumentType"], schema?: SchemaDefinition<TDocumentType, any>) {
         return new DefaultDbSetBuilder<TEntity["DocumentType"], TEntity, TExclusions, TDbPlugin>({
             InstanceCreator: DbSet,
             onCreate: this.onAddDbSet,
@@ -33,7 +34,8 @@ export class DbSetInitializer<TDocumentType extends string, TEntityBase extends 
                 deserializer: null,
                 filterSelector: null,
                 entityComparator: null,
-                idCreator: IdBuilder.createUUID
+                idCreator: IdBuilder.createUUID,
+                schema
             }
         });
     }
@@ -51,7 +53,7 @@ export class DbSetInitializer<TDocumentType extends string, TEntityBase extends 
                 serializer: null,
                 deserializer: null,
                 filterSelector: null,
-                onChange: () => {},
+                onChange: () => { },
                 entityComparator: null,
                 idCreator: IdBuilder.createUUID
             }

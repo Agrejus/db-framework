@@ -6,17 +6,22 @@ import { SchemaOptional } from "./Optional";
 export class SchemaNumber<T extends number = number> extends SchemaBase<T> {
 
     instance: T;
-    name = SchemaTypes.Number;
+    type = SchemaTypes.Number;
+
+    constructor(options?: { isId: boolean }) {
+        super();
+        this.isId = options?.isId ?? false;
+    }
 
     optional() {
         const result = new SchemaOptional<typeof this.instance>();
-        result.name = this.name;
+        result.type = this.type;
         return result;
     }
 
     nullable() {
         const result = new SchemaNullable<typeof this.instance | null>();
-        result.name = this.name;
+        result.type = this.type;
         return result;
     }
 }

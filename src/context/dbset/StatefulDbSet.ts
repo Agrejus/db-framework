@@ -4,6 +4,10 @@ import { DbSetType, IDbSetState, IStatefulDbSet, IStoreDbSetProps } from '../../
 import { IDbRecord, OmittedEntity } from '../../types/entity-types';
 import { DbSet } from './DbSet';
 
+/**
+ * StatefulDbSet
+ * @deprecated use default dbset
+ */
 export class StatefulDbSet<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity, TDbPlugin> extends DbSet<TDocumentType, TEntity, TExclusions, TDbPlugin> implements IStatefulDbSet<TDocumentType, TEntity, TExclusions, TDbPlugin> {
 
     constructor(props: IStoreDbSetProps<TDocumentType, TEntity, TExclusions>) {

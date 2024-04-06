@@ -6,17 +6,17 @@ import { SchemaOptional } from "./Optional";
 export class SchemaBoolean<T extends boolean = boolean> extends SchemaBase<T> {
 
     instance: T;
-    name = SchemaTypes.Boolean;
+    type = SchemaTypes.Boolean;
     
     optional() {
         const result = new SchemaOptional<typeof this.instance>();
-        result.name = this.name;
+        result.type = this.type;
         return result;
     }
 
     nullable() {
         const result = new SchemaNullable<typeof this.instance | null>();
-        result.name = this.name;
+        result.type = this.type;
         return result;
     }
 }
