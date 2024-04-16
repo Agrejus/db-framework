@@ -180,7 +180,7 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
             transactions
         };
 
-        return result
+        return result;
     }
 
     private _toBeforeSaveChangesEventData(changes: IEntityModifications<TDocumentType, TEntityBase>, tags: { [id: string]: unknown; }, documentType?: TDocumentType) {
@@ -317,6 +317,7 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
     protected _enrichBeforeSave(data: { adds: TEntityBase[], removes: TEntityBase[], updates: TEntityBase[] }) {
         // strip updates/adds and process removals
         const { adds, removes, updates } = data;
+
         const strippedAdds = this._changeTracker.enrich(adds, "strip", "serialize");
         const strippedUpdates = this._changeTracker.enrich(updates, "strip", "serialize");
         const formattedRemovals = this._changeTracker.enrich(removes, "remove") as IRemovalRecord<TDocumentType, TEntityBase>[];
@@ -334,7 +335,6 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
 
     protected _enrichAfterSave(data: { adds: TEntityBase[], updates: TEntityBase[] }, modificationResult: IBulkOperationsResponse) {
         const { adds, updates } = data;
-        this._changeTracker.enrichAfterPersisted(adds, modificationResult);
 
         // map generated values and other enrichments
         const persistedAdds = this._changeTracker.enrichAfterPersisted(adds, modificationResult);

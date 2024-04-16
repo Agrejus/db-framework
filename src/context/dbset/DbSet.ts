@@ -8,6 +8,7 @@ import { ContextOptions, IPrivateContext } from '../../types/context-types';
 import { IDbSetChangeTracker } from '../../types/change-tracking-types';
 import { MonitoringMixin } from '../monitoring/MonitoringMixin';
 import { IDbPlugin } from '../../types/plugin-types';
+import { SchemaDataStore } from '../../cache/SchemaDataStore';
 
 /**
  * Data Collection for set of documents with the same type.  To be used inside of the DbContext
@@ -21,6 +22,7 @@ export class DbSet<TDocumentType extends string, TEntity extends IDbRecord<TDocu
     readonly changeTracker: IDbSetChangeTracker<TEntity["DocumentType"], TEntity, TExclusions>;
     private readonly _documentType: TEntity["DocumentType"];
     private readonly _contextOptions: ContextOptions;
+    private readonly _schemaCache: SchemaDataStore<TDocumentType, TEntity, TExclusions>;
 
     protected getDbSetType(): DbSetType {
         return "default";
@@ -50,15 +52,16 @@ export class DbSet<TDocumentType extends string, TEntity extends IDbRecord<TDocu
 
         const api = context._getApi();
         this.dbPlugin = api.dbPlugin;
+        this._schemaCache = new SchemaDataStore<TDocumentType, TEntity, TExclusions>(props.context.contextId(), props.documentType, props.schema);
         this._contextOptions = api.contextOptions;
         this._documentType = props.documentType;
         const dbPlugin = api.dbPlugin as IDbPlugin<TDocumentType, TEntity, TExclusions>;
 
-        const changeTrackingFactory = new ChangeTrackingFactory<TDocumentType, TEntity, TExclusions, TDbPlugin>(props, this.dbPlugin, api.contextId, api.contextOptions.environment ?? "development");
+        const changeTrackingFactory = new ChangeTrackingFactory<TDocumentType, TEntity, TExclusions, TDbPlugin>(props, this.dbPlugin, api.contextId, this._schemaCache, api.contextOptions.environment ?? "development");
 
         this.changeTracker = changeTrackingFactory.getTracker();
 
-        const adapterFactory = new AdapterFactory<TDocumentType, TEntity, TExclusions, TDbPlugin>(props, this.types.dbsetType, dbPlugin.idPropertyName, this.changeTracker);
+        const adapterFactory = new AdapterFactory<TDocumentType, TEntity, TExclusions, TDbPlugin>(props, this.types.dbsetType, dbPlugin.idPropertyName, this.changeTracker, this._schemaCache);
 
         this._fetchAdapter = adapterFactory.createFetchMediator();
         this._generalAdapter = adapterFactory.createGeneralAdapter();
@@ -146,7 +149,8 @@ export class DbSet<TDocumentType extends string, TEntity extends IDbRecord<TDocu
     }
 
     async first() {
-        const result = await this._fetchAdapter.first();
+        const id = this._documentType;
+        const result = await this._fetchAdapter.get(id);
 
         if (result == null) {
             return undefined;

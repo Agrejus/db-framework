@@ -1,3 +1,4 @@
+import { SchemaDataStore } from "../../cache/SchemaDataStore";
 import { List } from "../../common/List";
 import { Transactions } from "../../common/Transactions";
 import { IDbSetChangeTracker, ProcessedChangesResult } from "../../types/change-tracking-types";
@@ -14,8 +15,8 @@ export class ReadonlyChangeTrackingAdapter<TDocumentType extends string, TEntity
 
     protected override attachments;
 
-    constructor(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: ChangeTrackingOptions<TDocumentType, TEntity>, dbPlugin: IDbPlugin<TDocumentType, TEntity, TExclusions>) {
-        super(dbSetProps, changeTrackingOptions, dbPlugin);
+    constructor(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: ChangeTrackingOptions<TDocumentType, TEntity>, dbPlugin: IDbPlugin<TDocumentType, TEntity, TExclusions>, schemaCache: SchemaDataStore<TDocumentType, TEntity, TExclusions>) {
+        super(dbSetProps, changeTrackingOptions, dbPlugin, schemaCache);
         this.attachments = new List<TEntity>(dbPlugin.idPropertyName)
     }
 

@@ -1,3 +1,4 @@
+import { SchemaCache, SchemaDataStore } from "../cache/SchemaDataStore";
 import { DeepPartial } from "./common-types";
 import { ITrackedChanges, ITrackedData } from "./context-types";
 import { IDbRecord } from "./entity-types";
@@ -83,7 +84,8 @@ export type IEnrichmentComposer<TDocumentType extends string, TEntity extends ID
 }
 
 export type EnrichmentCreatorProps<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> = {
-    untrackedPropertyNames: Set<string>
+    untrackedPropertyNames: Set<string>;
+    schemaCache: SchemaDataStore<TDocumentType, TEntity, never>;
     idPropertyName: keyof TEntity;
     changeTrackingId: string;
 }

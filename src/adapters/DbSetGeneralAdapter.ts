@@ -1,3 +1,4 @@
+import { SchemaDataStore } from '../cache/SchemaDataStore';
 import { IDbSetGeneralAdapter } from '../types/adapter-types';
 import { IDbSetChangeTracker } from '../types/change-tracking-types';
 import { IDbSetProps, IDbSetInfo, DbSetType } from '../types/dbset-types';
@@ -6,8 +7,8 @@ import { DbSetBaseAdapter } from './DbSetBaseAdapter';
 
 export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity, TDbPlugin> extends DbSetBaseAdapter<TDocumentType, TEntity, TExclusions, TDbPlugin> implements IDbSetGeneralAdapter<TDocumentType, TEntity, TExclusions> {
 
-    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType, changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>) {
-        super(props, type, changeTracker);
+    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType, changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>, schemaCache: SchemaDataStore<TDocumentType, TEntity, TExclusions>) {
+        super(props, type, changeTracker, schemaCache);
     }
 
     isMatch(first: TEntity, second: any) {

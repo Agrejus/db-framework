@@ -7,6 +7,7 @@ import { IDbRecord, OmittedEntity, IIndexableEntity } from '../types/entity-type
 import { DbSetBaseAdapter } from './DbSetBaseAdapter';
 import { DbSetSubscriptionsAdapter } from './DbSetSubscriptionsAdapter';
 import { DbSetFetchAdapter } from './DbSetFetchAdapter';
+import { SchemaDataStore } from '../cache/SchemaDataStore';
 
 export class DbSetModificationAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity, TDbPlugin> extends DbSetBaseAdapter<TDocumentType, TEntity, TExclusions, TDbPlugin> implements IDbSetModificationAdapter<TDocumentType, TEntity, TExclusions> {
 
@@ -15,9 +16,9 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
     protected readonly subscriptionsAdapter: DbSetSubscriptionsAdapter<TDocumentType, TEntity, TExclusions>;
     public subscribe: typeof this.subscriptionsAdapter.subscribe;
 
-    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType, idPropertyName: keyof TEntity, changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>) {
-        super(props, type, changeTracker);
-        this.fetchAdapter = new DbSetFetchAdapter<TDocumentType, TEntity, TExclusions, TDbPlugin>(props, type, idPropertyName, changeTracker);
+    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType, idPropertyName: keyof TEntity, changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>, schemaCache: SchemaDataStore<TDocumentType, TEntity, TExclusions>) {
+        super(props, type, changeTracker, schemaCache);
+        this.fetchAdapter = new DbSetFetchAdapter<TDocumentType, TEntity, TExclusions, TDbPlugin>(props, type, idPropertyName, changeTracker, schemaCache);
         this.subscriptionsAdapter = new DbSetSubscriptionsAdapter<TDocumentType, TEntity, TExclusions>(props);
         this.subscribe = this.subscriptionsAdapter.subscribe.bind(this.subscriptionsAdapter);
         this.api.registerOnAfterSaveChanges(props.documentType, this.onAfterSaveChanges.bind(this));
@@ -90,7 +91,6 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
     }
 
     async add(...entities: OmittedEntity<TEntity, TExclusions>[]) {
-
 
         const result = await this._add(...entities);
 

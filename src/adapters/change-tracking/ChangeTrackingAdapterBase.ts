@@ -5,6 +5,7 @@ import { IDbRecord, IdRemoval } from "../../types/entity-types";
 import { IDbPlugin } from "../../types/plugin-types";
 import { EntityEnricher } from './enrichment/EntityEnricher';
 import { Transactions } from '../../common/Transactions';
+import { SchemaDataStore } from "../../cache/SchemaDataStore";
 
 export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> {
 
@@ -29,15 +30,17 @@ export abstract class ChangeTrackingAdapterBase<TDocumentType extends string, TE
     protected readonly dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>;
     protected readonly dbPlugin: IDbPlugin<TDocumentType, TEntity, TExclusions>;
     protected readonly changeTrackingId: string;
+    protected readonly schemaCache: SchemaDataStore<TDocumentType, TEntity, TExclusions>;
 
-    constructor(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: ChangeTrackingOptions<TDocumentType, TEntity>, dbPlugin: IDbPlugin<TDocumentType, TEntity, TExclusions>) {
+    constructor(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: ChangeTrackingOptions<TDocumentType, TEntity>, dbPlugin: IDbPlugin<TDocumentType, TEntity, TExclusions>, schemaCache: SchemaDataStore<TDocumentType, TEntity, TExclusions>) {
         this.changeTrackingOptions = changeTrackingOptions;
         this.dbSetProps = dbSetProps;
         this.dbPlugin = dbPlugin;
+        this.schemaCache = schemaCache;
         this.transactions = new Transactions();
 
         this.changeTrackingId = `${this.changeTrackingOptions.contextName}-${this.dbSetProps.documentType}`
-        this.enrichment = new EntityEnricher(dbSetProps, changeTrackingOptions, dbPlugin, this.enableChangeTracking.bind(this));
+        this.enrichment = new EntityEnricher(dbSetProps, changeTrackingOptions, dbPlugin, this.enableChangeTracking.bind(this), schemaCache);
     }
 
     isAttached(id: keyof TEntity) {

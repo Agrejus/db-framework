@@ -1,4 +1,5 @@
 import { memoryCache } from "../../../cache/MemoryCache";
+import { SchemaDataStore } from "../../../cache/SchemaDataStore";
 import { IEnrichmentComposer, IEnrichers, IComposeEnrichers, EnrichmentPick } from "../../../types/change-tracking-types";
 import { ChangeTrackingOptions, IDbSetProps } from "../../../types/dbset-types";
 import { IDbRecord } from "../../../types/entity-types";
@@ -14,12 +15,14 @@ export class EntityEnricher<TDocumentType extends string, TEntity extends IDbRec
     private readonly _dbPlugin: IDbPlugin<TDocumentType, TEntity, TExclusions>;
     private readonly _enrichers: IEnrichers<TDocumentType, TEntity, TExclusions>;
     readonly composers: IComposeEnrichers<TDocumentType, TEntity, TExclusions> = {} as any;
+    private readonly _schemaCache: SchemaDataStore<TDocumentType, TEntity, TExclusions>;
 
-    constructor(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: ChangeTrackingOptions<TDocumentType, TEntity>, dbPlugin: IDbPlugin<TDocumentType, TEntity, TExclusions>, enableChangeTracking: (entity: TEntity) => TEntity) {
+    constructor(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: ChangeTrackingOptions<TDocumentType, TEntity>, dbPlugin: IDbPlugin<TDocumentType, TEntity, TExclusions>, enableChangeTracking: (entity: TEntity) => TEntity, schemaCache: SchemaDataStore<TDocumentType, TEntity, TExclusions>) {
         this._dbSetProps = dbSetProps;
         this._changeTrackingOptions = changeTrackingOptions;
         this._changeTrackingId = `${this._changeTrackingOptions.contextName}-${this._dbSetProps.documentType}`;
         this._dbPlugin = dbPlugin;
+        this._schemaCache = schemaCache;
 
         const generatedEnricher = this._dbPlugin.enrichGenerated;
         this.composers = {
@@ -55,7 +58,8 @@ export class EntityEnricher<TDocumentType extends string, TEntity extends IDbRec
         const props = {
             untrackedPropertyNames: this._changeTrackingOptions.untrackedPropertyNames,
             idPropertyName: this._dbPlugin.idPropertyName,
-            changeTrackingId: this._changeTrackingId
+            changeTrackingId: this._changeTrackingId,
+            schemaCache: this._schemaCache
         }
 
         // document type enricher

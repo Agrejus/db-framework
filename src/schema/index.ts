@@ -3,7 +3,6 @@ import { SchemaBase } from "./types/Base";
 import { SchemaBoolean } from "./types/Boolean";
 import { SchemaDate } from "./types/Date";
 import { SchemaDefinition } from "./types/Definition";
-import { SchemaId } from "./types/Id";
 import { SchemaNumber } from "./types/Number";
 import { SchemaObject } from "./types/Object";
 import { SchemaString } from "./types/String";
@@ -39,5 +38,23 @@ export const s = {
     date: <T extends Date = Date>() => new SchemaDate<T>(),
     array: <T extends any>(schema?: T) => new SchemaArray<T>(schema),
     object: <T extends {} = {}>(schema: T) => new SchemaObject<T>(schema),
-    define: <TDocumentType extends string, T extends {}>(documentType: TDocumentType, schema: T) => new SchemaDefinition<TDocumentType, T & { DocumentType: TDocumentType }>(documentType, { ...schema, DocumentType: documentType })
+    define: <TDocumentType extends string, T extends {}>(documentType: TDocumentType, schema: T) => new SchemaDefinition<TDocumentType, T & { DocumentType: SchemaString<TDocumentType> }>(documentType, { ...schema, DocumentType: s.string<TDocumentType>() })
+}
+
+export type ExpandedProperty = ExpandedChildProperty & {
+    assignmentPath: string;
+    selectorPath: string;
+    properties: Map<string, ExpandedChildProperty>;
+    childDegree: number;
+};
+
+export type ExpandedChildProperty = {
+    propertyName: string;
+    type: SchemaTypes;
+    isNullableOrOptional: boolean;
+}
+
+export type ExpandedSchema = {
+    properties: Map<string, ExpandedProperty>;
+    idPropertyName: string;
 }

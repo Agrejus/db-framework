@@ -1,3 +1,4 @@
+import { SchemaDataStore } from '../cache/SchemaDataStore';
 import { SearchResult } from '../common/SearchResult';
 import { IDbSetCacheAdapter, IDbSetFetchAdapter } from '../types/adapter-types';
 import { IDbSetChangeTracker } from '../types/change-tracking-types';
@@ -13,8 +14,8 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
     private _cacheMediator: IDbSetCacheAdapter<TDocumentType, TEntity, TExclusions>;
     private _idPropertyName: keyof TEntity;
 
-    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType, idPropertyName: keyof TEntity, changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>) {
-        super(props, type, changeTracker);
+    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType, idPropertyName: keyof TEntity, changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>, schemaCache: SchemaDataStore<TDocumentType, TEntity, TExclusions>) {
+        super(props, type, changeTracker, schemaCache);
         this._idPropertyName = idPropertyName;
         this._cacheMediator = new DbSetCacheMediator<TDocumentType, TEntity, TExclusions>(props.context.contextId(), props.documentType, this._idPropertyName);
     }
@@ -62,17 +63,6 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
         const data = await this._cacheMediator.resolve(() => this.api.dbPlugin.get(this.documentType, ...ids), this._cacheOptions, ...ids)
         const baseFilteredData = this.filterSelector == null ? data : data.filter(this.filterSelector);
         return new SearchResult<TDocumentType, TEntity, TExclusions>(baseFilteredData, this.changeTracker, this.onAfterDataFetched.bind(this));
-    }
-
-    async first() {
-        const data = await this.applyBaseFilter(() => this._all());
-
-        if (data.length === 0) {
-            return undefined;
-        }
-
-        const found = data[0];
-        return new SearchResult<TDocumentType, TEntity, TExclusions>([found], this.changeTracker, this.onAfterDataFetched.bind(this));
     }
 
     async pluck<TKey extends keyof TEntity>(selector: EntitySelector<TDocumentType, TEntity>, propertySelector: TKey): Promise<TEntity[TKey]> {

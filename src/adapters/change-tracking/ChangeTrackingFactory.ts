@@ -1,3 +1,4 @@
+import { SchemaDataStore } from "../../cache/SchemaDataStore";
 import { IDbSetChangeTracker } from "../../types/change-tracking-types";
 import { DbFrameworkEnvironment } from "../../types/context-types";
 import { IDbSetProps } from "../../types/dbset-types";
@@ -13,12 +14,14 @@ export class ChangeTrackingFactory<TDocumentType extends string, TEntity extends
     private readonly _environment: DbFrameworkEnvironment;
     private readonly _contextName: string;
     private readonly _dbPlugin: TDbPlugin;
+    private readonly _schemaCache: SchemaDataStore<TDocumentType, TEntity, TExclusions>;
 
-    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, dbPlugin: TDbPlugin, contextName: string, environment: DbFrameworkEnvironment) {
+    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, dbPlugin: TDbPlugin, contextName: string, schemaCache: SchemaDataStore<TDocumentType, TEntity, TExclusions>, environment: DbFrameworkEnvironment) {
         this._props = props;
         this._environment = environment;
         this._contextName = contextName;
         this._dbPlugin = dbPlugin;
+        this._schemaCache = schemaCache;
     }
 
     getTracker(): IDbSetChangeTracker<TDocumentType, TEntity, TExclusions> {
@@ -31,25 +34,38 @@ export class ChangeTrackingFactory<TDocumentType extends string, TEntity extends
         ]);
 
         if (this._props.readonly === true) {
-            return new ReadonlyChangeTrackingAdapter(this._props, {
-                environment: this._environment,
-                contextName: this._contextName,
-                untrackedPropertyNames
-            }, this._dbPlugin as IDbPlugin<TDocumentType, TEntity, TExclusions>);
+            return new ReadonlyChangeTrackingAdapter(
+                this._props,
+                {
+                    environment: this._environment,
+                    contextName: this._contextName,
+                    untrackedPropertyNames
+                },
+                this._dbPlugin as IDbPlugin<TDocumentType, TEntity, TExclusions>,
+                this._schemaCache);
         }
 
         if (this._props.entityComparator != null) {
-            return new CustomChangeTrackingAdapter(this._props, {
-                environment: this._environment,
-                contextName: this._contextName,
-                untrackedPropertyNames: new Set<string>()
-            }, this._dbPlugin as IDbPlugin<TDocumentType, TEntity, TExclusions>, this._props.entityComparator);
+            return new CustomChangeTrackingAdapter(
+                this._props,
+                {
+                    environment: this._environment,
+                    contextName: this._contextName,
+                    untrackedPropertyNames: new Set<string>()
+                },
+                this._dbPlugin as IDbPlugin<TDocumentType, TEntity, TExclusions>,
+                this._schemaCache,
+                this._props.entityComparator);
         }
 
-        return new EntityChangeTrackingAdapter(this._props, {
-            environment: this._environment,
-            contextName: this._contextName,
-            untrackedPropertyNames
-        }, this._dbPlugin as IDbPlugin<TDocumentType, TEntity, TExclusions>);
+        return new EntityChangeTrackingAdapter(
+            this._props,
+            {
+                environment: this._environment,
+                contextName: this._contextName,
+                untrackedPropertyNames
+            },
+            this._dbPlugin as IDbPlugin<TDocumentType, TEntity, TExclusions>,
+            this._schemaCache);
     }
 }

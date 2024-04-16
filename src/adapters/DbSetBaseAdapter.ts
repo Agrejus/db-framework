@@ -1,10 +1,11 @@
 import { IDbRecord } from '../types/entity-types';
 import { DbSetPickDefaultActionRequired, EntitySelector } from '../types/common-types';
 import { IPrivateContext } from '../types/context-types';
-import { DbSetType, IDbSetApi, IDbSetProps, SaveChangesEventData } from '../types/dbset-types';
+import { DbSetType, IDbSetApi, IDbSetProps } from '../types/dbset-types';
 import { CustomIdCreator, EntityEnhancer } from '../types/dbset-builder-types';
 import { IDbSetChangeTracker } from '../types/change-tracking-types';
 import { IDbPlugin } from '../types/plugin-types';
+import { SchemaDataStore } from '../cache/SchemaDataStore';
 
 export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity, TDbPlugin> {
 
@@ -18,8 +19,9 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
     protected changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>;
     protected idCreator: CustomIdCreator<TDocumentType, TEntity>;
     protected enhancer?: EntityEnhancer<TDocumentType, TEntity>;
+    protected schemaCache: SchemaDataStore<TDocumentType, TEntity, TExclusions>;
 
-    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType, changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>) {
+    constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType, changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>, schemaCache: SchemaDataStore<TDocumentType, TEntity, TExclusions>) {
         this.documentType = props.documentType;
         this.context = props.context as IPrivateContext<TDocumentType, TEntity, TExclusions, TDbPlugin>;
         this.defaults = props.defaults;
@@ -28,6 +30,7 @@ export abstract class DbSetBaseAdapter<TDocumentType extends string, TEntity ext
         this.filterSelector = props.filterSelector;
         this.enhancer = props.enhancer;
 
+        this.schemaCache = schemaCache;
         this.type = type;
         this.changeTracker = changeTracker;
 

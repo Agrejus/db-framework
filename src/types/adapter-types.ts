@@ -8,7 +8,6 @@ export interface IDbSetFetchAdapter<TDocumentType extends string, TEntity extend
     clearCache(...keys: string[]): void;
     filter(selector: (entity: TEntity, index?: number, array?: TEntity[]) => boolean): Promise<SearchResult<TDocumentType, TEntity, TExclusions>>;
     find(selector: (entity: TEntity, index?: number, array?: TEntity[]) => boolean): Promise<SearchResult<TDocumentType, TEntity, TExclusions> | undefined>;
-    first(): Promise<SearchResult<TDocumentType, TEntity, TExclusions> | undefined>;
     all(): Promise<SearchResult<TDocumentType, TEntity, TExclusions>>;
     get(...ids: string[]): Promise<SearchResult<TDocumentType, TEntity, TExclusions>>;
     getStrict(...ids: string[]): Promise<SearchResult<TDocumentType, TEntity, TExclusions>>;

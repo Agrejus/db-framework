@@ -1,3 +1,4 @@
+import { SchemaDataStore } from "../../cache/SchemaDataStore";
 import { List } from "../../common/List";
 import { Transaction } from "../../common/Transaction";
 import { IList, IDbSetChangeTracker, ProcessedChangesResult } from "../../types/change-tracking-types";
@@ -18,8 +19,8 @@ export class CustomChangeTrackingAdapter<TDocumentType extends string, TEntity e
     private _comparator: EntityComparator<TDocumentType, TEntity>;
     private _dirtyMarkers: { [key in keyof TEntity]: true } = {} as any;
 
-    constructor(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: ChangeTrackingOptions<TDocumentType, TEntity>, dbPlugin: IDbPlugin<TDocumentType, TEntity, TExclusions>, comparator: EntityComparator<TDocumentType, TEntity>) {
-        super(dbSetProps, changeTrackingOptions, dbPlugin);
+    constructor(dbSetProps: IDbSetProps<TDocumentType, TEntity, TExclusions>, changeTrackingOptions: ChangeTrackingOptions<TDocumentType, TEntity>, dbPlugin: IDbPlugin<TDocumentType, TEntity, TExclusions>, schemaCache: SchemaDataStore<TDocumentType, TEntity, TExclusions>, comparator: EntityComparator<TDocumentType, TEntity>) {
+        super(dbSetProps, changeTrackingOptions, dbPlugin, schemaCache);
         this.attachments = new List<TEntity>(dbPlugin.idPropertyName);
         this._originals = new List<TEntity>(dbPlugin.idPropertyName);
         this._comparator = comparator;

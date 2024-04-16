@@ -1,524 +1,686 @@
-// import { faker } from "@faker-js/faker";
-// import { PerformanceDbDataContext } from "./performance-context";
-// import packageJson from '../../package.json';
-// import { promises, readFileSync, existsSync, mkdirSync, writeFileSync } from 'fs';
-// import * as path from 'path';
-// import semver from 'semver';
-// const dirTree = require("directory-tree");
-
-// const getDirectories = async (source: string) =>
-//     (await promises.readdir(source, { withFileTypes: true }))
-//         .filter(dirent => dirent.isDirectory())
-//         .map(dirent => dirent.name)
-
-// const generateData = async (context: PerformanceDbDataContext, count: number, shouldUpsert: boolean = false) => {
-
-//     try {
-
-//         for (let dbset of context) {
-//             const set: any = dbset
-
-//             for (let i = 0; i < count; i++) {
-//                 if (shouldUpsert === false) {
-//                     await set.add({
-//                         test1: `${faker.random.word()}${i}`,
-//                         test2: `${faker.random.word()}${i}`,
-//                         test3: `${faker.random.word()}${i}`,
-//                         test4: `${faker.random.word()}${i}`
-//                     });
-//                 } else {
-//                     await set.upsert({
-//                         test1: `${faker.random.word()}${i}`,
-//                         test2: `${faker.random.word()}${i}`,
-//                         test3: `${faker.random.word()}${i}`,
-//                         test4: `${faker.random.word()}${i}`
-//                     });
-//                 }
-//             }
-//         }
-
-//         await context.saveChanges();
-
-//         await context.optimize();
-//     } catch (e) {
-//         console.log(e);
-//     }
-// }
-
-// const generateDeltas = async () => {
-
-//     const currentVersion = packageJson.version;
-//     const currentVersionFolder = `v${currentVersion}`;
-
-//     const metricsPath = path.resolve(__dirname, '../metrics');
-//     const deltasPath = path.resolve(__dirname, '../metrics/deltas');
-//     const previousVersionFolders = await getDirectories(metricsPath);
-//     const previousVersion = previousVersionFolders.filter(w => w !== currentVersionFolder && w !== "deltas").map(w => w.replace('v', '')).sort(semver.rcompare)[0];
-//     const previousVersionFolder = `v${previousVersion}`;
-
-//     const currentVersionFiles = dirTree(path.resolve(metricsPath, currentVersionFolder)).children;
-//     const previousVersionFiles = dirTree(path.resolve(metricsPath, previousVersionFolder)).children;
-//     const result: {
-//         [fileName: string]: {
-//             [key: string]: {
-//                 delta: {
-//                     min: number,
-//                     max: number,
-//                     average: number
-//                 },
-//                 [key: string]: {
-//                     min: number,
-//                     max: number,
-//                     average: number
-//                 }
-//             }
-//         }
-//     } = {};
-
-//     for (let currentItem of currentVersionFiles) {
-//         const previousItem = previousVersionFiles.find((w: any) => w.name === currentItem.name);
-//         const previousData = readFileSync(previousItem.path, 'utf8');
-//         const currentData = readFileSync(currentItem.path, 'utf8');
-//         const previousJSON = JSON.parse(previousData) as { [key: string]: { min: number, max: number, average: number } };
-//         const currentJSON = JSON.parse(currentData) as { [key: string]: { min: number, max: number, average: number } };
-
-//         for (let key in currentJSON) {
-//             const currentLine = currentJSON[key];
-//             const previousLine = previousJSON[key];
-
-//             if (previousLine == null) {
-//                 continue;
-//             }
-
-//             if (result[currentItem.name] == null) {
-//                 result[currentItem.name] = {}
-//             }
-
-//             result[currentItem.name][key] = {
-//                 delta: {
-//                     min: currentLine.min - previousLine.min,
-//                     max: currentLine.max - previousLine.max,
-//                     average: currentLine.average - previousLine.average
-//                 },
-//                 [currentVersionFolder]: {
-//                     min: currentLine.min,
-//                     max: currentLine.max,
-//                     average: currentLine.average
-//                 }, 
-//                 [previousVersionFolder]: {
-//                     min: previousLine.min,
-//                     max: previousLine.max,
-//                     average: previousLine.average
-//                 }
-//             }
-//         }
-//     }
+import { faker } from "@faker-js/faker";
+import packageJson from '../../package.json';
+import { promises, readFileSync, existsSync, mkdirSync, writeFileSync } from 'fs';
+import * as path from 'path';
+import semver from 'semver';
+import { DataContext } from "../../src/context/DataContext";
+import { IDbPluginOptions } from "../../src/types/plugin-types";
+import { PouchDbPlugin, PouchDbRecord } from "@agrejus/db-framework-plugin-pouchdb";
+import { s, InferType } from '../../src/schema/index';
+import { v4 as uuidv4 } from 'uuid';
+import { LoggerPayload } from "../../src/types/context-types";
+const dirTree = require("directory-tree");
+
+enum DocumentTypes {
+    Test1 = "Test1",
+    Test2 = "Test2",
+    Test3 = "Test3",
+    Test4 = "Test4",
+    Test5 = "Test5",
+    Test6 = "Test6",
+    Test7 = "Test7",
+    Test8 = "Test8",
+    Test9 = "Test9",
+    Test10 = "Test10"
+}
+
+
+const TestSchema1 = s.define(DocumentTypes.Test1, {
+    _id: s.string({ isId: true }),
+    _rev: s.string(),
+    test1: s.string(),
+    test2: s.string(),
+    test3: s.string(),
+    test4: s.string()
+})
+
+type ITest1 = InferType<typeof TestSchema1>;
+
+const TestSchema2 = s.define(DocumentTypes.Test2, {
+    _id: s.string({ isId: true }),
+    _rev: s.string(),
+    test1: s.string(),
+    test2: s.string(),
+    test3: s.string(),
+    test4: s.string()
+})
+
+type ITest2 = InferType<typeof TestSchema2>;
+
+const TestSchema3 = s.define(DocumentTypes.Test3, {
+    _id: s.string({ isId: true }),
+    _rev: s.string(),
+    test1: s.string(),
+    test2: s.string(),
+    test3: s.string(),
+    test4: s.string()
+})
+
+type ITest3 = InferType<typeof TestSchema3>;
+
+const TestSchema4 = s.define(DocumentTypes.Test4, {
+    _id: s.string({ isId: true }),
+    _rev: s.string(),
+    test1: s.string(),
+    test2: s.string(),
+    test3: s.string(),
+    test4: s.string()
+})
+
+type ITest4 = InferType<typeof TestSchema4>;
+
+const TestSchema5 = s.define(DocumentTypes.Test5, {
+    _id: s.string({ isId: true }),
+    _rev: s.string(),
+    test1: s.string(),
+    test2: s.string(),
+    test3: s.string(),
+    test4: s.string()
+})
+
+type ITest5 = InferType<typeof TestSchema5>;
+
+const TestSchema6 = s.define(DocumentTypes.Test6, {
+    _id: s.string({ isId: true }),
+    _rev: s.string(),
+    test1: s.string(),
+    test2: s.string(),
+    test3: s.string(),
+    test4: s.string()
+})
+
+type ITest6 = InferType<typeof TestSchema6>;
+
+const TestSchema7 = s.define(DocumentTypes.Test7, {
+    _id: s.string({ isId: true }),
+    _rev: s.string(),
+    test1: s.string(),
+    test2: s.string(),
+    test3: s.string(),
+    test4: s.string()
+})
+
+type ITest7 = InferType<typeof TestSchema7>;
+
+const TestSchema8 = s.define(DocumentTypes.Test8, {
+    _id: s.string({ isId: true }),
+    _rev: s.string(),
+    test1: s.string(),
+    test2: s.string(),
+    test3: s.string(),
+    test4: s.string()
+})
+
+type ITest8 = InferType<typeof TestSchema8>;
+
+const TestSchema9 = s.define(DocumentTypes.Test9, {
+    _id: s.string({ isId: true }),
+    _rev: s.string(),
+    test1: s.string(),
+    test2: s.string(),
+    test3: s.string(),
+    test4: s.string()
+})
+
+type ITest9 = InferType<typeof TestSchema9>;
+
+
+const TestSchema10 = s.define(DocumentTypes.Test10, {
+    _id: s.string({ isId: true }),
+    _rev: s.string(),
+    test1: s.string(),
+    test2: s.string(),
+    test3: s.string(),
+    test4: s.string()
+})
+
+type ITest10 = InferType<typeof TestSchema10>;
+
+export class PerformanceDbDataContext extends DataContext<DocumentTypes, PouchDbRecord<DocumentTypes>, "_id" | "_rev", IDbPluginOptions, PouchDbPlugin<DocumentTypes, PouchDbRecord<DocumentTypes>, IDbPluginOptions>> {
+
+    constructor(logger?: (data: LoggerPayload) => void) {
+        super({ dbName: `${uuidv4()}-db` }, PouchDbPlugin, { environment: "development", performance: { enabled: true }, logger });
+    }
+
+    contextId(): string {
+        return PerformanceDbDataContext.name
+    }
+
+    test1 = this.dbset().default<ITest1>(DocumentTypes.Test1, TestSchema1).create();
+    test2 = this.dbset().default<ITest2>(DocumentTypes.Test2, TestSchema1).create();
+    test3 = this.dbset().default<ITest3>(DocumentTypes.Test3, TestSchema1).create();
+    test4 = this.dbset().default<ITest4>(DocumentTypes.Test4, TestSchema1).create();
+    test5 = this.dbset().default<ITest5>(DocumentTypes.Test5, TestSchema1).create();
+    test6 = this.dbset().default<ITest6>(DocumentTypes.Test6, TestSchema1).create();
+    test7 = this.dbset().default<ITest7>(DocumentTypes.Test7, TestSchema1).create();
+    test8 = this.dbset().default<ITest8>(DocumentTypes.Test8, TestSchema1).create();
+    test9 = this.dbset().default<ITest9>(DocumentTypes.Test9, TestSchema1).create();
+    test10 = this.dbset().default<ITest10>(DocumentTypes.Test10, TestSchema1).create();
+}
+
+const getDirectories = async (source: string) =>
+    (await promises.readdir(source, { withFileTypes: true }))
+        .filter(dirent => dirent.isDirectory())
+        .map(dirent => dirent.name)
+
+const generateData = async (context: PerformanceDbDataContext, count: number, shouldUpsert: boolean = false) => {
+
+    try {
+
+        for (let dbset of context) {
+            const set: any = dbset
+
+            for (let i = 0; i < count; i++) {
+                if (shouldUpsert === false) {
+                    await set.add({
+                        test1: `${faker.random.word()}${i}`,
+                        test2: `${faker.random.word()}${i}`,
+                        test3: `${faker.random.word()}${i}`,
+                        test4: `${faker.random.word()}${i}`
+                    });
+                } else {
+                    await set.upsert({
+                        test1: `${faker.random.word()}${i}`,
+                        test2: `${faker.random.word()}${i}`,
+                        test3: `${faker.random.word()}${i}`,
+                        test4: `${faker.random.word()}${i}`
+                    });
+                }
+            }
+        }
+
+        await context.saveChanges();
+    } catch (e) {
+        console.log(e);
+    }
+}
+
+const generateDeltas = async () => {
+
+    const currentVersion = packageJson.version;
+    const currentVersionFolder = `v${currentVersion}`;
+
+    const metricsPath = path.resolve(__dirname, '../metrics');
+    const deltasPath = path.resolve(__dirname, '../metrics/deltas');
+    const previousVersionFolders = await getDirectories(metricsPath);
+    const previousVersion = previousVersionFolders.filter(w => w !== currentVersionFolder && w !== "deltas").map(w => w.replace('v', '')).sort(semver.rcompare)[0];
+    const previousVersionFolder = `v${previousVersion}`;
+
+    const currentVersionFiles = dirTree(path.resolve(metricsPath, currentVersionFolder)).children;
+    const previousVersionFiles = dirTree(path.resolve(metricsPath, previousVersionFolder)).children;
+    const result: {
+        [fileName: string]: {
+            [key: string]: {
+                delta: {
+                    min: number,
+                    max: number,
+                    average: number
+                },
+                [key: string]: {
+                    min: number,
+                    max: number,
+                    average: number
+                }
+            }
+        }
+    } = {};
+
+    for (let currentItem of currentVersionFiles) {
+        const previousItem = previousVersionFiles.find((w: any) => w.name === currentItem.name);
+        const previousData = readFileSync(previousItem.path, 'utf8');
+        const currentData = readFileSync(currentItem.path, 'utf8');
+        const previousJSON = JSON.parse(previousData) as { [key: string]: { min: number, max: number, average: number } };
+        const currentJSON = JSON.parse(currentData) as { [key: string]: { min: number, max: number, average: number } };
+
+        for (let key in currentJSON) {
+            const currentLine = currentJSON[key];
+            const previousLine = previousJSON[key];
+
+            if (previousLine == null) {
+                continue;
+            }
+
+            if (result[currentItem.name] == null) {
+                result[currentItem.name] = {}
+            }
+
+            result[currentItem.name][key] = {
+                delta: {
+                    min: currentLine.min - previousLine.min,
+                    max: currentLine.max - previousLine.max,
+                    average: currentLine.average - previousLine.average
+                },
+                [currentVersionFolder]: {
+                    min: currentLine.min,
+                    max: currentLine.max,
+                    average: currentLine.average
+                },
+                [previousVersionFolder]: {
+                    min: previousLine.min,
+                    max: previousLine.max,
+                    average: previousLine.average
+                }
+            }
+        }
+    }
+
+    for (let file in result) {
+        const filePath = path.resolve(deltasPath, currentVersionFolder);
+
+        if (existsSync(filePath) === false) {
+            mkdirSync(filePath);
+        }
+
+        const data = result[file];
+        writeFileSync(path.resolve(filePath, file), JSON.stringify(data, null, 2))
+    }
+}
+
+const runTest = async (generator: () => Promise<PerformanceDbDataContext>, name: string) => {
+    console.log(`Running: ${name}`);
+    await destroyDatabase();
+
+    const context = await generator();
+
+    //context.writePerformance(name);
+    console.log(`Completed: ${name}`);
+}
+
+const destroyDatabase = async () => {
+    const context = new PerformanceDbDataContext();
+    await context.destroyDatabase();
+}
+
+const shouldAddOneEntity = async () => {
+    const output = {}
+    const context = new PerformanceDbDataContext((data) => {
 
-//     for (let file in result) {
-//         const filePath = path.resolve(deltasPath, currentVersionFolder);
+        if (data.delta == null) {
+            return;
+        }
 
-//         if (existsSync(filePath) === false) {
-//             mkdirSync(filePath);
-//         }
+        if (output[data.name] == null) {
+            output[data.name] = []
+        }
 
-//         const data = result[file];
-//         writeFileSync(path.resolve(filePath, file), JSON.stringify(data, null, 2))
-//     }
-// }
+        output[data.name].push(data.delta)
+    });
 
-// const runTest = async (generator: () => Promise<PerformanceDbDataContext>, name: string) => {
-//     console.log(`Running: ${name}`);
-//     await destroyDatabase();
+    await context.test1.add({ test1: faker.random.word(), test2: faker.random.word(), test3: faker.random.word(), test4: faker.random.word() });
 
-//     const context = await generator();
+    await context.saveChanges();
+    debugger;
+    return context;
+}
 
-//     context.writePerformance(name);
-//     console.log(`Completed: ${name}`);
-// }
+const shouldUpsertOneEntity = async () => {
+    const context = new PerformanceDbDataContext();
 
-// const destroyDatabase = async () => {
-//     const context = new PerformanceDbDataContext();
-//     await context.destroyDatabase();
-// }
+    await context.test1.upsert({ test1: faker.random.word(), test2: faker.random.word(), test3: faker.random.word(), test4: faker.random.word() });
 
-// const shouldAddOneEntity = async () => {
-//     const context = new PerformanceDbDataContext();
+    await context.saveChanges();
 
-//     await context.test1.add({ test1: faker.random.word(), test2: faker.random.word(), test3: faker.random.word(), test4: faker.random.word() });
+    return context;
+}
 
-//     await context.saveChanges();
+const shouldAddSomeEntities = async () => {
+    const context = new PerformanceDbDataContext();
 
-//     return context;
-// }
+    await generateData(context, 50)
 
-// const shouldUpsertOneEntity = async () => {
-//     const context = new PerformanceDbDataContext();
+    await context.saveChanges();
 
-//     await context.test1.upsert({ test1: faker.random.word(), test2: faker.random.word(), test3: faker.random.word(), test4: faker.random.word() });
+    return context;
+}
 
-//     await context.saveChanges();
+const shouldUpsertSomeEntities = async () => {
+    const context = new PerformanceDbDataContext();
 
-//     return context;
-// }
+    await generateData(context, 50, true)
 
-// const shouldAddSomeEntities = async () => {
-//     const context = new PerformanceDbDataContext();
+    await context.saveChanges();
 
-//     await generateData(context, 50)
+    return context;
+}
 
-//     await context.saveChanges();
+const shouldAddManyEntities = async () => {
+    const context = new PerformanceDbDataContext();
 
-//     return context;
-// }
+    await generateData(context, 2000)
 
-// const shouldUpsertSomeEntities = async () => {
-//     const context = new PerformanceDbDataContext();
+    await context.saveChanges();
 
-//     await generateData(context, 50, true)
+    return context;
+}
 
-//     await context.saveChanges();
+const shouldUpsertManyEntities = async () => {
+    const context = new PerformanceDbDataContext();
 
-//     return context;
-// }
+    await generateData(context, 2000, true)
 
-// const shouldAddManyEntities = async () => {
-//     const context = new PerformanceDbDataContext();
+    await context.saveChanges();
 
-//     await generateData(context, 2000)
+    return context;
+}
 
-//     await context.saveChanges();
+const shouldRemoveOneEntity = async () => {
+    const context = new PerformanceDbDataContext();
 
-//     return context;
-// }
+    const [item] = await context.test1.add({ test1: faker.random.word(), test2: faker.random.word(), test3: faker.random.word(), test4: faker.random.word() });
 
-// const shouldUpsertManyEntities = async () => {
-//     const context = new PerformanceDbDataContext();
+    await context.saveChanges();
 
-//     await generateData(context, 2000, true)
+    await context.test1.remove(item);
 
-//     await context.saveChanges();
+    await context.saveChanges();
 
-//     return context;
-// }
+    return context;
+}
 
-// const shouldRemoveOneEntity = async () => {
-//     const context = new PerformanceDbDataContext();
+const shouldRemoveSomeEntities = async () => {
+    const context = new PerformanceDbDataContext();
 
-//     const [item] = await context.test1.add({ test1: faker.random.word(), test2: faker.random.word(), test3: faker.random.word(), test4: faker.random.word() });
+    await generateData(context, 50);
 
-//     await context.saveChanges();
+    const [one, two, three] = await context.test10.all();
 
-//     await context.test1.remove(item);
+    await context.test10.remove(one, two, three);
 
-//     await context.saveChanges();
+    await context.saveChanges();
 
-//     return context;
-// }
+    return context;
+}
 
-// const shouldRemoveSomeEntities = async () => {
-//     const context = new PerformanceDbDataContext();
+const shouldRemoveManyEntities = async () => {
+    const context = new PerformanceDbDataContext();
 
-//     await generateData(context, 50);
+    await generateData(context, 2000);
 
-//     const [one, two, three] = await context.test10.all();
+    await context.test10.empty();
+    await context.test4.empty();
+    await context.test5.empty();
+    await context.test2.empty();
 
-//     await context.test10.remove(one, two, three);
+    await context.saveChanges();
 
-//     await context.saveChanges();
+    return context;
+}
 
-//     return context;
-// }
+const shouldRemoveOneEntityById = async () => {
+    const context = new PerformanceDbDataContext();
 
-// const shouldRemoveManyEntities = async () => {
-//     const context = new PerformanceDbDataContext();
+    const [item] = await context.test1.add({ test1: faker.random.word(), test2: faker.random.word(), test3: faker.random.word(), test4: faker.random.word() });
 
-//     await generateData(context, 2000);
+    await context.saveChanges();
 
-//     await context.test10.empty();
-//     await context.test4.empty();
-//     await context.test5.empty();
-//     await context.test19.empty();
+    await context.test1.remove(item._id);
 
-//     await context.saveChanges();
+    await context.saveChanges();
 
-//     return context;
-// }
+    return context;
+}
 
-// const shouldRemoveOneEntityById = async () => {
-//     const context = new PerformanceDbDataContext();
+const shouldRemoveSomeEntitiesById = async () => {
+    const context = new PerformanceDbDataContext();
 
-//     const [item] = await context.test1.add({ test1: faker.random.word(), test2: faker.random.word(), test3: faker.random.word(), test4: faker.random.word() });
+    await generateData(context, 50);
 
-//     await context.saveChanges();
+    const [one, two, three] = await context.test10.all();
 
-//     await context.test1.remove(item._id);
+    await context.test10.remove(one._id, two._id, three._id);
 
-//     await context.saveChanges();
+    await context.saveChanges();
 
-//     return context;
-// }
+    return context;
+}
 
-// const shouldRemoveSomeEntitiesById = async () => {
-//     const context = new PerformanceDbDataContext();
+const shouldRemoveManyEntitiesById = async () => {
+    const context = new PerformanceDbDataContext();
 
-//     await generateData(context, 50);
+    await generateData(context, 2000);
 
-//     const [one, two, three] = await context.test10.all();
+    const ten = await context.test10.all();
+    const four = await context.test4.all();
+    const five = await context.test5.all();
+    const nineteen = await context.test9.all();
 
-//     await context.test10.remove(one._id, two._id, three._id);
+    await context.test10.remove(...ten.map(w => w._id));
+    await context.test4.remove(...four.map(w => w._id));
+    await context.test5.remove(...five.map(w => w._id));
+    await context.test9.remove(...nineteen.map(w => w._id));
 
-//     await context.saveChanges();
+    await context.saveChanges();
 
-//     return context;
-// }
+    return context;
+}
 
-// const shouldRemoveManyEntitiesById = async () => {
-//     const context = new PerformanceDbDataContext();
+const shouldUpdateOneEntity = async () => {
+    const context = new PerformanceDbDataContext();
 
-//     await generateData(context, 2000);
+    await context.test1.add({ test1: faker.random.word(), test2: faker.random.word(), test3: faker.random.word(), test4: faker.random.word() });
 
-//     const ten = await context.test10.all();
-//     const four = await context.test4.all();
-//     const five = await context.test5.all();
-//     const nineteen = await context.test19.all();
+    await context.saveChanges();
 
-//     await context.test10.remove(...ten.map(w => w._id));
-//     await context.test4.remove(...four.map(w => w._id));
-//     await context.test5.remove(...five.map(w => w._id));
-//     await context.test19.remove(...nineteen.map(w => w._id));
+    const item = await context.test1.first();
 
-//     await context.saveChanges();
+    item!.test1 = "Test";
 
-//     return context;
-// }
+    await context.saveChanges();
 
-// const shouldUpdateOneEntity = async () => {
-//     const context = new PerformanceDbDataContext();
+    return context;
+}
 
-//     await context.test1.add({ test1: faker.random.word(), test2: faker.random.word(), test3: faker.random.word(), test4: faker.random.word() });
+const shouldUpdateSomeEntities = async () => {
+    const context = new PerformanceDbDataContext();
 
-//     await context.saveChanges();
+    await generateData(context, 50);
 
-//     const item = await context.test1.first();
+    const [one, two, three] = await context.test10.all();
 
-//     item!.test1 = "Test";
+    one.test1 = "Test One";
+    two.test1 = "Test Two";
+    three.test1 = "Test Three";
 
-//     await context.saveChanges();
+    await context.saveChanges();
 
-//     return context;
-// }
+    return context;
+}
 
-// const shouldUpdateSomeEntities = async () => {
-//     const context = new PerformanceDbDataContext();
+const shouldUpdateManyEntities = async () => {
+    const context = new PerformanceDbDataContext();
 
-//     await generateData(context, 50);
+    await generateData(context, 2000);
 
-//     const [one, two, three] = await context.test10.all();
+    const ten = await context.test10.all();
+    const four = await context.test4.all();
+    const five = await context.test5.all();
+    const nineteen = await context.test9.all();
 
-//     one.test1 = "Test One";
-//     two.test1 = "Test Two";
-//     three.test1 = "Test Three";
+    for (let item of ten) {
+        item.test1 = faker.random.word();
+        item.test2 = faker.random.word();
+        item.test3 = faker.random.word();
+        item.test4 = faker.random.word();
+    }
 
-//     await context.saveChanges();
+    for (let item of four) {
+        item.test1 = faker.random.word();
+        item.test2 = faker.random.word();
+        item.test3 = faker.random.word();
+        item.test4 = faker.random.word();
+    }
 
-//     return context;
-// }
+    for (let item of five) {
+        item.test1 = faker.random.word();
+        item.test2 = faker.random.word();
+        item.test3 = faker.random.word();
+        item.test4 = faker.random.word();
+    }
 
-// const shouldUpdateManyEntities = async () => {
-//     const context = new PerformanceDbDataContext();
+    for (let item of nineteen) {
+        item.test1 = faker.random.word();
+        item.test2 = faker.random.word();
+        item.test3 = faker.random.word();
+        item.test4 = faker.random.word();
+    }
 
-//     await generateData(context, 2000);
+    await context.saveChanges();
 
-//     const ten = await context.test10.all();
-//     const four = await context.test4.all();
-//     const five = await context.test5.all();
-//     const nineteen = await context.test19.all();
+    return context;
+}
 
-//     for (let item of ten) {
-//         item.test1 = faker.random.word();
-//         item.test2 = faker.random.word();
-//         item.test3 = faker.random.word();
-//         item.test4 = faker.random.word();
-//     }
+const shouldGetAllSomeEntities = async () => {
+    const context = new PerformanceDbDataContext();
 
-//     for (let item of four) {
-//         item.test1 = faker.random.word();
-//         item.test2 = faker.random.word();
-//         item.test3 = faker.random.word();
-//         item.test4 = faker.random.word();
-//     }
+    await generateData(context, 50)
 
-//     for (let item of five) {
-//         item.test1 = faker.random.word();
-//         item.test2 = faker.random.word();
-//         item.test3 = faker.random.word();
-//         item.test4 = faker.random.word();
-//     }
+    await context.test1.all();
 
-//     for (let item of nineteen) {
-//         item.test1 = faker.random.word();
-//         item.test2 = faker.random.word();
-//         item.test3 = faker.random.word();
-//         item.test4 = faker.random.word();
-//     }
+    return context;
+}
 
-//     await context.saveChanges();
+const shouldGetAllManyEntities = async () => {
+    const context = new PerformanceDbDataContext();
 
-//     return context;
-// }
+    await generateData(context, 2000)
 
-// const shouldGetAllSomeEntities = async () => {
-//     const context = new PerformanceDbDataContext();
+    await context.test1.all();
 
-//     await generateData(context, 50)
+    return context;
+}
 
-//     await context.test1.all();
+const shouldGetSomeEntities = async () => {
+    const context = new PerformanceDbDataContext();
 
-//     return context;
-// }
+    await generateData(context, 50)
 
-// const shouldGetAllManyEntities = async () => {
-//     const context = new PerformanceDbDataContext();
+    const items = await context.test1.all();
 
-//     await generateData(context, 2000)
+    await context.test1.get(...items.map(w => w._id));
 
-//     await context.test1.all();
+    return context;
+}
 
-//     return context;
-// }
+const shouldGetManyEntities = async () => {
+    const context = new PerformanceDbDataContext();
 
-// const shouldGetSomeEntities = async () => {
-//     const context = new PerformanceDbDataContext();
+    await generateData(context, 2000)
 
-//     await generateData(context, 50)
+    const items = await context.test1.all();
 
-//     const items = await context.test1.all();
+    await context.test1.get(...items.map(w => w._id));
 
-//     await context.test1.get(...items.map(w => w._id));
+    return context;
+}
 
-//     return context;
-// }
+const shouldAttachOneEntity = async () => {
+    const context = new PerformanceDbDataContext();
 
-// const shouldGetManyEntities = async () => {
-//     const context = new PerformanceDbDataContext();
+    await generateData(context, 1)
 
-//     await generateData(context, 2000)
+    const items = await context.test1.all();
 
-//     const items = await context.test1.all();
+    const secondContext = new PerformanceDbDataContext();
 
-//     await context.test1.get(...items.map(w => w._id));
+    const linked = await secondContext.test1.link(...items);
 
-//     return context;
-// }
+    for (let item of linked) {
+        item.test1 = faker.random.word();
+        item.test2 = faker.random.word();
+        item.test3 = faker.random.word();
+        item.test4 = faker.random.word();
+    }
 
-// const shouldAttachOneEntity = async () => {
-//     const context = new PerformanceDbDataContext();
+    await secondContext.saveChanges();
 
-//     await generateData(context, 1)
+    return secondContext;
+}
 
-//     const items = await context.test1.all();
+const shouldAttachSomeEntities = async () => {
+    const context = new PerformanceDbDataContext();
 
-//     const secondContext = new PerformanceDbDataContext();
+    await generateData(context, 50)
 
-//     const linked = await secondContext.test1.link(...items);
+    const items = await context.test1.all();
 
-//     for (let item of linked) {
-//         item.test1 = faker.random.word();
-//         item.test2 = faker.random.word();
-//         item.test3 = faker.random.word();
-//         item.test4 = faker.random.word();
-//     }
+    const secondContext = new PerformanceDbDataContext();
 
-//     await secondContext.saveChanges();
+    const linked = await secondContext.test1.link(...items);
 
-//     return secondContext;
-// }
+    for (let item of linked) {
+        item.test1 = faker.random.word();
+        item.test2 = faker.random.word();
+        item.test3 = faker.random.word();
+        item.test4 = faker.random.word();
+    }
 
-// const shouldAttachSomeEntities = async () => {
-//     const context = new PerformanceDbDataContext();
+    await secondContext.saveChanges();
 
-//     await generateData(context, 50)
+    return secondContext;
+}
 
-//     const items = await context.test1.all();
+const shouldAttachManyEntities = async () => {
+    const context = new PerformanceDbDataContext();
 
-//     const secondContext = new PerformanceDbDataContext();
+    await generateData(context, 2000)
 
-//     const linked = await secondContext.test1.link(...items);
+    const items = await context.test1.all();
 
-//     for (let item of linked) {
-//         item.test1 = faker.random.word();
-//         item.test2 = faker.random.word();
-//         item.test3 = faker.random.word();
-//         item.test4 = faker.random.word();
-//     }
+    const secondContext = new PerformanceDbDataContext();
 
-//     await secondContext.saveChanges();
+    const linked = await secondContext.test1.link(...items);
 
-//     return secondContext;
-// }
+    for (let item of linked) {
+        item.test1 = faker.random.word();
+        item.test2 = faker.random.word();
+        item.test3 = faker.random.word();
+        item.test4 = faker.random.word();
+    }
 
-// const shouldAttachManyEntities = async () => {
-//     const context = new PerformanceDbDataContext();
+    await secondContext.saveChanges();
 
-//     await generateData(context, 2000)
+    return secondContext;
+}
 
-//     const items = await context.test1.all();
+export const run = async () => {
+    try {
 
-//     const secondContext = new PerformanceDbDataContext();
+        await runTest(shouldAddOneEntity, "shouldAddOneEntity");
+        await runTest(shouldAddSomeEntities, "shouldAddSomeEntities");
+        await runTest(shouldAddManyEntities, "shouldAddManyEntities");
 
-//     const linked = await secondContext.test1.link(...items);
+        await runTest(shouldUpsertOneEntity, "shouldUpsertOneEntity");
+        await runTest(shouldUpsertSomeEntities, "shouldUpsertSomeEntities");
+        await runTest(shouldUpsertManyEntities, "shouldUpsertManyEntities");
 
-//     for (let item of linked) {
-//         item.test1 = faker.random.word();
-//         item.test2 = faker.random.word();
-//         item.test3 = faker.random.word();
-//         item.test4 = faker.random.word();
-//     }
+        await runTest(shouldRemoveOneEntity, "shouldRemoveOneEntity");
+        await runTest(shouldRemoveSomeEntities, "shouldRemoveSomeEntities");
+        await runTest(shouldRemoveManyEntities, "shouldRemoveManyEntities");
 
-//     await secondContext.saveChanges();
+        await runTest(shouldRemoveOneEntityById, "shouldRemoveOneEntityById");
+        await runTest(shouldRemoveSomeEntitiesById, "shouldRemoveSomeEntitiesById");
+        await runTest(shouldRemoveManyEntitiesById, "shouldRemoveManyEntitiesById");
 
-//     return secondContext;
-// }
+        await runTest(shouldUpdateOneEntity, "shouldUpdateOneEntity");
+        await runTest(shouldUpdateSomeEntities, "shouldUpdateSomeEntities");
+        await runTest(shouldUpdateManyEntities, "shouldUpdateManyEntities");
 
-// export const run = async () => {
-//     try {
+        await runTest(shouldGetAllSomeEntities, "shouldGetAllSomeEntities");
+        await runTest(shouldGetAllManyEntities, "shouldGetAllManyEntities");
 
-//         await runTest(shouldAddOneEntity, "shouldAddOneEntity");
-//         await runTest(shouldAddSomeEntities, "shouldAddSomeEntities");
-//         await runTest(shouldAddManyEntities, "shouldAddManyEntities");
+        await runTest(shouldGetSomeEntities, "shouldGetSomeEntities");
+        await runTest(shouldGetManyEntities, "shouldGetManyEntities");
 
-//         await runTest(shouldUpsertOneEntity, "shouldUpsertOneEntity");
-//         await runTest(shouldUpsertSomeEntities, "shouldUpsertSomeEntities");
-//         await runTest(shouldUpsertManyEntities, "shouldUpsertManyEntities");
+        await runTest(shouldAttachOneEntity, "shouldAttachOneEntity");
+        await runTest(shouldAttachSomeEntities, "shouldAttachSomeEntities");
+        await runTest(shouldAttachManyEntities, "shouldAttachManyEntities");
 
-//         await runTest(shouldRemoveOneEntity, "shouldRemoveOneEntity");
-//         await runTest(shouldRemoveSomeEntities, "shouldRemoveSomeEntities");
-//         await runTest(shouldRemoveManyEntities, "shouldRemoveManyEntities");
+        await generateDeltas();
 
-//         await runTest(shouldRemoveOneEntityById, "shouldRemoveOneEntityById");
-//         await runTest(shouldRemoveSomeEntitiesById, "shouldRemoveSomeEntitiesById");
-//         await runTest(shouldRemoveManyEntitiesById, "shouldRemoveManyEntitiesById");
+    } catch (e) {
+        console.log(e)
+    }
 
-//         await runTest(shouldUpdateOneEntity, "shouldUpdateOneEntity");
-//         await runTest(shouldUpdateSomeEntities, "shouldUpdateSomeEntities");
-//         await runTest(shouldUpdateManyEntities, "shouldUpdateManyEntities");
+}
 
-//         await runTest(shouldGetAllSomeEntities, "shouldGetAllSomeEntities");
-//         await runTest(shouldGetAllManyEntities, "shouldGetAllManyEntities");
-
-//         await runTest(shouldGetSomeEntities, "shouldGetSomeEntities");
-//         await runTest(shouldGetManyEntities, "shouldGetManyEntities");
-
-//         await runTest(shouldAttachOneEntity, "shouldAttachOneEntity");
-//         await runTest(shouldAttachSomeEntities, "shouldAttachSomeEntities");
-//         await runTest(shouldAttachManyEntities, "shouldAttachManyEntities");
-
-//         await generateDeltas();
-
-//     } catch (e) {
-//         console.log(e)
-//     }
-
-// }
-
-// run(); 
+run(); 

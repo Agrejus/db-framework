@@ -4,9 +4,11 @@ import { memoryCache } from "../MemoryCache";
 export abstract class CacheBase<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> {
 
     private readonly _cacheKey: string;
+    protected readonly documentType: TDocumentType;
 
     constructor(section: string, dataContextId: string, documentType: TDocumentType) {
         this._cacheKey = `${dataContextId}:${section}:${documentType}`;
+        this.documentType = documentType;
     }
 
     protected getValue<T>() {
