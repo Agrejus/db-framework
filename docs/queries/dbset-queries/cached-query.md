@@ -13,6 +13,8 @@ Each dbset has a fluent function called `.useCache()` that can be used in front 
 
 <u>NOTE:</u>  Caching is done off of the cache key, not the function signature.  Meaning, if `.useCache()` is called in two different spots with the same cache key and different functions or query operations are called and we have a cached value, the cached value will be return which may not match the intented.
 
+Doc Test
+
 ```typescript
 import { DataContext } from '@agrejus/db-framework';
 import { PouchDbPlugin, PouchDbRecord } from '@agrejus/db-framework-plugin-pouchdb';
