@@ -11,7 +11,7 @@
 
 Each dbset has a fluent function called `.useCache()` that can be used in front of any query call to cache that query result.  A fluent function means the function call returns itself.  After `.useCache()` is called, a query function must be called, such as `.filter()`.  In this example, the result of the filter call will be cached and returned when the function with a matching cache key is called again.
 
-<u>NOTE:<u>  Caching is done off of the cache key, not the function signature.  Meaning, if `.useCache()` is called in two different spots with the same cache key and different functions or query operations are called and we have a cached value, the cached value will be return which may not match the intented.
+<u>NOTE:</u>  Caching is done off of the cache key, not the function signature.  Meaning, if `.useCache()` is called in two different spots with the same cache key and different functions or query operations are called and we have a cached value, the cached value will be return which may not match the intented.
 
 ```typescript
 import { DataContext } from '@agrejus/db-framework';
