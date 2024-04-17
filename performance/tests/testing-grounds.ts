@@ -115,6 +115,8 @@ export const run = async () => {
         const dbname = contextFactory.getRandomDbName();
         const context = contextFactory.createContext(ExternalDataContext, "performance-db");
 
+        const zzz = context.dbsets.all()
+        
         const rnd = faker.random.words(10000);
 
         const [added] = await context.contacts.add({
@@ -124,7 +126,7 @@ export const run = async () => {
             address: "1234 Test St"
         });
 
-        await context.saveChanges();
+        const result = await context.saveChanges();
 
         await context.contacts.useCache({ key: "test" }).find(w => w.firstName === "James");
         debugger;
@@ -160,6 +162,8 @@ export const run = async () => {
         //     author: "James",
         //     publishDate: faker.date.between('2010-01-01', '2024-01-01')
         // });
+
+
 
         found!.author = faker.name.firstName();
         debugger;
