@@ -9,7 +9,9 @@
 
 **Overview**
 
-Each dbset has a .  As the name suggests, `filter()` operates the same way as filtering an array in JavaScript, found data will be returned in the array.  If no data is found, an empty array will be returned.  This function only returns documents in the corresponding dbset, no documents from other dbsets or other data in general.  Its usage is very straight forward, simply call `.filter()` on the dbset.  See below for a full example.  After data is selected, it can be modified and saved by calling `saveChanges()`.
+Each dbset has a fluent function called `.useCache()` that can be used in front of any query call to cache that query result.  A fluent function means the function call returns itself.  After `.useCache()` is called, a query function must be called, such as `.filter()`.  In this example, the result of the filter call will be cached and returned when the function with a matching cache key is called again.
+
+<u>NOTE:<u>  Caching is done off of the cache key, not the function signature.  Meaning, if `.useCache()` is called in two different spots with the same cache key and different functions or query operations are called and we have a cached value, the cached value will be return which may not match the intented
 
 ```typescript
 import { DataContext } from '@agrejus/db-framework';
