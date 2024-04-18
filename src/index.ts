@@ -12,4 +12,5 @@ export { Transaction } from './common/Transaction';
 export { Transactions } from './common/Transactions';
 export { IBulkOperation, IBulkOperationsResponse, IDbPlugin, IValidationResult, IDbPluginOptions, IQueryParams, DbPluginOperations } from './types/plugin-types';
 export { contextBuilder } from './context/builder/context-builder';
-export { DbPlugin } from './plugin/DbPlugin'; 
+export { DbPlugin } from './plugin/DbPlugin';
+export { stringifyCircular } from './common/helpers';
