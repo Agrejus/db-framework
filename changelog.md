@@ -18,4 +18,5 @@
 - Changed `onAfterSaveChanges` to a non blocking call to allow for better performance
 
 ## 1.1.1
-- Fix merge issue with upsert overwriting _rev when using the PouchDB plugin
+- Fix merge issue with upsert overwriting `_rev` when using the PouchDB plugin
+- Exposed change tracker to main Data Context

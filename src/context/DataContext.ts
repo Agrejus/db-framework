@@ -20,12 +20,12 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
 
     protected readonly dbPlugin: TDbPlugin;
     protected dbsetMap: DbSetMap = {} as DbSetMap;
+    protected changeTracker: ContextChangeTrackingAdapter<TDocumentType, TEntityBase, TExclusions>;
     private _onBeforeSaveChangesEvents: { [key in TDocumentType]: OnChangeEvent<TDocumentType, TEntityBase> } = {} as any;
     private _onAfterSaveChangesEvents: { [key in TDocumentType]: OnChangeEvent<TDocumentType, TEntityBase> } = {} as any;
     private readonly _options: TPluginOptions;
     private readonly _contextOptions: ContextOptions;
     private _readonlyDocumentTypes: { [key: string]: true } = {}
-    private _changeTracker: ContextChangeTrackingAdapter<TDocumentType, TEntityBase, TExclusions>;
 
     readonly dbsets = new DbSetCollection(this.dbsetMap);
 
@@ -37,7 +37,7 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
         this._options = options;
         this._contextOptions = contextOptions;
         this.dbPlugin = new Plugin(options);
-        this._changeTracker = new ContextChangeTrackingAdapter();
+        this.changeTracker = new ContextChangeTrackingAdapter();
 
         MonitoringMixin.register(this.contextId(), this._contextOptions, this, DataContext as any);
     }
@@ -85,7 +85,7 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
 
         const all = await this.dbPlugin.all();
 
-        return this._changeTracker.enrich(all, "deserialize", "defaultRetrieve", "changeTracking", "enhance");
+        return this.changeTracker.enrich(all, "deserialize", "defaultRetrieve", "changeTracking", "enhance");
     }
 
     /**
@@ -128,14 +128,14 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
             this._readonlyDocumentTypes[info.DocumentType] = true;
         }
 
-        this._changeTracker.registerChangeTracker(info.DocumentType as any, info.ChangeTracker as any)
+        this.changeTracker.registerChangeTracker(info.DocumentType as any, info.ChangeTracker as any)
 
         this.dbsetMap[info.DocumentType] = dbset;
     }
 
     private _stripUpdatedEntities(updates: ReadOnlyList<TEntityBase>) {
         const docs = updates.all();
-        return this._changeTracker.enrich(docs, "strip", "serialize");
+        return this.changeTracker.enrich(docs, "strip", "serialize");
     }
 
     async previewChanges(): Promise<Changes<TDocumentType, TEntityBase>> {
@@ -159,7 +159,7 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
 
     private async _getModifications() {
 
-        const { adds, removes, removesById, updates, transactions } = this._changeTracker.getPendingChanges();
+        const { adds, removes, removesById, updates, transactions } = this.changeTracker.getPendingChanges();
         const extraRemovalsMap = removesById.reduce((a, v) => {
 
             if (a[v.DocumentType] == null) {
@@ -317,9 +317,9 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
     protected _enrichBeforeSave(data: { adds: TEntityBase[], removes: TEntityBase[], updates: TEntityBase[] }) {
         // strip updates/adds and process removals
         const { adds, removes, updates } = data;
-        const strippedAdds = this._changeTracker.enrich(adds, "strip", "serialize");
-        const strippedUpdates = this._changeTracker.enrich(updates, "strip", "serialize");
-        const formattedRemovals = this._changeTracker.enrich(removes, "remove") as IRemovalRecord<TDocumentType, TEntityBase>[];
+        const strippedAdds = this.changeTracker.enrich(adds, "strip", "serialize");
+        const strippedUpdates = this.changeTracker.enrich(updates, "strip", "serialize");
+        const formattedRemovals = this.changeTracker.enrich(removes, "remove") as IRemovalRecord<TDocumentType, TEntityBase>[];
 
         return {
             strippedAdds,
@@ -334,11 +334,11 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
 
     protected _enrichAfterSave(data: { adds: TEntityBase[], updates: TEntityBase[] }, modificationResult: IBulkOperationsResponse) {
         const { adds, updates } = data;
-        this._changeTracker.enrichAfterPersisted(adds, modificationResult);
+        this.changeTracker.enrichAfterPersisted(adds, modificationResult);
 
         // map generated values and other enrichments
-        const persistedAdds = this._changeTracker.enrichAfterPersisted(adds, modificationResult);
-        const persistedUpdates = this._changeTracker.enrichAfterPersisted(updates, modificationResult);
+        const persistedAdds = this.changeTracker.enrichAfterPersisted(adds, modificationResult);
+        const persistedUpdates = this.changeTracker.enrichAfterPersisted(updates, modificationResult);
 
         return {
             persistedAdds,
@@ -372,7 +372,7 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
 
             const { persistedAdds, persistedUpdates } = this._enrichAfterSave({ adds: strippedAdds, updates: strippedUpdates }, modificationResult);
 
-            this._changeTracker.reinitialize(formattedRemovals, persistedAdds, persistedUpdates);
+            this.changeTracker.reinitialize(formattedRemovals, persistedAdds, persistedUpdates);
 
             const result = this._convertToSaveResult({ adds: persistedAdds, removes: formattedRemovals, updates: persistedUpdates, processedUpdates }, modificationResult);
 
@@ -382,7 +382,7 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
 
             return result;
         } catch (e: any) {
-            this._changeTracker.reinitialize();
+            this.changeTracker.reinitialize();
 
             await this.onSaveError(e);
 
@@ -439,7 +439,7 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
     }
 
     hasPendingChanges() {
-        const { adds, removes, removesById, updates } = this._changeTracker.getPendingChanges();
+        const { adds, removes, removesById, updates } = this.changeTracker.getPendingChanges();
         return [adds.length, removes.length, removesById.length, Object.values(updates.docs).length].some(w => w > 0);
     }
 
@@ -454,7 +454,7 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
     }
 
     asUntracked(...entities: TEntityBase[]) {
-        return this._changeTracker.asUntracked(...entities);
+        return this.changeTracker.asUntracked(...entities);
     }
 
     static isDate(value: any) {
