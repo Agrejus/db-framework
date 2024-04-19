@@ -14,3 +14,4 @@ export { IBulkOperation, IBulkOperationsResponse, IDbPlugin, IValidationResult, 
 export { contextBuilder } from './context/builder/context-builder';
 export { DbPlugin } from './plugin/DbPlugin';
 export { stringifyCircular } from './common/helpers';
+export { s, InferType } from './schema';

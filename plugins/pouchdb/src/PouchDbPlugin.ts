@@ -13,6 +13,7 @@ export class PouchDbPlugin<TDocumentType extends string, TEntityBase extends Pou
 
     protected readonly options: TDbPluginOptions;
     readonly idPropertyName = "_id";
+    readonly skip: (keyof TEntityBase)[] = ["_id", "_rev"];
 
     readonly types = {
         exclusions: "" as "_id" | "_rev"
