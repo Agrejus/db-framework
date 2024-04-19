@@ -357,7 +357,9 @@ export class PouchDbPlugin<TDocumentType extends string, TEntityBase extends Pou
         return entity;
     }
 
-    enrichRemoval(entity: TEntityBase) {
-        return { ...entity } as TEntityBase
+    enrichRemoval(entity: TEntityBase): TEntityBase {
+        const result = { ...entity, _id: entity._id, _rev: entity._rev, DocumentType: entity.DocumentType, _deleted: true } as any;
+
+        return result as TEntityBase
     }
 }
