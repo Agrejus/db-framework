@@ -1,0 +1,1 @@
+# CapacitorJS Realm Database Plugin

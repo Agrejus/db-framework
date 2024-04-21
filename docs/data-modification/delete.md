@@ -1,5 +1,16 @@
-# Quick Start
-It is very easy to get started with DB Framework.  First, create an enum or union type of all your document types.  Second, [declare your schema](schema).  Last, create a data context by inheriting from `DataContext`.
+# Delete
+
+**Definition**
+```typescript
+remove(...ids: string[]): Promise<void>;
+remove(...entities: TEntity[]): Promise<void>;
+```
+
+**Overview**
+
+Deleting data with DB Framework is very easy, simply call `.remove()` on a dbset and then call `.saveChanges()` on the data context to persist the changes.  The function can be called with an entire entity or just the ids of the entities.
+
+### Add
 
 ```typescript
 import { DataContext } from '@agrejus/db-framework';
@@ -32,22 +43,14 @@ export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<My
 
     vehicles = this.dbset().default<IVehicle>(MyDocumentTypes.Vehicle).create();
 }
-```
 
-Once we have defined our models and data context, we can now use it
-
-```typescript
 const context = new MyDataContext();
 
-await context.vehicles.add({
-    color: "Silver",
-    make: "Chevrolet",
-    model: "Silverado",
-    trim: "RST",
-    year: 2021
-});
+const found = await context.vehicles.find(w => w.year === 2021 && w.make === "Chevrolet");
 
-await context.saveChanges();
+if (found != null)
+
+await context.vehicles.remove(found);
+
+const result = await context.saveChanges();
 ```
-
-When `saveChanges()` is called, any data that was modified will be persisteed to the underlying data store.  In this example, we are adding one vehicle to the underlying data store.
