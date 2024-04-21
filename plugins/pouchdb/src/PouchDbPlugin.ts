@@ -13,6 +13,7 @@ export class PouchDbPlugin<TDocumentType extends string, TEntityBase extends Pou
 
     protected readonly options: TDbPluginOptions;
     readonly idPropertyName = "_id";
+    readonly skip: (keyof TEntityBase)[] = ["_id", "_rev"];
 
     readonly types = {
         exclusions: "" as "_id" | "_rev"
@@ -356,7 +357,9 @@ export class PouchDbPlugin<TDocumentType extends string, TEntityBase extends Pou
         return entity;
     }
 
-    enrichRemoval(entity: TEntityBase) {
-        return { ...entity } as TEntityBase
+    enrichRemoval(entity: TEntityBase): TEntityBase {
+        const result = { ...entity, _id: entity._id, _rev: entity._rev, DocumentType: entity.DocumentType, _deleted: true } as any;
+
+        return result as TEntityBase
     }
 }

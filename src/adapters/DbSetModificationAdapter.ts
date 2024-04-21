@@ -14,6 +14,7 @@ export class DbSetModificationAdapter<TDocumentType extends string, TEntity exte
     protected readonly fetchAdapter: IDbSetFetchAdapter<TDocumentType, TEntity, TExclusions>;
     protected readonly subscriptionsAdapter: DbSetSubscriptionsAdapter<TDocumentType, TEntity, TExclusions>;
     public subscribe: typeof this.subscriptionsAdapter.subscribe;
+    
 
     constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType, idPropertyName: keyof TEntity, changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>) {
         super(props, type, changeTracker);

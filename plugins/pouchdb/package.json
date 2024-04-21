@@ -1,6 +1,6 @@
 {
   "name": "@agrejus/db-framework-plugin-pouchdb",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "PouchDB Database plugin for DB Framework",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -51,7 +51,7 @@
     "typescript": "5.0.2"
   },
   "peerDependencies": {
-    "@agrejus/db-framework": "^1.0.0"
+    "@agrejus/db-framework": "^1.1.1"
   },
   "dependencies": {
     "pouchdb": ">=8.0.1",
