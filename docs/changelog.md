@@ -11,8 +11,14 @@
 - Changed `saveChanges()` to return a `SaveResult` instead of a `Promise<number>`
 - Changed `onAfterSaveChanges` to a non blocking call to allow for better performance
 
+<<<<<<<< HEAD:docs/changelog.md
 ## 1.0.1
 - Fixed issue with ReadOnlyList returning undefined for items when using `match()`
 
 ## 1.0.0
 - Full Release
+========
+## 1.1.1
+- Fix merge issue with upsert overwriting `_rev` when using the PouchDB plugin
+- Exposed change tracker to main Data Context
+>>>>>>>> main:changelog.md

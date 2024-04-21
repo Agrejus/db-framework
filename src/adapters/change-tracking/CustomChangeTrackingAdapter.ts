@@ -137,7 +137,15 @@ export class CustomChangeTrackingAdapter<TDocumentType extends string, TEntity e
     }
 
     merge(from: TEntity, to: TEntity) {
+
+        const skip = this.dbPlugin.skip;
+
         for (let property in from) {
+
+            if (skip.includes(property)) {
+                continue;
+            }
+
             to[property] = from[property];
         }
 

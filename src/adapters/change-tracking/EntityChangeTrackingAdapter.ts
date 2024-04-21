@@ -393,7 +393,7 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
     }
 
     merge(from: TEntity, to: TEntity) {
-        const options = { skip: [EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY, EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY, EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER] };
+        const options = { skip: [ ...this.dbPlugin.skip ,EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY, EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY, EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER] };
 
         for (let property in from) {
 
