@@ -1,5 +1,13 @@
-# Quick Start
-It is very easy to get started with DB Framework.  First, create an enum or union type of all your document types.  Second, [declare your schema](schema).  Last, create a data context by inheriting from `DataContext`.
+# All
+
+**Definition**
+```typescript
+.all(): Promise<TEntity[]>
+```
+
+**Overview**
+
+A data context has a function called `.all()` to retrieve all documents in the data store.  This will retrieve all documents, even ones that were not created by the data context.  Changes can be made to the entities returned, just like documents from a dbset, and those changes can be saved.
 
 ```typescript
 import { DataContext } from '@agrejus/db-framework';
@@ -7,7 +15,8 @@ import { PouchDbPlugin, PouchDbRecord } from '@agrejus/db-framework-plugin-pouch
 
 // Declare document types
 export enum MyDocumentTypes {
-    Vehicle = "Vehicle"
+    Vehicle = "Vehicle",
+    Books = "Books"
 }
 
 // Declare models
@@ -17,6 +26,13 @@ export interface IVehicle extends PouchDbRecord<MyDocumentTypes.Vehicle> {
     year: number;
     color: string;
     trim: string;
+}
+
+export interface IBook extends PouchDbRecord<MyDocumentTypes.Vehicle> {
+    author: string;
+    illustrator: string;
+    year: number;
+    publishedDate: Date;
 }
 
 // Create Data context using a provider
@@ -31,23 +47,10 @@ export class MyDataContext extends DataContext<MyDocumentTypes, PouchDbRecord<My
     }
 
     vehicles = this.dbset().default<IVehicle>(MyDocumentTypes.Vehicle).create();
+    books = this.dbset().default<IBook>(MyDocumentTypes.Books).create();
 }
-```
 
-Once we have defined our models and data context, we can now use it
-
-```typescript
 const context = new MyDataContext();
 
-await context.vehicles.add({
-    color: "Silver",
-    make: "Chevrolet",
-    model: "Silverado",
-    trim: "RST",
-    year: 2021
-});
-
-await context.saveChanges();
+const allVehiclesAndBooks = await context.all();
 ```
-
-When `saveChanges()` is called, any data that was modified will be persisteed to the underlying data store.  In this example, we are adding one vehicle to the underlying data store.

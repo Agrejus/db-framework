@@ -1,0 +1,3 @@
+# Performance & Profiling
+
+New in version `1.1.0` is the ability to turn on profiling and/or [performance monitoring]().  Both profiling and performance monitoring aim to give develoeprs deeper insight into what is happening behind the scenes when operations are done in DB Framework.  Often times, an operation in an application can be slow and we are unsure if it is a slow query or some other side effect. Turning on performance monitoring will help see if the slow down is database related.  Conversely, profiling provides a report on functions called and the parameters it was called with.  This is helpful for tracking down odd mutations in the database.
