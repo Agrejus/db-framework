@@ -51,7 +51,7 @@
     "typescript": "5.0.2"
   },
   "peerDependencies": {
-    "@agrejus/db-framework": "^1.1.1"
+    "@agrejus/db-framework": "^1.2.0-beta.1"
   },
   "dependencies": {
     "pouchdb": ">=8.0.1",
