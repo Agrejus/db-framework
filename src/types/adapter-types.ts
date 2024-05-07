@@ -1,10 +1,11 @@
 import { IDbRecord, IDbRecordBase, OmittedEntity } from './entity-types';
-import { DbSetCacheConfiguration, DbSetSubscriptionCallback, DbSetTtlCacheConfiguration, IDbSetInfo } from './dbset-types';
+import { DbSetSubscriptionCallback, DbSetTtlCacheConfiguration, IDbSetInfo } from './dbset-types';
 import { EntitySelector } from './common-types';
 import { SearchResult } from '../common/SearchResult';
 
 export interface IDbSetFetchAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> {
-    useCache(configuration: DbSetCacheConfiguration | DbSetTtlCacheConfiguration): void;
+    useCache(): void;
+    useCache(configuration: DbSetTtlCacheConfiguration): void;
     clearCache(...keys: string[]): void;
     filter(selector: (entity: TEntity, index?: number, array?: TEntity[]) => boolean): Promise<SearchResult<TDocumentType, TEntity, TExclusions>>;
     find(selector: (entity: TEntity, index?: number, array?: TEntity[]) => boolean): Promise<SearchResult<TDocumentType, TEntity, TExclusions> | undefined>;
@@ -41,6 +42,6 @@ export interface IDbSetModificationAdapter<TDocumentType extends string, TEntity
 
 
 export interface IDbSetCacheAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity = never> {
-    resolve(fetch: () => Promise<TEntity[]>, cacheOptions: DbSetCacheConfiguration | DbSetTtlCacheConfiguration, ...ids: string[]): Promise<TEntity[]>
+    resolve(fetch: () => Promise<TEntity[]>, cacheOptions: DbSetTtlCacheConfiguration | true | null, ...ids: string[]): Promise<TEntity[]>
     clear(...keys: string[]): void;
 }

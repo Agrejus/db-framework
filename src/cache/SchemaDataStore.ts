@@ -1,6 +1,6 @@
-import { DeepPartial } from "../../dist";
 import { ExpandedSchema } from "../schema";
 import { SchemaDefinition } from "../schema/types/Definition";
+import { DeepPartial } from "../types/common-types";
 import { IDbRecord } from "../types/entity-types";
 import { CacheBase } from "./base/CacheBase";
 

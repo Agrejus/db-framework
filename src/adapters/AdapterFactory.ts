@@ -35,7 +35,7 @@ export class AdapterFactory<TDocumentType extends string, TEntity extends IDbRec
     createModificationAdapter(): IDbSetModificationAdapter<TDocumentType, TEntity, TExclusions> {
 
         if (this._type === "stateful") {
-            return new DbSetStatefulModificationAdapter<TDocumentType, TEntity, TExclusions, TDbPlugin>(this._props as IStoreDbSetProps<TDocumentType, TEntity, TExclusions>, this._type, this._idPropertyName, this.changeTracker)
+            return new DbSetStatefulModificationAdapter<TDocumentType, TEntity, TExclusions, TDbPlugin>(this._props as IStoreDbSetProps<TDocumentType, TEntity, TExclusions>, this._type, this._idPropertyName, this.changeTracker, this._schemaCache)
         }
 
         return new DbSetModificationAdapter<TDocumentType, TEntity, TExclusions, TDbPlugin>(this._props, this._type, this._idPropertyName, this.changeTracker, this._schemaCache)

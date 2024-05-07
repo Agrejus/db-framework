@@ -318,9 +318,9 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
         // strip updates/adds and process removals
         const { adds, removes, updates } = data;
 
-        const strippedAdds = this._changeTracker.enrich(adds, "strip", "serialize");
-        const strippedUpdates = this._changeTracker.enrich(updates, "strip", "serialize");
-        const formattedRemovals = this._changeTracker.enrich(removes, "remove") as IRemovalRecord<TDocumentType, TEntityBase>[];
+        const strippedAdds = this.changeTracker.enrich(adds, "strip", "serialize");
+        const strippedUpdates = this.changeTracker.enrich(updates, "strip", "serialize");
+        const formattedRemovals = this.changeTracker.enrich(removes, "remove") as IRemovalRecord<TDocumentType, TEntityBase>[];
 
         return {
             strippedAdds,

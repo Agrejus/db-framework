@@ -92,7 +92,8 @@ export interface IDbSet<
      * Caches the corresponding data for the next fetch request (find/all/filter/get).  Cache is automatically cleared when any changes are made to the dbset (add, update, remove).  Changes to other dbsets will not clear the cache for this dbset.
      * @param configuration { key: string }
      */
-    useCache(configuration: DbSetCacheConfiguration | DbSetTtlCacheConfiguration): this
+    useCache(): this
+    useCache(configuration: DbSetTtlCacheConfiguration): this
 
     /**
      * Clears the cache only for the DbSet for the given keys.  If no keys are provided, all cache is cleared.
@@ -292,11 +293,8 @@ export type ChangeTrackingOptions<
     environment?: DbFrameworkEnvironment
 }
 
-export type DbSetCacheConfiguration = {
+export type DbSetTtlCacheConfiguration = {
     key: string;
-}
-
-export type DbSetTtlCacheConfiguration = DbSetCacheConfiguration & {
     ttl: number
 }
 

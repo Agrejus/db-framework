@@ -1,4 +1,4 @@
-import { PouchDbPlugin, PouchDbRecord } from "@agrejus/db-framework-plugin-pouchdb";
+import { PouchDbPlugin, PouchDbRecord, IPouchDbPluginOptions } from "@agrejus/db-framework-plugin-pouchdb";
 import { DocumentTypes } from "../../src/__tests__/integration/shared/types";
 import { s, InferType, SchemaTypes } from "../../src/schema";
 import { DataContext } from "../../src/context/DataContext";
@@ -34,7 +34,7 @@ const BooksSchema = s.define(DocumentTypes.Books, {
 
 type Book = InferType<typeof BooksSchema>;
 
-class MyContext extends DataContext<DocumentTypes, PouchDbRecord<DocumentTypes>, "_id" | "_rev"> {
+class MyContext extends DataContext<DocumentTypes, PouchDbRecord<DocumentTypes>, "_id" | "_rev", IPouchDbPluginOptions, PouchDbPlugin<DocumentTypes, PouchDbRecord<DocumentTypes>, IPouchDbPluginOptions>> {
 
     contextId() {
         return MyContext.name;

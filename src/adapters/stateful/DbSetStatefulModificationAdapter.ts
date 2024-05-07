@@ -3,6 +3,7 @@ import { IDbRecord, OmittedEntity } from "../../types/entity-types";
 import { DbSetModificationAdapter } from "../DbSetModificationAdapter";
 import { CacheDataStore } from '../../cache/CacheDataStore';
 import { IDbSetChangeTracker } from "../../types/change-tracking-types";
+import { SchemaDataStore } from "../../cache/SchemaDataStore";
 
 export class DbSetStatefulModificationAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity, TDbPlugin> extends DbSetModificationAdapter<TDocumentType, TEntity, TExclusions, TDbPlugin> {
 
@@ -10,8 +11,8 @@ export class DbSetStatefulModificationAdapter<TDocumentType extends string, TEnt
     private _onChange: DbSetOnChangeEvent<TDocumentType, TEntity> | null;
     private _remotes: TEntity[] = [];
 
-    constructor(props: IStoreDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType, idPropertyName: keyof TEntity, changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>) {
-        super(props, type, idPropertyName, changeTracker);
+    constructor(props: IStoreDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType, idPropertyName: keyof TEntity, changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>, schemaCache: SchemaDataStore<TDocumentType, TEntity, TExclusions>) {
+        super(props, type, idPropertyName, changeTracker, schemaCache);
         this._onChange = props.onChange
         this._store = new CacheDataStore<TDocumentType, TEntity>(this.api.dbPlugin.idPropertyName);
     }

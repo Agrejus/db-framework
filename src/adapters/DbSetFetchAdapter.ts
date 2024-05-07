@@ -3,30 +3,38 @@ import { SearchResult } from '../common/SearchResult';
 import { IDbSetCacheAdapter, IDbSetFetchAdapter } from '../types/adapter-types';
 import { IDbSetChangeTracker } from '../types/change-tracking-types';
 import { EntitySelector } from '../types/common-types';
-import { DbSetCacheConfiguration, DbSetTtlCacheConfiguration, DbSetType, IDbSetProps } from '../types/dbset-types';
+import { DbSetTtlCacheConfiguration, DbSetType, IDbSetProps } from '../types/dbset-types';
 import { IDbRecord } from '../types/entity-types';
 import { DbSetBaseAdapter } from './DbSetBaseAdapter';
 import { DbSetCacheMediator } from './mediators/DbSetCacheMediator';
 
 export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity, TDbPlugin> extends DbSetBaseAdapter<TDocumentType, TEntity, TExclusions, TDbPlugin> implements IDbSetFetchAdapter<TDocumentType, TEntity, TExclusions> {
 
-    private _cacheOptions: DbSetTtlCacheConfiguration | DbSetCacheConfiguration = { key: null };
+    private _cacheOptions: DbSetTtlCacheConfiguration | true | null = null;
     private _cacheMediator: IDbSetCacheAdapter<TDocumentType, TEntity, TExclusions>;
     private _idPropertyName: keyof TEntity;
 
     constructor(props: IDbSetProps<TDocumentType, TEntity, TExclusions>, type: DbSetType, idPropertyName: keyof TEntity, changeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>, schemaCache: SchemaDataStore<TDocumentType, TEntity, TExclusions>) {
         super(props, type, changeTracker, schemaCache);
         this._idPropertyName = idPropertyName;
-        this._cacheMediator = new DbSetCacheMediator<TDocumentType, TEntity, TExclusions>(props.context.contextId(), props.documentType, this._idPropertyName);
+        this._cacheMediator = new DbSetCacheMediator<TDocumentType, TEntity, TExclusions>(
+            props.context.contextId(), 
+            props.documentType, 
+            () => this.api.dbPlugin.all({ DocumentType: this.documentType }),
+            this._idPropertyName);
     }
 
-    useCache(configuration: DbSetTtlCacheConfiguration) {
+    useCache(): void;
+    useCache(configuration: DbSetTtlCacheConfiguration): void 
+    useCache(configuration?: DbSetTtlCacheConfiguration) {
 
-        this._cacheOptions.key = configuration.key;
-
-        if ('ttl' in configuration) {
-            (this._cacheOptions as DbSetTtlCacheConfiguration).ttl = configuration.ttl;
+        if (configuration === null) {
+            this._cacheOptions = true;
+            return;
         }
+
+        (this._cacheOptions as DbSetTtlCacheConfiguration).key = configuration.key;
+        (this._cacheOptions as DbSetTtlCacheConfiguration).ttl = configuration.ttl;
     }
 
     clearCache(...keys: string[]) {
