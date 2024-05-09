@@ -29,6 +29,7 @@ export class DbSetGeneralAdapter<TDocumentType extends string, TEntity extends I
             Defaults: this.defaults,
             Readonly: this.isReadonly,
             ChangeTracker: this.changeTracker,
+            SchemaDataStore: this.schemaCache
         }
 
         return info;

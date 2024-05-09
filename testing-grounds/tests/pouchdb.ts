@@ -1,9 +1,9 @@
 import { PouchDbPlugin, PouchDbRecord, IPouchDbPluginOptions } from "@agrejus/db-framework-plugin-pouchdb";
-import { DocumentTypes } from "../../src/__tests__/integration/shared/types";
-import { s, InferType, SchemaTypes } from "../../src/schema";
-import { DataContext } from "../../src/context/DataContext";
-import { SchemaDefinition } from "../../src/schema/types/Definition";
-import { SchemaBase } from "../../src/schema/types/Base";
+import { s, InferType, SchemaTypes, DataContext, SchemaDefinition, SchemaBase } from "@agrejus/db-framework";
+
+export enum DocumentTypes {
+    Books = "Books"
+}
 
 enum TestEnum {
     test = "test",
@@ -44,7 +44,7 @@ class MyContext extends DataContext<DocumentTypes, PouchDbRecord<DocumentTypes>,
         super({ dbName: "some-new-database" }, PouchDbPlugin)
     }
 
-    books = this.dbset().default<Book>(DocumentTypes.Books, BooksSchema).create();
+    books = this.dbset().default<Book>(BooksSchema).create();
 }
 
 const getId = (schema: SchemaDefinition<DocumentTypes, any>) => {

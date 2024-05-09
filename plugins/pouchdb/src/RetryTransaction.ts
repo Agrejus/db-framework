@@ -1,6 +1,6 @@
 import { PouchDbRecord } from './types';
 
-export class Transaction<TDocumentType extends string, TEntityBase extends PouchDbRecord<TDocumentType>, TResult> {
+export class RetryTransaction<TDocumentType extends string, TEntityBase extends PouchDbRecord<TDocumentType>, TResult> {
 
     private readonly _resolve: (value: { result: TResult; db: PouchDB.Database<TEntityBase>; } | PromiseLike<{ result: TResult; db: PouchDB.Database<TEntityBase>; }>) => void;
     private readonly _reject: (reason?: any) => void;

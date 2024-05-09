@@ -24,7 +24,7 @@ export class EntityEnricher<TDocumentType extends string, TEntity extends IDbRec
         this._dbPlugin = dbPlugin;
         this._schemaCache = schemaCache;
 
-        const generatedEnricher = this._dbPlugin.enrichGenerated;
+        const generatedEnricher = this._dbPlugin.enrichGenerated.bind(this._dbPlugin);
         this.composers = {
             persisted: (response: IBulkOperationsResponse) => (entity: TEntity) => generatedEnricher(response, entity)
         }

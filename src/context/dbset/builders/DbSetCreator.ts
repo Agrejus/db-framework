@@ -1,20 +1,18 @@
 import { ContextOptions } from "../../../../dist";
 import { IDbRecord } from "../../../types/entity-types";
-import { DocumentTypes, IPouchDbRecord } from "../../../__tests__/integration/shared/types";
 import { IDbPlugin, IDbPluginOptions } from "../../../types/plugin-types";
 import { DataContext } from "../../DataContext";
-import { IPouchDbPluginOptions, PouchDbPlugin } from "@agrejus/db-framework-plugin-pouchdb";
 
-export const useDbSetCreator = <
-    TDocumentType extends string,
-    TEntityBase extends IDbRecord<TDocumentType>,
-    TExclusions extends keyof TEntityBase,
-    TPluginOptions extends IDbPluginOptions,
-    TDbPlugin extends IDbPlugin<TDocumentType, TEntityBase, TExclusions>,
-    T
->(callback: (creator: DataContext<TDocumentType, TEntityBase, TExclusions, TPluginOptions, TDbPlugin>) => T) => {
-    return callback
-}
+// export const useDbSetCreator = <
+//     TDocumentType extends string,
+//     TEntityBase extends IDbRecord<TDocumentType>,
+//     TExclusions extends keyof TEntityBase,
+//     TPluginOptions extends IDbPluginOptions,
+//     TDbPlugin extends IDbPlugin<TDocumentType, TEntityBase, TExclusions>,
+//     T
+// >(callback: (creator: DataContext<TDocumentType, TEntityBase, TExclusions, TPluginOptions, TDbPlugin>) => T) => {
+//     return callback
+// }
 
 // export abstract class DataContext<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase, TPluginOptions extends IDbPluginOptions = IDbPluginOptions, TDbPlugin extends IDbPlugin<TDocumentType, TEntityBase, TExclusions> = IDbPlugin<TDocumentType, TEntityBase, TExclusions>> implements IDataContext<TDocumentType, TEntityBase> {
 
@@ -125,9 +123,9 @@ const useContextBuilder = (contextOptions: ContextOptions = { environment: "deve
     }
 };
 
-useContextBuilder()
-    .documentTypes<DocumentTypes>()
-    .document<IPouchDbRecord<DocumentTypes>>()
-    .exclude("_id", "_rev")
-    .plugin<IPouchDbPluginOptions>({ dbName: "some-new-database" })
-    .use(PouchDbPlugin);
+// useContextBuilder()
+//     .documentTypes<DocumentTypes>()
+//     .document<IPouchDbRecord<DocumentTypes>>()
+//     .exclude("_id", "_rev")
+//     .plugin<IPouchDbPluginOptions>({ dbName: "some-new-database" })
+//     .use(PouchDbPlugin);

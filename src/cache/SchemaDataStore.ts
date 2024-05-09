@@ -16,11 +16,15 @@ export type SchemaCache<TDocumentType extends string, TEntity extends IDbRecord<
 export class SchemaDataStore<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> extends CacheBase<TDocumentType, TEntity, TExclusions> {
 
     private _expandedSchema: ExpandedSchema | null = null;
-    private readonly _schema?: SchemaDefinition<TDocumentType, TEntity>;
+    private readonly _schema: SchemaDefinition<TDocumentType, TEntity>;
 
-    constructor(dataContextId: string, documentType: TDocumentType, schema?: SchemaDefinition<TDocumentType, TEntity>) {
+    constructor(dataContextId: string, documentType: TDocumentType, schema: SchemaDefinition<TDocumentType, TEntity>) {
         super("Schema", dataContextId, documentType);
         this._schema = schema;
+    }
+
+    value() {
+        return this._schema;
     }
 
     expand() {

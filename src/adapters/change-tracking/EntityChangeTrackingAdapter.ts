@@ -65,6 +65,7 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
 
             const { properties } = expandedSchema;
             const changeTrackingProperties = [...properties.values()].filter(w => w.type === SchemaTypes.Object || w.type === SchemaTypes.Array);
+            const mainProperties = [...expandedSchema.properties].filter(([_, w]) => (w.type === SchemaTypes.Array || w.type === SchemaTypes.Object) && w.childDegree === 0);
             const getChangesFunctions: string[] = [`
                 const getChanges = (value) => {
 
@@ -72,7 +73,7 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
                         return {};
                     }
 
-                    const { ${[...expandedSchema.properties].filter(([_, w]) => (w.type === SchemaTypes.Array || w.type === SchemaTypes.Object) && w.childDegree === 0).map(([_, w]) => w.propertyName).join(",")} ,...rest} = value;
+                    const { ${mainProperties.length === 0 ? "_" : mainProperties.map(([_, w]) => w.propertyName).join(",")} ,...rest} = value;
 
                     return rest;
                 }
@@ -81,7 +82,6 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
             `];
             const isDirtyFunctions: string[] = [`entity?.${EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER} === true`];
 
-            // enable change tracking for child objects and arrays
             for (const changeTrackingProperty of changeTrackingProperties) {
                 isDirtyFunctions.push(`entity.${changeTrackingProperty.selectorPath}?.${EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER} === true`);
 
@@ -136,7 +136,6 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
     }
 
     getPendingChanges(): ITrackedChanges<TDocumentType, TEntity> {
-
         const expandedSchema = this.schemaCache.expand();
         let merge = (entity: TEntity, partial: DeepPartial<TEntity>): TEntity => ({ ...entity, ...partial })
 
@@ -158,19 +157,30 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
                 }
                 const strippers: string[] = [];
 
-                // enable change tracking for child objects and arrays
+                // create deep merge
                 for (const changeTrackingProperty of changeTrackingProperties) {
 
                     if ('idPropertyName' in changeTrackingProperty) {
-                        const properties = [...changeTrackingProperty.properties].filter(([_, w]) => (w.type === SchemaTypes.Array || w.type !== SchemaTypes.Object) && w.childDegree === 0).map(([_, w]) => w.propertyName).join(",")
+
+                        //EntityChangeTrackingAdapter
+                        const parentPropertyNamesToStrip = [...changeTrackingProperty.properties].filter(([_, w]) => (w.type === SchemaTypes.Array || w.type === SchemaTypes.Object) && w.childDegree === 0).map(([_, w]) => w.propertyName);
+
+                        parentPropertyNamesToStrip.push(
+                            EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY,
+                            EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER,
+                            EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY,
+                            EntityChangeTrackingAdapter.TIMESTAMP_ENTITY_KEY,
+                        );
+
+                        const properties = parentPropertyNamesToStrip.join(",")
                         const stripObject = `
                         const stripParent = (value) => {
                             const { ${properties}, ...rest } = value;
                             return rest;
                         }
             
-                        const strippedEntity = getStrippedEntity(entity);
-                        const strippedPartial = getStrippedEntity(partial);`;
+                        const strippedEntity = stripParent(entity);
+                        const strippedPartial = stripParent(partial);`;
 
 
                         strippers.unshift(stripObject)
@@ -197,18 +207,15 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
                 if (entity == null) {
                     return entity;
                 }`);
+                strippers.push(`return {...strippedEntity, ...strippedPartial};`);
 
-                strippers.push(`return strippedEntity;`);
-
-                const merge = Function("entity", "partial", strippers.join("\n")) as (entity: TEntity, partial: DeepPartial<TEntity>) => TEntity;
-
-                cache.deepMerge = merge;
+                cache.deepMerge = Function("entity", "partial", strippers.join("\n")) as (entity: TEntity, partial: DeepPartial<TEntity>) => TEntity;
 
                 this.schemaCache.put(cache)
 
-            } else {
-                merge = cache.deepMerge;
-            }
+            } 
+
+            merge = cache.deepMerge;
         }
 
         const changes = this.getTrackedData();
@@ -358,7 +365,6 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
 
         const functions: string[] = [`const enableChangeTracking = ${this._enableChangeTrackingForEntity.toString()};`, `const markers = ${JSON.stringify(markers)};`];
 
-        // enable change tracking for child objects and arrays
         for (const changeTrackingProperty of changeTrackingProperties) {
 
             if ('idPropertyName' in changeTrackingProperty) {
@@ -393,7 +399,7 @@ export class EntityChangeTrackingAdapter<TDocumentType extends string, TEntity e
     }
 
     merge(from: TEntity, to: TEntity) {
-        const options = { skip: [ ...this.dbPlugin.skip ,EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY, EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY, EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER] };
+        const options = { skip: [...this.dbPlugin.skip, EntityChangeTrackingAdapter.ORIGINAL_ENTITY_KEY, EntityChangeTrackingAdapter.CHANGES_ENTITY_KEY, EntityChangeTrackingAdapter.DIRTY_ENTITY_MARKER] };
 
         for (let property in from) {
 

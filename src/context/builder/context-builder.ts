@@ -2,7 +2,6 @@ import { ContextOptions } from "../../types/context-types"
 import { IDbRecord } from "../../types/entity-types"
 import { IDbPlugin, IDbPluginOptions } from "../../types/plugin-types"
 import { DataContext } from "../DataContext"
-import { StatefulDataContext } from "../StatefulDataContext"
 
 export const contextBuilder = <TDocumentType extends string>(contextOptions?: ContextOptions) => {
     return {
@@ -23,19 +22,6 @@ export const contextBuilder = <TDocumentType extends string>(contextOptions?: Co
                                     
                                 ) => {
                                     return extend(class extends DataContext<TDocumentType, TEntityBase, TExclusions | typeof p.types.exclusions, TPluginOptions, TDbPlugin> {
-                                        constructor() {
-                                            super(typeof options === "function" ? options() : options, Plugin, contextOptions)
-                                        }
-
-                                        contextId() {
-                                            return "";
-                                        }
-                                    });
-                                },
-                                createStateful: <TInstance extends new () => StatefulDataContext<TDocumentType, TEntityBase, TExclusions | typeof p.types.exclusions, TPluginOptions, TDbPlugin>>(
-                                    extend: (Base: new () => StatefulDataContext<TDocumentType, TEntityBase, TExclusions | typeof p.types.exclusions, TPluginOptions, TDbPlugin>) => TInstance
-                                ) => {
-                                    return extend(class extends StatefulDataContext<TDocumentType, TEntityBase, TExclusions | typeof p.types.exclusions, TPluginOptions, TDbPlugin> {
                                         constructor() {
                                             super(typeof options === "function" ? options() : options, Plugin, contextOptions)
                                         }

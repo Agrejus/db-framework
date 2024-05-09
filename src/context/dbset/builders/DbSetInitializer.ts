@@ -4,9 +4,7 @@ import { IDbRecord } from "../../../types/entity-types";
 import { IDbPluginOptions } from "../../../types/plugin-types";
 import { DataContext } from "../../DataContext";
 import { DbSet } from "../DbSet";
-import { StatefulDbSet } from "../StatefulDbSet";
 import { DefaultDbSetBuilder } from "./DefaultDbSetBuilder";
-import { StatefulDbSetBuilder } from "./StatefulDbSetBuilder";
 import { IdBuilder } from '../../builder/IdBuilder';
 import { SchemaDefinition } from "../../../schema/types/Definition";
 
@@ -20,12 +18,12 @@ export class DbSetInitializer<TDocumentType extends string, TEntityBase extends 
         this.context = context;
     }
 
-    default<TEntity extends TEntityBase>(documentType: TEntity["DocumentType"], schema?: SchemaDefinition<TDocumentType, any>) {
+    default<TEntity extends TEntityBase>(schema: SchemaDefinition<TEntity["DocumentType"], any>) {
         return new DefaultDbSetBuilder<TEntity["DocumentType"], TEntity, TExclusions, TDbPlugin>({
             InstanceCreator: DbSet,
             onCreate: this.onAddDbSet,
             params: {
-                documentType,
+                documentType: schema.documentType,
                 context: this.context as IDataContext<TEntity["DocumentType"], TEntity>,
                 readonly: false,
                 defaults: { add: {} as any, retrieve: {} as any },
@@ -36,26 +34,6 @@ export class DbSetInitializer<TDocumentType extends string, TEntityBase extends 
                 entityComparator: null,
                 idCreator: IdBuilder.createUUID,
                 schema
-            }
-        });
-    }
-
-    protected _stateful<TEntity extends TEntityBase>(documentType: TEntity["DocumentType"]) {
-        return new StatefulDbSetBuilder<TEntity["DocumentType"], TEntity, TExclusions, TDbPlugin>({
-            InstanceCreator: StatefulDbSet,
-            onCreate: this.onAddDbSet,
-            params: {
-                documentType,
-                context: this.context as IDataContext<TEntity["DocumentType"], TEntity>,
-                readonly: false,
-                defaults: { add: {} as any, retrieve: {} as any },
-                exclusions: [],
-                serializer: null,
-                deserializer: null,
-                filterSelector: null,
-                onChange: () => { },
-                entityComparator: null,
-                idCreator: IdBuilder.createUUID
             }
         });
     }

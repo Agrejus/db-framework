@@ -1,6 +1,6 @@
-import { Changes, DeepPartial, TagsCollection } from "../types/common-types";
+import { Changes, DeepPartial, IDictionary, TagsCollection } from "../types/common-types";
 import { ContextOptions, IDataContext, IEntityModifications, IProcessedUpdates, OnChangeEvent } from "../types/context-types";
-import { DbSetMap, EntityAndTag, IDbSet, IDbSetApi, SaveChangesEventData } from "../types/dbset-types";
+import { DbSetMap, EntityAndTag, IDbSet, IDbSetApi, IDbSetInfo, SaveChangesEventData } from "../types/dbset-types";
 import { IDbRecord, IRemovalRecord } from "../types/entity-types";
 import { DbSetInitializer } from './dbset/builders/DbSetInitializer';
 import { IBulkOperationsResponse, IDbPlugin, IDbPluginOptions } from '../types/plugin-types';
@@ -33,46 +33,13 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
         return this._options.dbName;
     }
 
-    constructor(options: TPluginOptions, Plugin: new (options: TPluginOptions) => TDbPlugin, contextOptions: ContextOptions = { environment: "development" }) {
+    constructor(options: TPluginOptions, Plugin: new (options: TPluginOptions, api: IDbSetApi<TDocumentType, TEntityBase, TExclusions, TDbPlugin>) => TDbPlugin, contextOptions: ContextOptions = { environment: "development" }) {
         this._options = options;
         this._contextOptions = contextOptions;
-        this.dbPlugin = new Plugin(options);
+        this.dbPlugin = new Plugin(options, this._getApi());
         this.changeTracker = new ContextChangeTrackingAdapter();
 
         MonitoringMixin.register(this.contextId(), this._contextOptions, this, DataContext as any);
-    }
-
-    /**
-     * Get all documents in the database
-     * @returns {Promise<TEntityBase[]>}
-     * @deprecated use all() instead
-     */
-    async getAllDocs() {
-        return await this.all();
-    }
-
-    /**
-     * Gets a DbSet for the matching document type
-     * @param documentType 
-     * @returns {IDbSet<TDocumentType, TEntityBase, TExclusions>}
-     * @deprecated use dbsets.get(documentType) instead
-     */
-    getDbSet(documentType: TDocumentType) {
-        return this.dbsets.get(documentType);
-    }
-
-    /**
-     * 
-     * @returns {IterableIterator<IDbSet<TDocumentType, TEntityBase, TExclusions>>}
-     * @deprecated use dbsets.all() instead
-     */
-    [Symbol.iterator]() {
-        let index = -1;
-        const data = this.dbsets.all();
-
-        return {
-            next: () => ({ value: data[++index], done: !(index in data) })
-        };
     }
 
     clearCache() {
@@ -97,6 +64,7 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
             dbPlugin: this.dbPlugin,
             contextOptions: this._contextOptions,
             tag: this._tag.bind(this),
+            dbsets: this.dbsets as any,
             registerOnAfterSaveChanges: this._registerOnAfterSaveChanges.bind(this),
             registerOnBeforeSaveChanges: this._registerOnBeforeSaveChanges.bind(this),
             contextId: this.contextId()
@@ -188,14 +156,14 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
         if (documentType == null) {
             return {
                 adds: changes.adds.map(w => this._mapChangeToEntityAndTag(w, tags)),
-                removes:  changes.removes.map(w => this._mapChangeToEntityAndTag(w, tags)),
+                removes: changes.removes.map(w => this._mapChangeToEntityAndTag(w, tags)),
                 updates: Object.values(changes.updates.docs).map(w => this._mapChangeToEntityAndTag(w, tags))
             }
         }
 
         return {
             adds: changes.adds.filter(w => w.DocumentType === documentType).map(w => this._mapChangeToEntityAndTag(w, tags)),
-            removes:  changes.removes.filter(w => w.DocumentType === documentType).map(w => this._mapChangeToEntityAndTag(w, tags)),
+            removes: changes.removes.filter(w => w.DocumentType === documentType).map(w => this._mapChangeToEntityAndTag(w, tags)),
             updates: Object.values(changes.updates.docs).filter(w => w.DocumentType === documentType).map(w => this._mapChangeToEntityAndTag(w, tags))
         }
     }
@@ -214,8 +182,8 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
         if (documentType == null) {
             return {
                 adds: adds.map(w => this._mapChangeToEntityAndTag(w, tags)),
-                removes:  removes.map(w => this._mapChangeToEntityAndTag(w, tags)),
-                updates:  updates.map(w => this._mapChangeToEntityAndTag(w, tags))
+                removes: removes.map(w => this._mapChangeToEntityAndTag(w, tags)),
+                updates: updates.map(w => this._mapChangeToEntityAndTag(w, tags))
             };
         }
 
@@ -329,7 +297,7 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
         }
     }
 
-    protected async _bulkModifications(operations: { adds: TEntityBase[]; removes: TEntityBase[]; updates: TEntityBase[] }, transactions: Transactions) {
+    protected async _bulkModifications(operations: { adds: TEntityBase[]; removes: TEntityBase[]; updates: { data: TEntityBase[], deltas: IDictionary<DeepPartial<TEntityBase>>; } }, transactions: Transactions) {
         return await this.dbPlugin.bulkOperations(operations, transactions);
     }
 
@@ -368,7 +336,7 @@ export abstract class DataContext<TDocumentType extends string, TEntityBase exte
             const { formattedRemovals, strippedAdds, strippedUpdates } = this._enrichBeforeSave({ adds, removes, updates })
 
             // perform operation on the database
-            const modificationResult = await this._bulkModifications({ adds: strippedAdds, removes: formattedRemovals, updates: strippedUpdates }, transactions);
+            const modificationResult = await this._bulkModifications({ adds: strippedAdds, removes: formattedRemovals, updates: { data: strippedUpdates, deltas: processedUpdates.deltas } }, transactions);
 
             const { persistedAdds, persistedUpdates } = this._enrichAfterSave({ adds: strippedAdds, updates: strippedUpdates }, modificationResult);
 

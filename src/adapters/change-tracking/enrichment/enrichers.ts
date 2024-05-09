@@ -118,9 +118,9 @@ export const stripEnrichmentCreator = <TDocumentType extends string, TEntity ext
 
         const strippers: string[] = [];
 
-        // enable change tracking for child objects and arrays
         for (const changeTrackingProperty of changeTrackingProperties) {
 
+            // we need to do stripping backwards so we don't assign undefined to properties
             if ('idPropertyName' in changeTrackingProperty) {
                 const properties = [...changeTrackingProperty.properties].filter(([_, w]) => w.type !== SchemaTypes.Array && w.type !== SchemaTypes.Object && w.childDegree === 0).map(([_, w]) => w.propertyName).join(",")
                 const stripObject = `

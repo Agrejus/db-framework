@@ -1,11 +1,10 @@
 export { DataContext } from './context/DataContext';
-export { StatefulDataContext as StoreDataContext } from './context/StatefulDataContext';
 export { DbSet } from './context/dbset/DbSet';
 export { DbSetExtender } from './types/dbset-builder-types';
 export { DefaultDbSetBuilder } from './context/dbset/builders/DefaultDbSetBuilder';
 export { IDataContext, ContextOptions, MonitoringOptions } from './types/context-types';
 export { IDbRecord, IDbRecordBase, IIndexableEntity, OmittedEntity, EntityIdKeys } from './types/entity-types';
-export { IDbSet, IDbSetBase, EntityAndTag, IStatefulDbSet as IStoreDbSet, IStoreDbSetProps } from './types/dbset-types';
+export { IDbSet, IDbSetBase, EntityAndTag, IDbSetApi } from './types/dbset-types';
 export { IdKeys, DeepPartial, DeepOmit, DeepKeyOf, DeepReadOnly } from './types/common-types';
 export { SaveResult } from './common/SaveResult';
 export { Transaction } from './common/Transaction';
@@ -14,4 +13,4 @@ export { IBulkOperation, IBulkOperationsResponse, IDbPlugin, IValidationResult, 
 export { contextBuilder } from './context/builder/context-builder';
 export { DbPlugin } from './plugin/DbPlugin';
 export { stringifyCircular } from './common/helpers';
-export { s, InferType } from './schema';
+export { s, InferType, SchemaTypes, SchemaDefinition, SchemaBase, ExpandedSchema } from './schema';

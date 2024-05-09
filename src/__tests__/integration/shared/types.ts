@@ -1,4 +1,5 @@
 import { IDbRecord } from "../../../../src/types/entity-types";
+import { s, InferType, SchemaTypes } from "../../../../src/schema";
 
 export enum DocumentTypes {
     Notes = "Notes",

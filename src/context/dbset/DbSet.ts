@@ -1,7 +1,7 @@
 import { AdapterFactory } from '../../adapters/AdapterFactory';
 import { IDbSetFetchAdapter, IDbSetGeneralAdapter, IDbSetModificationAdapter } from '../../types/adapter-types';
 import { EntitySelector } from '../../types/common-types';
-import { IDbSetProps, DbSetType, DbSetSubscriptionCallback, IDbSet, DbSetCacheConfiguration, DbSetTtlCacheConfiguration } from '../../types/dbset-types';
+import { IDbSetProps, DbSetType, DbSetSubscriptionCallback, IDbSet, DbSetTtlCacheConfiguration } from '../../types/dbset-types';
 import { IDbRecord, OmittedEntity, IDbRecordBase } from '../../types/entity-types';
 import { ChangeTrackingFactory } from '../../adapters/change-tracking/ChangeTrackingFactory';
 import { ContextOptions, IPrivateContext } from '../../types/context-types';
@@ -22,7 +22,7 @@ export class DbSet<TDocumentType extends string, TEntity extends IDbRecord<TDocu
     readonly changeTracker: IDbSetChangeTracker<TEntity["DocumentType"], TEntity, TExclusions>;
     private readonly _documentType: TEntity["DocumentType"];
     private readonly _contextOptions: ContextOptions;
-    private readonly _schemaCache: SchemaDataStore<TDocumentType, TEntity, TExclusions>;
+    readonly schemaCache: SchemaDataStore<TDocumentType, TEntity, TExclusions>;
 
     protected getDbSetType(): DbSetType {
         return "default";
@@ -52,16 +52,16 @@ export class DbSet<TDocumentType extends string, TEntity extends IDbRecord<TDocu
 
         const api = context._getApi();
         this.dbPlugin = api.dbPlugin;
-        this._schemaCache = new SchemaDataStore<TDocumentType, TEntity, TExclusions>(props.context.contextId(), props.documentType, props.schema);
+        this.schemaCache = new SchemaDataStore<TDocumentType, TEntity, TExclusions>(props.context.contextId(), props.documentType, props.schema);
         this._contextOptions = api.contextOptions;
         this._documentType = props.documentType;
         const dbPlugin = api.dbPlugin as IDbPlugin<TDocumentType, TEntity, TExclusions>;
 
-        const changeTrackingFactory = new ChangeTrackingFactory<TDocumentType, TEntity, TExclusions, TDbPlugin>(props, this.dbPlugin, api.contextId, this._schemaCache, api.contextOptions.environment ?? "development");
+        const changeTrackingFactory = new ChangeTrackingFactory<TDocumentType, TEntity, TExclusions, TDbPlugin>(props, this.dbPlugin, api.contextId, this.schemaCache, api.contextOptions.environment ?? "development");
 
         this.changeTracker = changeTrackingFactory.getTracker();
 
-        const adapterFactory = new AdapterFactory<TDocumentType, TEntity, TExclusions, TDbPlugin>(props, this.types.dbsetType, dbPlugin.idPropertyName, this.changeTracker, this._schemaCache);
+        const adapterFactory = new AdapterFactory<TDocumentType, TEntity, TExclusions, TDbPlugin>(props, this.types.dbsetType, dbPlugin.idPropertyName, this.changeTracker, this.schemaCache);
 
         this._fetchAdapter = adapterFactory.createFetchMediator();
         this._generalAdapter = adapterFactory.createGeneralAdapter();
@@ -75,7 +75,7 @@ export class DbSet<TDocumentType extends string, TEntity extends IDbRecord<TDocu
         MonitoringMixin.register(`DbSet:${this._documentType}`, this._contextOptions, instance, DbSet as any, methodNames);
     }
 
-    useCache(configuration: DbSetCacheConfiguration | DbSetTtlCacheConfiguration) {
+    useCache(configuration?: DbSetTtlCacheConfiguration) {
         this._fetchAdapter.useCache(configuration);
         return this;
     }

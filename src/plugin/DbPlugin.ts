@@ -2,6 +2,7 @@ import { IDbRecord } from "../types/entity-types";
 import { groupBy } from "../common/helpers";
 import { IValidationResult, IDbPlugin, IQueryParams, IBulkOperationsResponse, DbPluginOperations } from "../types/plugin-types";
 import { Transactions } from "../common/Transactions";
+import { IDictionary, DeepPartial } from "../types/common-types";
 
 export abstract class DbPlugin<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase = never> implements IDbPlugin<TDocumentType, TEntityBase, TExclusions> {
     
@@ -9,9 +10,9 @@ export abstract class DbPlugin<TDocumentType extends string, TEntityBase extends
     readonly abstract idPropertyName: keyof TEntityBase;
     readonly abstract types: { exclusions: TExclusions }
     abstract destroy(): Promise<void>;
-    abstract all(payload?: IQueryParams<TDocumentType>): Promise<TEntityBase[]>;
+    abstract all(payload?: IQueryParams<TDocumentType, TEntityBase>): Promise<TEntityBase[]>;
     abstract get(DocumentType: TDocumentType, ...ids: string[]): Promise<TEntityBase[]>;
-    abstract bulkOperations(operations: { adds: TEntityBase[], removes: TEntityBase[], updates: TEntityBase[] }, transactions: Transactions): Promise<IBulkOperationsResponse>;
+    abstract bulkOperations(operations: { adds: TEntityBase[], removes: TEntityBase[], updates: { data: TEntityBase[], deltas: IDictionary<DeepPartial<TEntityBase>>; } }, transactions: Transactions): Promise<IBulkOperationsResponse>;
     readonly abstract skip: (keyof TEntityBase )[]
     
     /**

@@ -22,7 +22,7 @@ export interface IDbSetBuilderParams<TDocumentType extends string, TEntity exten
     entityComparator: EntityComparator<TDocumentType, TEntity> | null;
     idCreator: CustomIdCreator<TDocumentType, TEntity>;
     enhancer?: EntityEnhancer<TDocumentType, TEntity>;
-    schema?: SchemaDefinition<TDocumentType, any>;
+    schema: SchemaDefinition<TDocumentType, {}>;
 }
 
 

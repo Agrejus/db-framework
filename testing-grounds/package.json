@@ -1,0 +1,21 @@
+{
+  "name": "testing-grounds",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@agrejus/db-framework": "file:../",
+    "@agrejus/db-framework-plugin-pouchdb": "file:../plugins/pouchdb",
+    "@agrejus/db-framework-plugin-postgresql": "file:../plugins/postgresql"
+  },
+  "dependencies": {
+  }
+}

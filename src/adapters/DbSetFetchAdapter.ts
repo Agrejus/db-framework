@@ -41,7 +41,7 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
         this._cacheMediator.clear(...keys);
     }
 
-    private async _all() {
+    private async _all(selector?: EntitySelector<TDocumentType, TEntity>) {
         return await this._cacheMediator.resolve(() => this.api.dbPlugin.all({ DocumentType: this.documentType }), this._cacheOptions)
     }
 
@@ -93,7 +93,6 @@ export class DbSetFetchAdapter<TDocumentType extends string, TEntity extends IDb
 
     async find(selector: EntitySelector<TDocumentType, TEntity>) {
         const data = await this.applyBaseFilter(() => this._all());
-
         const found = data.find(selector);
 
         if (found == null) {

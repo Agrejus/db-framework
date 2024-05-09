@@ -27,10 +27,10 @@
         "name": "Run Testing Grounds",
         "type": "node",
         "request": "launch",
-        "runtimeExecutable": "node",
+        "runtimeExecutable": "/var/home/jdemeuse/.nvm/versions/node/v14.19.1/bin/node",
         "runtimeArgs": ["--nolazy", "-r", "ts-node/register/transpile-only"],
 
-        "args": ["performance/tests/testing-grounds.ts"],
+        "args": ["testing-grounds/tests/postgresql.ts"],
 
         "cwd": "${workspaceRoot}",
         "internalConsoleOptions": "openOnSessionStart",

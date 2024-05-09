@@ -1,3 +1,5 @@
+import { SchemaDataStore } from "../cache/SchemaDataStore";
+import { DbSetCollection } from "../common/DbSetCollection";
 import { SchemaDefinition } from "../schema/types/Definition";
 import { IDbSetChangeTracker } from "./change-tracking-types";
 import { DbSetPickDefaultActionRequired, EntityComparator, EntitySelector, GenericSelector, TagsCollection } from "./common-types";
@@ -233,16 +235,18 @@ export interface IDbSetApi<TDocumentType extends string, TEntityBase extends IDb
     dbPlugin: TDbPlugin;
     contextOptions: ContextOptions;
     readonly contextId: string;
+    dbsets: DbSetCollection<TDocumentType, TEntityBase, TExclusions, TDbPlugin>;
     tag(id: TEntityBase[keyof TEntityBase], value: unknown): void;
     registerOnBeforeSaveChanges: (documentType: TDocumentType, onBeforeSaveChanges: (getChanges: <T extends SaveChangesEventData<TDocumentType, TEntityBase>>() => T) => Promise<void>) => void;
     registerOnAfterSaveChanges: (documentType: TDocumentType, onAfterSaveChanges: (getChanges: <T extends SaveChangesEventData<TDocumentType, TEntityBase>>() => T) => Promise<void>) => void;
 }
 
 export interface IDbSetInfo<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> {
-    DocumentType: TDocumentType,
-    Defaults: DbSetPickDefaultActionRequired<TDocumentType, TEntity, TExclusions>,
+    DocumentType: TDocumentType;
+    Defaults: DbSetPickDefaultActionRequired<TDocumentType, TEntity, TExclusions>;
     Readonly: boolean;
-    ChangeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>
+    ChangeTracker: IDbSetChangeTracker<TDocumentType, TEntity, TExclusions>;
+    SchemaDataStore: SchemaDataStore<TDocumentType, TEntity, TExclusions>;
 }
 
 export interface IStoreDbSetProps<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntity> extends IDbSetProps<TDocumentType, TEntity, TExclusions> {
@@ -266,7 +270,7 @@ export interface IDbSetProps<TDocumentType extends string, TEntity extends IDbRe
     serializer: Serializer<TDocumentType, TEntity> | null;
     deserializer: Deserializer<TDocumentType, TEntity> | null;
     enhancer?: EntityEnhancer<TDocumentType, TEntity>;
-    schema?: SchemaDefinition<TDocumentType, any>;
+    schema: SchemaDefinition<TDocumentType, any>;
 }
 
 export type DbSetType = "default" | "stateful";

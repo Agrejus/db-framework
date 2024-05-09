@@ -4,7 +4,7 @@ import findAdapter from 'pouchdb-find';
 import memoryAdapter from 'pouchdb-adapter-memory';
 import { validateAttachedEntity } from './validator';
 import { IPouchDbPluginOptions, PouchDbRecord } from './types';
-import { Transaction } from './Transaction';
+import { RetryTransaction } from './RetryTransaction';
 
 PouchDB.plugin(findAdapter);
 PouchDB.plugin(memoryAdapter);
@@ -30,7 +30,7 @@ export class PouchDbPlugin<TDocumentType extends string, TEntityBase extends Pou
 
     private async _processTransaction<T>(action: (db: PouchDB.Database<TEntityBase>) => Promise<T>): Promise<{ result: T, db: PouchDB.Database<TEntityBase> }> {
         return new Promise<{ result: T, db: PouchDB.Database<TEntityBase> }>((resolve, reject) => {
-            const transaction = new Transaction(resolve, reject, action, this.createDb.bind(this));
+            const transaction = new RetryTransaction(resolve, reject, action, this.createDb.bind(this));
             transaction.execute();
         });
     }

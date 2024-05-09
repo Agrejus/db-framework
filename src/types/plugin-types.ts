@@ -1,10 +1,11 @@
 import { Transactions } from '../common/Transactions';
-import { groupBy, toDictionary } from '../common/helpers';
 import { IDbRecord } from '../types/entity-types'
+import { DeepPartial, EntitySelector, IDictionary } from './common-types';
 
-export interface IQueryParams<TDocumentType extends string> {
+export interface IQueryParams<TDocumentType extends string, TEntity extends IDbRecord<TDocumentType>> {
     DocumentType?: TDocumentType;
     index?: string;
+    selector?: EntitySelector<TDocumentType, TEntity>
 }
 
 export interface IBulkOperation {
@@ -25,12 +26,12 @@ export type DbPluginOperations = "add" | "remove";
 export interface IDbPlugin<TDocumentType extends string, TEntityBase extends IDbRecord<TDocumentType>, TExclusions extends keyof TEntityBase = never> {
     readonly idPropertyName: keyof TEntityBase;
     readonly types: { exclusions: TExclusions }
-    readonly skip: (keyof TEntityBase )[]
+    readonly skip: (keyof TEntityBase)[]
     destroy(): Promise<void>;
-    all(payload?: IQueryParams<TDocumentType>): Promise<TEntityBase[]>;
+    all(payload?: IQueryParams<TDocumentType, TEntityBase>): Promise<TEntityBase[]>;
     getStrict(DocumentType: TDocumentType, ...ids: string[]): Promise<TEntityBase[]>;
     get(DocumentType: TDocumentType, ...ids: string[]): Promise<TEntityBase[]>;
-    bulkOperations(operations: { adds: TEntityBase[], removes: TEntityBase[], updates: TEntityBase[] }, transactions: Transactions): Promise<IBulkOperationsResponse>;
+    bulkOperations(operations: { adds: TEntityBase[], removes: TEntityBase[], updates: { data: TEntityBase[], deltas: IDictionary<DeepPartial<TEntityBase>>; } }, transactions: Transactions): Promise<IBulkOperationsResponse>;
 
     prepareDetachments(...entities: TEntityBase[]): { ok: boolean, errors: string[], docs: TEntityBase[] }
     prepareAttachments(...entities: TEntityBase[]): Promise<{ ok: boolean, errors: string[], docs: TEntityBase[] }>;

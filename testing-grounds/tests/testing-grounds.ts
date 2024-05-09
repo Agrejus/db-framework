@@ -1,16 +1,8 @@
 
-import { DataContext } from "../../src/context/DataContext";
-import { IDbRecord } from "../../src/types/entity-types";
-import { PouchDbPlugin, PouchDbRecord } from "@agrejus/db-framework-plugin-pouchdb";
-import { IDbPluginOptions } from "../../src/types/plugin-types";
-import { contextBuilder } from "../../src/context/builder/context-builder";
-import { DbSetRemoteChanges } from "../../src/types/dbset-types";
-import { StatefulDataContext } from "../../src/context/StatefulDataContext";
+import { PouchDbRecord } from "@agrejus/db-framework-plugin-pouchdb";
 import { DbContextFactory, ExternalDataContext } from "../../src/__tests__/integration/shared/context";
 import { faker } from "@faker-js/faker";
-import PouchDB from 'pouchdb';
-import { shouldFilterEntitiesWithDefaults } from "../../src/__tests__/integration/shared/common-tests";
-import { LocalStorageDbRecord, LocalStorageDbPlugin } from "@agrejus/db-framework-plugin-local-storage";
+import { LocalStorageDbRecord } from "@agrejus/db-framework-plugin-local-storage";
 
 enum DocumentTypes {
     Notes = "Notes",
