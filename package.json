@@ -1,6 +1,6 @@
 {
   "name": "@agrejus/db-framework",
-  "version": "2.0.0-beta.0",
+  "version": "2.0.0-beta.1",
   "description": "JavaScript Data Interaction Layer modeled after .NET Entity Framework",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

@@ -1,7 +1,7 @@
 {
-  "name": "@agrejus/db-framework-plugin-postgresql",
-  "version": "1.0.0-beta.7",
-  "description": "PostgreSql Database plugin for DB Framework",
+  "name": "@agrejus/db-framework-plugin-mongodb",
+  "version": "1.0.0-beta.0",
+  "description": "MongoDB Database plugin for DB Framework",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "source": "./src/index.ts",
@@ -13,14 +13,13 @@
   },
   "author": "James DeMeuse <james.demeuse@gmail.com>",
   "license": "MIT",
-  "repository": "Agrejus/db-framework-plugin-postgresql",
+  "repository": "Agrejus/db-framework-plugin-mongodb",
   "keywords": [
-    "postgresql",
+    "mongodb",
     "orm",
     "typescript",
     "web",
-    "indexeddb",
-    "electron"
+    "indexeddb"
   ],
   "files": [
     "dist"
@@ -34,7 +33,6 @@
     "@types/jest": "^27.5.1",
     "@types/lodash": "^4.14.182",
     "@types/node": "^17.0.35",
-    "@types/pg": "^8.11.6",
     "babel-jest": "^28.1.0",
     "jest": "^28.1.0",
     "rimraf": "^5.0.5",
@@ -46,6 +44,6 @@
     "@agrejus/db-framework": "^2.0.0-beta.1"
   },
   "dependencies": {
-    "pg": "^8.11.5"
+    "mongoose": "^7.6.3"
   }
 }

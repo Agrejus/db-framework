@@ -1,15 +1,15 @@
-import { PostgreSqlRecord } from "./types";
+import { MongoDbRecord } from "./types";
 
-interface IValidationResult<TDocumentType extends string, TEntity extends PostgreSqlRecord<TDocumentType>> {
+interface IValidationResult<TDocumentType extends string, TEntity extends MongoDbRecord<TDocumentType>> {
     propertyName: keyof TEntity;
     ok: boolean;
     error: string;
     entity: TEntity
 }
 
-export const validateAttachedEntity = <TDocumentType extends string, TEntity extends PostgreSqlRecord<TDocumentType>>(entity: TEntity) => {
+export const validateAttachedEntity = <TDocumentType extends string, TEntity extends MongoDbRecord<TDocumentType>>(entity: TEntity) => {
 
-    const properties: (keyof TEntity)[] = ["id", "DocumentType"];
+    const properties: (keyof TEntity)[] = ["id", "timestamp", "DocumentType"];
 
     return properties.map(w => {
         const value = entity[w];

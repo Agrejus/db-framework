@@ -1,4 +1,4 @@
-import { IDbPlugin, IBulkOperationsResponse, IQueryParams, DbPluginOperations, Transactions, IDbSetApi, DeepPartial } from '@agrejus/db-framework';
+import { IDbPlugin, IBulkOperationsResponse, IQueryParams, DbPluginOperations, Transactions, IDbSetApi, DeepPartial, IDictionary } from '@agrejus/db-framework';
 import { validateAttachedEntity } from './validator';
 import { PostgreSqlRecord, IPostgreSqlPluginOptions } from './types';
 import pg from 'pg'
@@ -7,20 +7,19 @@ import { SqlDeleteStatement } from './sql/SqlDeleteStatement';
 import { SqlSelectStatement } from './sql/SqlSelectStatement';
 import { SqlUpdateStatement } from './sql/SqlUpdateStatement';
 import { SqlBulkSelectStatement } from './sql/SqlBulkSelectStatement';
-import { IDictionary } from '../../../dist/types/common-types';
 import { booleanParser, integerParser, floatParser } from './parsers';
-const { Client, types } = pg
+const { Pool, types } = pg
 
-export class PostgreSqlPlugin<TDocumentType extends string, TEntityBase extends PostgreSqlRecord<TDocumentType>, TDbPluginOptions extends IPostgreSqlPluginOptions = IPostgreSqlPluginOptions> implements IDbPlugin<TDocumentType, TEntityBase, "id" | "timestamp"> {
+export class PostgreSqlPlugin<TDocumentType extends string, TEntityBase extends PostgreSqlRecord<TDocumentType>, TDbPluginOptions extends IPostgreSqlPluginOptions = IPostgreSqlPluginOptions> implements IDbPlugin<TDocumentType, TEntityBase, "id"> {
 
     protected readonly options: TDbPluginOptions;
     readonly idPropertyName = "id";
-    readonly skip: (keyof TEntityBase)[] = ["id", "timestamp"];
+    readonly skip: (keyof TEntityBase)[] = ["id"];
     private readonly _api: IDbSetApi<TDocumentType, TEntityBase, any, any>;
     private readonly _connectionString: string;
 
     readonly types = {
-        exclusions: "" as "id" | "timestamp"
+        exclusions: "" as "id"
     }
 
     constructor(options: TDbPluginOptions, api: IDbSetApi<TDocumentType, TEntityBase, any, any>) {
@@ -47,7 +46,9 @@ export class PostgreSqlPlugin<TDocumentType extends string, TEntityBase extends 
         const select = new SqlSelectStatement<TDocumentType, TEntityBase>({ DocumentType: documentType } as TEntityBase, this._api);
         const sql = select.create();
 
+        const s = performance.now();
         const response = await this.doWork(w => w.query(sql.statement, sql.parameters));
+        console.log('doWork took', performance.now() - s);
 
         return response.rows.map(w => ({ ...w, DocumentType: documentType })) as TEntityBase[];
     }
@@ -64,23 +65,30 @@ export class PostgreSqlPlugin<TDocumentType extends string, TEntityBase extends 
             return result;
         }
 
-        return await this._allByDocumentType(payload.DocumentType as TDocumentType);
+        const s = performance.now();
+        const result = await this._allByDocumentType(payload.DocumentType as TDocumentType);
+        console.log('all took', performance.now() - s);
+        return result;
     }
 
-    async doWork<T>(action: (client: pg.Client) => Promise<T>) {
-        const client = new Client({
+    async doWork<T>(action: (client: pg.PoolClient) => Promise<T>) {
+        const pool = new Pool({
             connectionString: this._connectionString
-        })
+        });
+
+        const s1 = performance.now()
+        const client = await pool.connect();
+        console.log('connection took', performance.now() - s1);
 
         try {
-
-            await client.connect();
-
-            return await action(client);
-        } catch (e: any) {
-            throw e
+            const s = performance.now();
+            const result = await action(client);
+            console.log('query took', performance.now() - s);
+            return result;
+        } catch (e) {
+            throw e;
         } finally {
-            await client.end();
+            client.release();
         }
     }
 
@@ -268,50 +276,14 @@ export class PostgreSqlPlugin<TDocumentType extends string, TEntityBase extends 
             return result;
         }
 
-        const entityMap = entities.reduce((a, v) => {
-
-            if (a[v.DocumentType] == null) {
-                a[v.DocumentType] = [];
-            }
-
-            a[v.DocumentType].push(v);
-
-            return a;
-
-        }, {} as { [key in TDocumentType]: TEntityBase[] })
-        const foundAll = await Promise.all(Object.keys(entityMap).map((w: TDocumentType) => this.getStrict(w, ...entityMap[w].map(w => w.id))));
-        const found = foundAll.reduce((a, v) => a.concat(v), []);
-        const foundDictionary = found.reduce((a, v) => ({ ...a, [v.id]: v.timestamp }), {} as { [key: string]: any });
-        result.docs = entities.map(w => ({ ...w, timestamp: foundDictionary[w.id] } as TEntityBase));
-
         return result;
     }
 
-    private _isAdditionAllowed(entity: TEntityBase) {
-        const indexableEntity = entity as any;
-
-        // cannot add an entity that already has a timestamp, means its in the database already
-        if (!!indexableEntity["timestamp"]) {
-            return {
-                ok: false,
-                error: "Cannot add entity that is already in the database, please modify entites by reference or attach an existing entity"
-            }
-        }
-
+    private _isAdditionAllowed(_: TEntityBase) {
         return { ok: true };
     }
 
-    private _isRemovalAllowed(entity: TEntityBase) {
-        const indexableEntity = entity as any;
-
-        // cannot add an entity that already has a timestamp, means its in the database already
-        if (!indexableEntity["timestamp"]) {
-            return {
-                ok: false,
-                error: "Cannot remove entity that is not in the database, please supply timestamp property"
-            }
-        }
-
+    private _isRemovalAllowed(_: TEntityBase) {
         return { ok: true };
     }
 

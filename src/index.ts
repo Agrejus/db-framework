@@ -5,7 +5,7 @@ export { DefaultDbSetBuilder } from './context/dbset/builders/DefaultDbSetBuilde
 export { IDataContext, ContextOptions, MonitoringOptions } from './types/context-types';
 export { IDbRecord, IDbRecordBase, IIndexableEntity, OmittedEntity, EntityIdKeys } from './types/entity-types';
 export { IDbSet, IDbSetBase, EntityAndTag, IDbSetApi } from './types/dbset-types';
-export { IdKeys, DeepPartial, DeepOmit, DeepKeyOf, DeepReadOnly } from './types/common-types';
+export { IdKeys, DeepPartial, DeepOmit, DeepKeyOf, DeepReadOnly, IDictionary } from './types/common-types';
 export { SaveResult } from './common/SaveResult';
 export { Transaction } from './common/Transaction';
 export { Transactions } from './common/Transactions';

@@ -30,7 +30,7 @@
         "runtimeExecutable": "/var/home/jdemeuse/.nvm/versions/node/v14.19.1/bin/node",
         "runtimeArgs": ["--nolazy", "-r", "ts-node/register/transpile-only"],
 
-        "args": ["testing-grounds/tests/postgresql.ts"],
+        "args": ["testing-grounds/tests/mongodb.ts"],
 
         "cwd": "${workspaceRoot}",
         "internalConsoleOptions": "openOnSessionStart",
