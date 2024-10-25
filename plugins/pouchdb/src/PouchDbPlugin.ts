@@ -49,7 +49,7 @@ export class PouchDbPlugin<TDocumentType extends string, TEntityBase extends Pou
         return await this.doWork(w => w.destroy(), false);
     }
 
-    async all(payload?: IQueryParams<TDocumentType>) {
+    async all(payload?: IQueryParams<TDocumentType, TEntityBase>) {
         const result = await this.doWork(w => {
             try {
                 const findOptions: PouchDB.Find.FindRequest<TEntityBase> = {
