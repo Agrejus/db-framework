@@ -1,1 +1,0 @@
-export { MemoryDbPlugin } from './MemoryDbPlugin';

@@ -1,1 +1,0 @@
-# db-framework-plugin-pouchdb

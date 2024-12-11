@@ -2,6 +2,7 @@
 *-db*/ 
 __PEF*
 /dist/
+dist
 *PEF-REFERENCE*
 *-db
 node_modules/

@@ -1,56 +1,14 @@
 {
-  "name": "@agrejus/db-framework",
-  "version": "1.1.1",
-  "description": "JavaScript Data Interaction Layer modeled after .NET Entity Framework",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "source": "./src/index.ts",
+  "name": "db-framework-v2",
+  "version": "1.0.0",
+  "main": "index.js",
   "scripts": {
-    "test": "jest --runInBand --silent --no-cache",
-    "build": "npm run clean && tsc",
-    "build:ci": "tsc",
-    "clean": "./node_modules/.bin/rimraf ./dist/*",
-    "performance": "ts-node ./performance/tests/performance.ts",
-    "test-grounds": "ts-node ./performance/tests/testing-grounds.ts"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "James DeMeuse <james.demeuse@gmail.com>",
-  "license": "MIT",
-  "repository": "Agrejus/db-framework",
-  "keywords": [
-    "orm",
-    "typescript",
-    "web",
-    "indexeddb",
-    "electron",
-    "data access layer",
-    "entities",
-    "entity framework",
-    "database"
-  ],
-  "files": [
-    "dist"
-  ],
-  "devDependencies": {
-    "@agrejus/db-framework-plugin-pouchdb": "file:./plugins/pouchdb",
-    "@babel/preset-env": "^7.18.0",
-    "@babel/preset-typescript": "^7.17.12",
-    "@faker-js/faker": "^7.1.0",
-    "@jest/types": "^28.1.0",
-    "@types/jest": "^27.5.1",
-    "@types/node": "^17.0.35",
-    "@types/pouchdb": "^6.4.2",
-    "@types/uuid": "^8.3.4",
-    "babel-jest": "^28.1.0",
-    "cross-env": "^7.0.3",
-    "directory-tree": "^3.3.0",
-    "jest": "^28.1.0",
-    "pouchdb": "^8.0.1",
-    "rimraf": "^3.0.2",
-    "ts-jest": "^28.0.2",
-    "ts-node": "^10.8.0",
-    "typescript": "5.0.2"
-  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
   "dependencies": {
-    "uuid": "^8.3.2"
+    "ts-node": "^10.9.2"
   }
 }

@@ -1,5 +1,5 @@
 {
-  "name": "@agrejus/db-framework-plugin-pouchdb",
+  "name": "@agrejus/db-framework-core",
   "version": "1.0.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -10,12 +10,7 @@
   "author": "",
   "license": "ISC",
   "description": "",
-  "dependencies": {
-    "@agrejus/db-framework-core": "file://../../core",
-    "pouchdb": "^9.0.0",
-    "pouchdb-find": "^9.0.0"
-  },
   "devDependencies": {
-    "@types/pouchdb": "^6.4.2"
+    "typescript": "^5.7.2"
   }
 }

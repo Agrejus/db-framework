@@ -1,36 +1,28 @@
 {
     "version": "0.2.0",
     "configurations": [
+
       {
-        "name": "Launch Program",
-        "program": "${workspaceFolder}/app.js",
-        "request": "launch",
-        "skipFiles": [
-          "<node_internals>/**"
-        ],
-        "type": "node"
-      },
-      {
-        "name": "Run Performance Test",
+        "name": "Run Testing Grounds",
         "type": "node",
         "request": "launch",
-        "runtimeExecutable": "node",
+        "runtimeExecutable": "/var/home/jdemeuse/.nvm/versions/node/v14.19.1/bin/node",
         "runtimeArgs": ["--nolazy", "-r", "ts-node/register/transpile-only"],
 
-        "args": ["performance/tests/${fileBasename}"],
+        "args": ["framework/playground/index.ts"],
 
         "cwd": "${workspaceRoot}",
         "internalConsoleOptions": "openOnSessionStart",
         "skipFiles": ["<node_internals>/**", "node_modules/**"]
       },
       {
-        "name": "Run Testing Grounds",
+        "name": "Run Example",
         "type": "node",
         "request": "launch",
-        "runtimeExecutable": "node",
+        "runtimeExecutable": "/var/home/jdemeuse/.nvm/versions/node/v14.19.1/bin/node",
         "runtimeArgs": ["--nolazy", "-r", "ts-node/register/transpile-only"],
 
-        "args": ["performance/tests/testing-grounds.ts"],
+        "args": ["example/src/index.ts"],
 
         "cwd": "${workspaceRoot}",
         "internalConsoleOptions": "openOnSessionStart",
