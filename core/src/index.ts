@@ -14,13 +14,14 @@ export {
 
 export {
     DeepPartial,
-    IdType,
-    EntityChanges,
-    EntityModificationResult
+    IdType
 } from './types';
 
 export {
-    IDbPlugin
+    IDbPlugin,
+    EntityChanges,
+    EntityModificationResult,
+    IAdditonsPayload
 } from './plugins/types';
 
 export {

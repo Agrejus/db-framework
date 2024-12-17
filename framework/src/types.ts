@@ -2,9 +2,8 @@ import { IdType, NonNullEntity } from "@agrejus/db-framework-core";
 
 export type EntitySelector<T extends {}> = (entity:  NonNullEntity<T>, index?: number, array?:  NonNullEntity<T>[]) => boolean;
 export type EntityParamsSelector<T extends {}, P> = (payload: [NonNullEntity<T>, P], index?: number, array?:  NonNullEntity<T>[]) => boolean;
-export type EntityResolveOne<T extends {}> = (entity: NonNullEntity<T> | null) => void;
-export type EntityResolveMany<T extends {}> = (entities: NonNullEntity<T>[]) => void;
-export type ErrorCallback = (error: any) => void;
+export type EntityCallbackOne<T extends {}> = (entity: NonNullEntity<T> | null, error?: any) => void;
+export type EntityCallbackMany<T extends {}> = (entities: NonNullEntity<T>[], error?: any) => void;
 
 export type Enricher<T extends {}> = (instance: T) => void;
 export type IdGetter<T extends {}> = (instance: T) => IdType;

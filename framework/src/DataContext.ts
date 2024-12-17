@@ -1,5 +1,6 @@
 import { CompiledSchema, IDbPlugin, toMap } from '@agrejus/db-framework-core';
 import { DbSet } from './DbSet';
+import { performance } from 'perf_hooks';
 
 export class DataContext {
 
@@ -19,43 +20,44 @@ export class DataContext {
         return dbset;
     }
 
-    saveChanges(resolve: (result: number) => void, reject: (error?: any) => void) {
+    saveChanges(done: (result: number, error?: any) => void) {
 
         let success_count = 0;
+        const errors: any[] = [];
+        const size = this._dbsets.size;
+        let completedCounter = 0;
+
+        const s = performance.now();
         for (const [, dbset] of this._dbsets) {
 
-            // prepare is removing the ref, we cannot do that
-            // rename prepare to presave
-            // presave - run any serializers, and delete computed/functions off object, do not strip by making a new ref
-            const changes = dbset.getChanges();
+            dbset.changeTracker.saveChanges((r, e) => {
 
-            const beforeSaveAdds = toMap(changes.adds, w => dbset.schema.hash(w));
+                success_count += r;
 
-            this._dbPlugin.bulkOperations<any>(dbset.schema, {
-                adds: changes.adds.map(w => dbset.schema.prepare(w)),
-                removes: changes.removes,
-                updates: changes.updates
-            }, ({ adds, removedCount, updates }) => {
-                // need to merge adds with data sent in
-                for(let i = 0; i < adds.length; i++) {
-                    const add = adds[i];
-                    const hash = dbset.schema.hash(add);
-                    const found = beforeSaveAdds.get(hash);
-
-                    dbset.schema.merge(found, add);
+                if (e != null) {
+                    errors.push(e);
                 }
 
+                completedCounter++;
 
-                success_count += (adds.length + removedCount + updates.length);
-
-                resolve(success_count);
-            }, reject);
+                if (completedCounter == size) {
+                    console.log(performance.now() - s)
+                    done(success_count, errors.length == 0 ? null : errors);
+                }
+            });
         }
     }
 
     saveChangesAsync() {
         return new Promise<number>((resolve, reject) => {
-            this.saveChanges(resolve, reject)
+            this.saveChanges((r, e) => {
+                if (e != null) {
+                    reject(e);
+                    return;
+                }
+
+                resolve(r);
+            })
         });
     }
 

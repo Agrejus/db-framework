@@ -2,6 +2,7 @@ import PouchDB from 'pouchdb';
 import { CompiledSchema, EntityChanges, EntityModificationResult, Expression, IDbPlugin, IdType } from '@agrejus/db-framework-core';
 import { toMango } from './expression/resolver';
 import findAdapter from 'pouchdb-find';
+import { performance } from 'perf_hooks';
 
 PouchDB.plugin(findAdapter);
 
@@ -15,160 +16,187 @@ export class PouchDbPlugin implements IDbPlugin {
         this._options = options;
     }
 
-    bulkOperations<T extends {}>(schema: CompiledSchema<T>, operations: EntityChanges<T>, resolve: (result: EntityModificationResult<T>) => void, reject: (error?: any) => void): void {
-        this.doWork((w, res, rej) => {
+    private _identityBulkOperations<T extends {}>(operations: EntityChanges<T>, done: (result: EntityModificationResult<T>, error?: any) => void): void {
+        const result: EntityModificationResult<T> = {
+            adds: [],
+            removedCount: 0,
+            updates: []
+        }
+        const errors: any[] = [];
+
+        this.doWork((w, d) => {
             try {
 
+                // if the schema hash any identitys, then we need to reselect, otherwise we can skip and be faster!
+
                 const { adds } = operations;
-                const result: EntityModificationResult<T> = {
-                    adds: [],
-                    removedCount: 0,
-                    updates: []
-                }
-                const errors: string[] = [];
 
                 w.bulkDocs([...adds], null, (error, response) => {
-        
+
                     if (error) {
-                        rej(error);
-                        return;
+                        errors.push(error);
                     }
 
                     const ids: IdType[] = [];
-                    response.forEach(w => {
-    
-                        if ("error" in w && "id" in w) {
-    
-                            const reason = w.reason ?? w.error;
-    
+                    for (let i = 0; i < response.length; i++) {
+                        const item = response[i];
+
+                        if ("error" in item) {
+
+                            const reason = item.reason ?? item.error;
+
                             if (reason) {
                                 errors.push(reason.toString())
                             }
                             return;
                         }
-    
-                        if (w.id) {
-                            ids.push(w.id);
-                        }
-                    });
 
-                    if (errors.length > 0) {
-                        rej(errors.join('\r\n'))
-                        return;
+                        ids.push(item.id);
                     }
-    
+
                     w.bulkGet<T>({
                         docs: ids.map(w => ({ id: w as string }))
                     }, (error, bulkGetResponse) => {
 
                         if (error) {
-                            rej(error);
+                            errors.push(error);
+                        }
+
+                        for (let i = 0; i < bulkGetResponse.results.length; i++) {
+                            const item = bulkGetResponse.results[i];
+                            if ("docs" in item && "id" in item && item.docs.length > 0) {
+                                const doc = item.docs[0];
+                                if ("ok" in doc) {
+                                    result.adds.push(doc.ok as any)
+                                }
+                                continue;
+                            }
+
+                        }
+                        d(result, errors.length > 0 ? errors : null)
+                    });
+
+                });
+            } catch (e) {
+                d(result, errors)
+            }
+        }, done);
+    }
+
+    private _defaultBulkOperations<T extends {}>(operations: EntityChanges<T>, done: (result: EntityModificationResult<T>, error?: any) => void): void {
+
+        const result: EntityModificationResult<T> = {
+            adds: [],
+            removedCount: 0,
+            updates: []
+        }
+
+        this.doWork((w, d) => {
+            try {
+
+                const { adds } = operations;
+
+                const errors: any[] = [];
+
+                w.bulkDocs([...adds], null, (error, response) => {
+
+                    if (error != null) {
+                        errors.push(error)
+                    }
+
+                    for (let i = 0; i < response.length; i++) {
+                        const item = response[i];
+
+                        if ("error" in item) {
+
+                            const reason = item.reason ?? item.error;
+
+                            if (reason) {
+                                errors.push(reason.toString())
+                            }
                             return;
                         }
 
-                        result.adds = bulkGetResponse.results.map(x => {
+                        result.adds.push({
+                            _id: item.id,
+                            _rev: item.rev
+                        } as any)
+                    }
 
-                            if ("ok" in x.docs[0]) {
-                                return x.docs[0].ok;
-                            }
-                             return null
-                        }).filter(w => w != null);
-    
-                        res(result);
-                    });
-    
+                    d(result, errors.length > 0 ? errors : null)
+
                 });
             } catch (e) {
-                rej(e)
+                d(result, e)
             }
-        }, resolve, reject);
+        }, done);
     }
 
-    doWork<TResult, TEntity>(action: (db: PouchDB.Database<TEntity>, resolve: (result: TResult) => void, reject: (error?: any) => void) => void, resolve: (result: TResult) => void, reject: (error?: any) => void, shouldClose: boolean = true) {
+    bulkOperations<T extends {}>(schema: CompiledSchema<T>, operations: EntityChanges<T>, done: (result: EntityModificationResult<T>, error?: any) => void) {
+
+        if (schema.idPropertyNames.length > 1) {
+            throw new Error("PouchDB cannot have more than one key per document.  Only '_id' is allowed to be the key")
+        }
+
+        if (schema.hasIdentityKeys === true) {
+            this._identityBulkOperations(operations, done);
+            return;
+        }
+
+        this._defaultBulkOperations(operations, done);
+    }
+
+    doWork<TResult, TEntity>(action: (db: PouchDB.Database<TEntity>, done: (result: TResult, error?: any) => void) => void, done: (result: TResult, error?: any) => void, shouldClose: boolean = true) {
         const db = new PouchDB<TEntity>(this._name, this._options);
 
-        action(db, result => {
-     
+        action(db, (result, error) => {
             if (shouldClose) {
-                db.close(() => resolve(result));
+                db.close(() => done(result, error));
                 return
             }
 
-            resolve(result)
-        }, error => {
- 
-            if (shouldClose) {
-                db.close(() => reject(error));
-                return
-            }
-
-            reject(error)
+            done(result, error);
         })
     }
 
-    destroy(resolve: () => void, reject: (error?: any) => void): void {
-        this.doWork(w => {
-            w.destroy(null, (e) => {
-                if (e) {
-                    reject(e);
-                    return;
-                }
-
-                resolve();
-            });
-        }, resolve, reject);
+    destroy(done: (error?: any) => void): void {
+        this.doWork((w, d) => {
+            w.destroy(null, d);
+        }, done);
     }
 
-    query<TEntity extends {}>(expression: Expression, resolve: (entities: TEntity[]) => void, reject: (error?: any) => void): void {
+    query<TEntity extends {}>(expression: Expression, done: (entities: TEntity[], error?: any) => void): void {
         const selector = toMango(expression);
-        this.doWork((w, res, rej) => {
+        this.doWork((w, d) => {
             w.find({
                 selector: selector
             }, (error, result) => {
-
-                if (error) {
-                    rej(error);
-                    return;
-                }
-
-                res((result.docs as any) as TEntity[])
+                d((result.docs as any) as TEntity[], error)
             });
-        }, resolve, reject);
+        }, done);
     }
 
-    all<TEntity extends {}>(tableName: string, resolve: (entities: TEntity[]) => void, reject: (error?: any) => void): void {
-        this.doWork((w, res, rej) => {
+    all<TEntity extends {}>(tableName: string, done: (entities: TEntity[], error?: any) => void): void {
+        this.doWork((w, d) => {
             w.find({
                 selector: {
                     documentType: tableName
                 }
             }, (error, result) => {
-
-                if (error) {
-                    rej(error);
-                    return;
-                }
-
-                res((result.docs as any) as TEntity[])
+                d((result.docs as any) as TEntity[], error)
             });
-        }, resolve, reject);
+        }, done);
     }
 
-    get<TEntity extends {}>(tableName: string, ids: string[], resolve: (entities: TEntity[]) => void, reject: (error?: any) => void): void {
-        this.doWork((w, res, rej) => {
+    get<TEntity extends {}>(tableName: string, ids: string[], done: (entities: TEntity[], error?: any) => void): void {
+        this.doWork((w, d) => {
             w.find({
                 selector: {
                     documentType: tableName
                 }
             }, (error, result) => {
-
-                if (error) {
-                    rej(error);
-                    return;
-                }
-
-                res((result.docs as any) as TEntity[])
+                d((result.docs as any) as TEntity[], error)
             });
-        }, resolve, reject);
+        }, done);
     }
 }

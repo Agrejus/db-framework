@@ -15,8 +15,6 @@ export class SchemaKey<T extends IdType, TModifiers extends SchemaModifiers> ext
         this.isKey = true;
     }
 
-    // will required a double save
-    // first save with known id, save entity, then remove known id in favor of generated id and save again
     identity() {
         return new SchemaIdentity<T, TModifiers | "identity">(this);
     }

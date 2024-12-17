@@ -23,11 +23,11 @@ export enum SchemaTypes {
     Computed = "Computed"
 }
 
-export type SchemaModifiers = "default" | "deserialize" | 
-"identity" | "key" | 
-"nullable" | "optional" | 
-"readonly" | "serialize" | 
-"unmapped" | "computed";
+export type SchemaModifiers = "default" | "deserialize" |
+    "identity" | "key" |
+    "nullable" | "optional" |
+    "readonly" | "serialize" |
+    "unmapped" | "computed";
 
 export const s = {
     number: <T extends number = number>() => new SchemaNumber<T, never>(),
@@ -55,19 +55,38 @@ export type ExpandedChildProperty = {
     isUnmapped: boolean;
 }
 
+export enum HashType {
+    Ids = "Ids",
+    Object = "Object"
+}
+
+export type HashFunction<TEntity extends {}> = {
+    (entity: NonNullCreateEntity<TEntity>, type: HashType.Object): string;
+    (entity: NonNullEntity<TEntity>, type: HashType.Ids): string;
+}
+
+export type GetHashTypeFunction<TEntity extends {}> = {
+    (entity: NonNullCreateEntity<TEntity>): HashType.Object;
+    (entity: NonNullEntity<TEntity>): HashType.Ids;
+}
 
 export type CompiledSchema<TEntity extends {}> = {
     clone: (entity: NonNullEntity<TEntity>) => NonNullEntity<TEntity>;
     strip: (entity: NonNullEntity<TEntity>) => NonNullEntity<TEntity>;
     prepare: (entity: NonNullCreateEntity<TEntity>) => NonNullCreateEntity<TEntity>;
     merge: (destination: NonNullEntity<TEntity>, source: NonNullEntity<TEntity>) => NonNullEntity<TEntity>;
-    hash: (entity: NonNullEntity<TEntity>) => string;
+    hasIdentities: boolean;
+    idPropertyNames: string[];
+    hashType: HashType;
+    hash: HashFunction<TEntity>;
+    getHashType: GetHashTypeFunction<TEntity>;
     compare: (a: NonNullEntity<TEntity>, fromDb: NonNullEntity<TEntity>) => boolean;
     deserialize: (entity: NonNullEntity<TEntity>) => NonNullEntity<TEntity>;
     key: number,
     tableName: string;
     getIds: (entity: NonNullEntity<TEntity>) => [IdType];
     enrich: (entity: NonNullEntity<TEntity>) => NonNullEntity<TEntity>;
+    hasIdentityKeys: boolean;
 }
 
 export type PropertySerializer<T extends any> = (value: T) => string | number;
@@ -116,10 +135,10 @@ export type InferSchemaPrimitive<T> =
 type ApplyTypeModifiers<T, M> = ApplyReadonly<ApplyNullable<ApplyUndefined<T, M>, M>, M>;
 
 type ApplyModifiers<T, M> = T extends (...args: any[]) => any ? T : T extends Array<infer U> ? T : T extends Date ? T : T extends object
-? { [K in keyof T]: T[K] } // Ensure valid object types
-: [M] extends [never] // Use a non-distributive conditional check
-? T
-: ApplyTypeModifiers<T, M>;
+    ? { [K in keyof T]: T[K] } // Ensure valid object types
+    : [M] extends [never] // Use a non-distributive conditional check
+    ? T
+    : ApplyTypeModifiers<T, M>;
 
 type Apply<T, M> = T extends Array<infer U> ? ApplyArray<T, M> : ApplyArray<T, M>;
 

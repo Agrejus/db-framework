@@ -8,6 +8,7 @@ export class SchemaComputed<T extends any, TModifiers extends SchemaModifiers = 
 
     constructor(fn: T, current: SchemaBase<T, TModifiers>) {
         super(current);
+        this.isUnmapped = true;
         this.functionBody = fn as any;
     }
 }

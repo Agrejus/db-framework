@@ -1,4 +1,4 @@
-import { PropertyDeserializer, PropertySerializer, SchemaModifiers, SchemaTypes } from "../..";
+import { PropertyDeserializer, PropertySerializer, SchemaIdentity, SchemaModifiers, SchemaTypes } from "../..";
 import { DefaultValue } from "../../../types";
 import { SchemaBase } from "../base/Base";
 import { SchemaDefault } from "../modifiers/Default";
@@ -41,5 +41,9 @@ export class SchemaNumber<T extends number, TModifiers extends SchemaModifiers> 
 
     serialize(serializer: PropertySerializer<T>) {
         return new SchemaSerialize<T, TModifiers | "serialize">(serializer, this);
+    }
+
+    identity() {
+        return new SchemaIdentity<T, TModifiers | "identity">(this);
     }
 }
