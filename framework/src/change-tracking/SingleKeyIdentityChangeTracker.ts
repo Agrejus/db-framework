@@ -1,12 +1,13 @@
-import { IDbPlugin, IdType, NonNullCreateEntity, NonNullEntity, CompiledSchema } from "@agrejus/db-framework-core";
+import { IDbPlugin, NonNullCreateEntity, NonNullEntity, CompiledSchema, toMap } from "@agrejus/db-framework-core";
 import { EntityCallbackMany } from "../types";
 import { IChangeTracker } from "./types";
+import { HashType } from "@agrejus/db-framework-core/dist/schema";
+import { IdType } from "@agrejus/db-framework-core/src";
 
-export class SingleNonIdentityKeyChangeTracker<TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never> implements IChangeTracker<TEntity, TEnhancedPropertyNames, TComputedPropertyNames> {
+export class SingleIdentityKeyChangeTracker<TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never> implements IChangeTracker<TEntity, TEnhancedPropertyNames, TComputedPropertyNames> {
 
     protected removals: NonNullEntity<TEntity>[] = [];
-    protected additions: Map<IdType, NonNullCreateEntity<TEntity>> = new Map<IdType, NonNullCreateEntity<TEntity>>();
-    protected removeById: Set<IdType> = new Set<IdType>();
+    protected additions: NonNullCreateEntity<TEntity>[] = [];
     protected attachments: Map<IdType, NonNullEntity<TEntity>> = new Map<IdType, NonNullEntity<TEntity>>();
     private _schema: CompiledSchema<TEntity>;
     private readonly _dbPlugin: IDbPlugin;
@@ -16,33 +17,12 @@ export class SingleNonIdentityKeyChangeTracker<TEntity extends {}, TEnhancedProp
         this._dbPlugin = dbPlugin;
     }
 
-    // The below example from EF has entity.Entity and found as the same reference
-    // This means
-    // var entity = _context.BrandTypes.Add(new BrandType
-    // {
-    //     type = "Sample2"
-    // });
-    //
-    // entity.Entity.type = "Changed2";
-    //
-    // _context.SaveChanges();
-    //
-    // entity.Entity.type = "MOAR";
-    //
-    // var found = _context.BrandTypes.FirstOrDefault(w => w.type == "Changed2");
-    //
-    // found.type = "NEW";
-    //
-    // Console.Write(found);
-    //
-    // _context.SaveChanges();
-    //
-    // Console.Write(found);
-
     resolve(entities: NonNullEntity<TEntity>[]) {
-        const result: NonNullEntity<TEntity>[] = [];
-        for(let i = 0; i < entities.length; i++) {
 
+        const result: NonNullEntity<TEntity>[] = [];
+
+        for(let i = 0; i < entities.length; i++) {
+            
             const entity = entities[i];
             const key = this._schema.getIds(entity)[0];
             const existing = this.attachments.get(key);
@@ -53,7 +33,7 @@ export class SingleNonIdentityKeyChangeTracker<TEntity extends {}, TEnhancedProp
             }
 
             this.attachments.set(key, entity);
-            result.push(existing);         
+            result.push(entity);         
         }
 
         return result;
@@ -61,10 +41,15 @@ export class SingleNonIdentityKeyChangeTracker<TEntity extends {}, TEnhancedProp
 
     saveChanges(done: (result: number, error?: any) => void) {
 
+        const preparedAdds = this.additions.map(w => this._schema.prepare(w));
+
+        // need to hash here, not on add in case something is changed after adding
+        const hashedAdds = toMap(this.additions, w => this._schema.hash(w, HashType.Object));
+
         this._dbPlugin.bulkOperations<any>(this._schema, {
             // prepare is responsible for creating a new clean object 
             // with only properties that should be saved and run any serializers
-            adds: [...this.additions.values()].map(w => this._schema.prepare(w)),
+            adds: preparedAdds,
             removes: this.removals.map(w => this._schema.prepare(w as any)),
             updates: {
                 data: [],
@@ -75,17 +60,18 @@ export class SingleNonIdentityKeyChangeTracker<TEntity extends {}, TEnhancedProp
             // need to merge adds with data sent in
             for (let i = 0; i < adds.length; i++) {
                 const add = adds[i];
-                const id = this._schema.getIds(add as any)[0];
-                const found = this.additions.get(id);
+                const hash = this._schema.hash(add as any, HashType.Object);
+                const found = hashedAdds.get(hash);
 
                 // Let's only map Ids and identities
                 this._schema.merge(found as any, add as any);
 
+                const id = this._schema.getIds(found as any)[0];
                 // Set here, if we never save we should never attach
                 this.attachments.set(id, found as any);
             }
 
-            this.additions = new Map<IdType, NonNullCreateEntity<TEntity>>();
+            this.additions = [];
 
             done(adds.length + removedCount + updates.length, error);
         });
@@ -106,9 +92,8 @@ export class SingleNonIdentityKeyChangeTracker<TEntity extends {}, TEnhancedProp
                 const entity = entities[i];
 
                 const enriched: NonNullCreateEntity<TEntity> = this._schema.enrich(entity as any) as any;
-                const id = this._schema.getIds(enriched as any)[0];
 
-                this.additions.set(id, enriched);
+                this.additions.push(enriched);
 
                 result.push(enriched as any);
             }

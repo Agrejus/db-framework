@@ -2,7 +2,7 @@ import { CompiledSchema, GetHashTypeFunction, HashFunction, HashType, InferType,
 import { SchemaFunction } from './table/Function';
 import { SchemaComputed } from './table/Computed';
 import { SchemaBase } from "./property/base/Base";
-import { createUUID, formatFunctionString, hash } from "../utilities";
+import { createUUID, hash } from "../utilities";
 import { FunctionBuilder } from '../common/FunctionBuilder';
 import { IdType } from "../types";
 import { PropertyInfo } from '../common/PropertyInfo';
@@ -21,7 +21,7 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         this.isOptional = false;
     }
 
-    append<R>(builder: (d: {
+    modify<R>(builder: (d: {
         function: <UU>(fn: (entity: InferType<SchemaDefinition<T>>, tableName: string) => UU) => SchemaFunction<UU, "unmapped">;
         computed: <UU>(fn: (entity: InferType<SchemaDefinition<T>>, tableName: string) => UU) => SchemaComputed<UU, "unmapped">;
     }) => R) {
@@ -157,10 +157,11 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
             if (body.startsWith("{") === true) {
 
                 // arrow function has a return keyword
-                const fn = `const ${name} = ${stringifiedFunction}`
+                const fn = `
+const ${name} = ${stringifiedFunction}`
                 const parameters = split[0].replace(/\(|\)/g, "").split(",");
                 const build = (returningStatement: string) => fn.toString();
-    
+
                 return {
                     parameterNames: parameters,
                     name,
@@ -172,9 +173,10 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
 
             const parameters = split[0].replace(/\(|\)/g, "").split(",");
             const build = (returningStatement: string) => {
-                return `function ${name}(${parameters.join(",")}) {
-                    return ${returningStatement};
-                }`
+                return `
+function ${name}(${parameters.join(",")}) {
+    return ${returningStatement};
+}`
             }
 
             return {
@@ -191,9 +193,10 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
             const functionBodyWithBraces = stringifiedFunction.replace(/function[\s]{0,}\(.{1,}?\)/, "");
             const parameters = split[1].split(",");
             const build = (returningStatement: string) => {
-                return `function ${name}(${parameters.join(",")}) {
-                    return ${returningStatement}
-                }`
+                return `
+function ${name}(${parameters.join(",")}) {
+    return ${returningStatement}
+}`
             }
             const returning = functionBodyWithBraces.trim().slice(1, functionBodyWithBraces.length - 2).trim();
             const correctedReturn = returning.replace("return", "").trim();
@@ -311,18 +314,22 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         const parentPath = parentPathParts.join("?.");
         const assignmentPath = [parentName, ...splitSelectorPath.slice(1, splitSelectorPath.length)].join(".")
 
-        return `\r\nif (${parentPath} != null) {
-            ${assignmentPath} = ${functionBody};
-        }\r\n`
+        return `
+if (${parentPath} != null) {
+    ${assignmentPath} = ${functionBody};
+}
+`
     }
 
     private _createIfConditionalPropertyAssignment(splitSelectorPath: string[], parentName: string) {
 
         const assignmentPath = [parentName, ...splitSelectorPath.slice(1, splitSelectorPath.length)].join(".")
 
-        return `\r\nif (${splitSelectorPath.join("?.")} != null) {
-            ${assignmentPath} = ${splitSelectorPath.join(".")};
-        }\r\n`
+        return `
+if (${splitSelectorPath.join("?.")} != null) {
+    ${assignmentPath} = ${splitSelectorPath.join(".")};
+}
+`
 
     }
 
@@ -335,9 +342,11 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
 
         if (property.valueDeserializer != null) {
             const fn = this._toNamedFunction(property.valueDeserializer.toString());
-            const assignment = `\r\nif (${fullSplit.join("?.")} != null) {
-                ${fullSplit.join(".")} = ${fn.name}(${fullSplit.join(".")});
-            }\r\n`
+            const assignment = `
+if (${fullSplit.join("?.")} != null) {
+    ${fullSplit.join(".")} = ${fn.name}(${fullSplit.join(".")});
+}
+`
             builder.append("functions", fn.body);
             builder.append("deserializers", assignment);
             return;
@@ -380,16 +389,17 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         }
 
         if (property.isKey === true || property.isIdentity === true) {
-            const conditionalAssignment = `if (${["source", ...split].join("?.")} != null) {
-                ${["destination", ...split].join(".")} = ${["source", ...split].join("?.")}
-            }`
+            const conditionalAssignment = `
+if (${["source", ...split].join("?.")} != null) {
+    ${["destination", ...split].join(".")} = ${["source", ...split].join("?.")}
+}`
             builder.append("post-ifs", conditionalAssignment);
         }
 
         // do not map everything, only what is needed
     }
 
-    private _appendEnricher(property: PropertyInfo<any>, builder: FunctionBuilder<"variables" | "enrichments" | "functions" | "entity">, value: string, selectorPath: string) {
+    private _appendEnricher(property: PropertyInfo<any>, builder: FunctionBuilder<"variables" | "enrichments" | "functions" | "entity" | "change-tracking">, value: string, selectorPath: string) {
 
         const split = selectorPath.split(/\.|\?\./g);
 
@@ -407,7 +417,6 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
             // function
             const fn = this._toNamedFunction(property.functionBody.toString());
             const changedFunction = fn.build(`() => ${fn.returning}`)
-
             const ifEnricher = this._createIfAssignment(split, `${fn.name}(enriched, tableName)`, "enriched");
 
             builder.append("functions", changedFunction);
@@ -444,11 +453,89 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
             const ifEnricher = this._createIfConditionalPropertyAssignment(split, "enriched");
 
             builder.append("enrichments", ifEnricher);
-
             return;
         }
 
+        if (property.type === SchemaTypes.Object) {
+            const changedPath = ["enriched", ...split.slice(1, split.length)].join(".");
+            const enableChangeTracking = `
+${changedPath} = enableChangeTracking(${changedPath}, "${property.getFullPath()}", enriched);`
+            builder.unshift("change-tracking", enableChangeTracking);
+        }
+
         builder.append("entity", value);
+    }
+
+    private createChangeTracker() {
+
+        const DIRTY_ENTITY_MARKER: string = "isDirty";
+        const CHANGES_ENTITY_KEY: string = "changes";
+        const ORIGINAL_ENTITY_KEY: string = "original";
+        const TRACKING_KEY: string = "__tracking__";
+        const PROXY_MARKER: string = "__isProxy__";
+
+        return <TEntity extends {}>(entity: TEntity, path?: string, parent?: TEntity) => {
+
+            const proxyHandler: ProxyHandler<TEntity> = {
+                set: (entity, property, value) => {
+                    const indexableEntity: { [key: string]: any } = entity;
+                    const key = String(property);
+                    const originalValue = indexableEntity[key];
+
+                    // if values are the same, do nothing
+                    if (originalValue === value) {
+                        return true;
+                    }
+
+                    const resolvedParent: { [key: string]: any } = parent ?? entity;
+
+                    if (resolvedParent[TRACKING_KEY] == null) {
+                        resolvedParent[TRACKING_KEY] = {
+                            changes: {},
+                            isDirty: false,
+                            original: {}
+                        }
+                    }
+
+                    const resolvedPath = path == null ? key : `${path}.${key}`;
+                    const changes = resolvedParent[TRACKING_KEY];
+
+                    if (changes[CHANGES_ENTITY_KEY][resolvedPath] != null) {
+
+                        if (changes[ORIGINAL_ENTITY_KEY][resolvedPath] === value) {
+                            // we are changing the value back to the original value, remove the change
+                            delete changes[ORIGINAL_ENTITY_KEY][resolvedPath];
+                            delete changes[CHANGES_ENTITY_KEY][resolvedPath];
+                        } else {
+                            // track the change
+                            changes[CHANGES_ENTITY_KEY][resolvedPath] = value;
+                        }
+
+                    } else if (changes[CHANGES_ENTITY_KEY][resolvedPath] == null) {
+                        // don't keep updating, keep the original value
+                        changes[CHANGES_ENTITY_KEY][resolvedPath] = value;
+                        changes[ORIGINAL_ENTITY_KEY][resolvedPath] = originalValue;
+                    }
+
+                    const isDirty = Object.keys(changes[ORIGINAL_ENTITY_KEY]).length > 0;
+                    changes[DIRTY_ENTITY_MARKER] = isDirty;
+
+                    Reflect.set(indexableEntity, property, value);
+
+                    return true;
+                },
+                get: (target, property, receiver) => {
+
+                    if (property === PROXY_MARKER) {
+                        return true;
+                    }
+
+                    return Reflect.get(target, property, receiver);
+                }
+            }
+
+            return new Proxy(entity, proxyHandler) as TEntity
+        }
     }
 
     private _appendHashType(property: PropertyInfo<any>, builder: FunctionBuilder<"return">) {
@@ -470,19 +557,20 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         const cloneLines: string[] = [];
         const compareFunction: { returnBody: string[], declarations: string[] } = { declarations: [], returnBody: [] };
         const mergeFunciton = new FunctionBuilder().use("assignments").use("functions").use("deserializers").use("post-ifs");
-        const enrichFunciton = new FunctionBuilder().use("enrichments").use("functions").use("variables").use("entity");
-        hashBuilder.append("functions", `function stringifyDate(d) {
+        const enrichFunciton = new FunctionBuilder().use("enrichments").use("functions").use("variables").use("entity").use("change-tracking");
+        hashBuilder.append("functions", `
+function stringifyDate(d) {
 
-                if (typeof d === "string") {
-                    return d;
-                }
+    if (typeof d === "string") {
+        return d;
+    }
 
-                if ("toISOString" in d) {
-                    return d.toISOString();
-                }
-        
-                return d.toString();
-            }`)
+    if ("toISOString" in d) {
+        return d.toISOString();
+    }
+
+    return d.toString();
+}`)
 
         // Call _iterate to process the schema and build the function body
         const idPropertyNames: string[] = [];
@@ -492,7 +580,6 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         let hasIdentityKeys = false;
 
         this._iterate(schema, (property) => {
-            const isNested = property.parent != null;
 
             allPropertyNamesAndPaths.push(property.getSelectrorPath("entity"));
 
@@ -630,26 +717,43 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
             this._appendHashType(property, hashTypeBuilder);
         });
 
-        const hashTypeFunctionBody = `if (${hashTypeBuilder.join("return", " || ")}) {
-            return "Object";
-        }
-        
-        return "Ids"
-        `;
+        const hashTypeFunctionBody = `
+if (${hashTypeBuilder.join("return", " || ")}) {
+    return "Object";
+}
+
+return "Ids"
+`;
         const prepareFunctionBody = `${prepareBuilder.join("functions", "")} return { ${prepareBuilder.join("return", "").replace(/,\s*$/, "")} };`;
         const stripFunctionBody = `return {${stripperLines.join("").replace(/,\s*$/, "")}};`;
         const cloneFunctionBody = `return {${cloneLines.join("").replace(/,\s*$/, "")}};`;
         const deserializeFunctionBody = `${deserializeBuilder.join("variables", ";")}  return {${deserializeBuilder.join("return", "").replace(/,\s*$/, "")}};`;
-        const enrichFunctionBody = `return function(entity) { ${enrichFunciton.join("functions", "\r\n")} 
-        
-        let enriched = {${enrichFunciton.join("entity", "").replace(/,\s*$/, "")}}; ${enrichFunciton.join("enrichments", "")} return enriched; }`;
-        const mergeFunctionBody = `return function(destination, source) {${mergeFunciton.join("functions", "\r\n")}\r\n${mergeFunciton.join("assignments", ";\r\n")} ${mergeFunciton.join("post-ifs", "\r\n")} \r\nreturn destination; }`;
+        const enrichFunctionBody = `return function(entity) { 
+function ${this.createChangeTracker.toString()}
+
+const enableChangeTracking = createChangeTracker();
+
+${enrichFunciton.join("functions", "\r\n")} 
+const enriched = {
+    ${enrichFunciton.join("entity", "").replace(/,\s*$/, "")}
+}; 
+
+${enrichFunciton.join("enrichments", "")} 
+
+${enrichFunciton.join("change-tracking", "\r\n")} 
+
+return enableChangeTracking(enriched); 
+}`;
+
+        const mergeFunctionBody = `return function(destination, source) {\r\n${mergeFunciton.join("functions", "\r\n")}\r\n${mergeFunciton.join("assignments", ";\r\n")}\r\n${mergeFunciton.join("post-ifs", "\r\n")} \r\nreturn destination; }`;
         const compareFunctionBody = `${compareFunction.declarations.join(";")}  return ${compareFunction.returnBody.join(" && ").replace(/,\s*$/, "")};`
         const hashFunctionBody = `${hashBuilder.join("functions", "")} 
-        if (type === "Ids") {
-            return \`${hashBuilder.join("return-ids", "")}\`;
-        }
-        return \`${hashBuilder.join("return-object", "")}\`;`
+if (type === "Ids") {
+    return \`${hashBuilder.join("return-ids", "")}\`;
+}
+return \`${hashBuilder.join("return-object", "")}\`;`
+
+        // enrich should enable change tracking!
 
         // merge needs to run any deserializers too
         const merge = Function("tableName", mergeFunctionBody)(this.tableName) as (destination: NonNullEntity<T>, source: NonNullEntity<T>) => NonNullEntity<T>;

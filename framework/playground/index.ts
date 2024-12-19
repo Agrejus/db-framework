@@ -18,7 +18,7 @@ const model = s.define("MY_TABLE", {
             id: s.number().readonly()
         })
     })
-}).append(w => ({
+}).modify(w => ({
     test: w.function((w, a) => w.name),
     toString: w.function(function (w, a) { return w; }),
     documentType: w.computed((w, t) => t)
@@ -44,6 +44,13 @@ const enriched = c.enrich({
 
 
 enriched.name = "winner";
+enriched.nested.id = 2
+
+debugger;
+
+enriched.name = "test";
+enriched.nested.id = 1
+
 
 console.log(enriched.test());
 console.log(enriched.toString());

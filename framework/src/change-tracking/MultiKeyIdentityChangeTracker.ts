@@ -1,20 +1,38 @@
-import { IDbPlugin, IdType, NonNullCreateEntity, NonNullEntity, CompiledSchema, toMap } from "@agrejus/db-framework-core";
+import { IDbPlugin, NonNullCreateEntity, NonNullEntity, CompiledSchema, toMap, HashType } from "@agrejus/db-framework-core";
 import { EntityCallbackMany } from "../types";
 import { IChangeTracker } from "./types";
-import { HashType } from "@agrejus/db-framework-core/dist/schema";
 
-export class IdentityKeyChangeTracker<TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never> implements IChangeTracker<TEntity, TEnhancedPropertyNames, TComputedPropertyNames> {
+export class MultiKeyIdentityChangeTracker<TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never> implements IChangeTracker<TEntity, TEnhancedPropertyNames, TComputedPropertyNames> {
 
-    protected removals: Map<IdType, NonNullEntity<TEntity>> = new Map<IdType, NonNullEntity<TEntity>>();
+    protected removals: NonNullEntity<TEntity>[] = [];
     protected additions: NonNullCreateEntity<TEntity>[] = [];
-    protected removeById: Set<IdType> = new Set<IdType>();
-    protected attachments: Map<IdType, NonNullEntity<TEntity>> = new Map<IdType, NonNullEntity<TEntity>>();
+    protected attachments: Map<string, NonNullEntity<TEntity>> = new Map<string, NonNullEntity<TEntity>>();
     private _schema: CompiledSchema<TEntity>;
     private readonly _dbPlugin: IDbPlugin;
 
     constructor(schema: CompiledSchema<TEntity>, dbPlugin: IDbPlugin) {
         this._schema = schema;
         this._dbPlugin = dbPlugin;
+    }
+
+    resolve(entities: NonNullEntity<TEntity>[]) {
+        const result: NonNullEntity<TEntity>[] = [];
+        for(let i = 0; i < entities.length; i++) {
+            
+            const entity = entities[i];
+            const key = this._schema.hash(entity, HashType.Ids);
+            const existing = this.attachments.get(key);
+
+            if (existing != null) {
+                result.push(existing);
+                continue;
+            }
+
+            this.attachments.set(key, entity);
+            result.push(existing);         
+        }
+
+        return result;
     }
 
     saveChanges(done: (result: number, error?: any) => void) {
@@ -24,14 +42,11 @@ export class IdentityKeyChangeTracker<TEntity extends {}, TEnhancedPropertyNames
         // need to hash here, not on add in case something is changed after adding
         const hashedAdds = toMap(this.additions, w => this._schema.hash(w, HashType.Object));
 
-        this._dbPlugin.bulkOperations<any>(this._schema, {
+        this._dbPlugin.bulkOperations<TEntity>(this._schema, {
             // prepare is responsible for creating a new clean object 
             // with only properties that should be saved and run any serializers
             adds: preparedAdds,
-            removes: {
-                entities: [],
-                ids: []
-            },
+            removes: this.removals.map(w => this._schema.prepare(w as any)) as NonNullEntity<TEntity>[],
             updates: {
                 data: [],
                 deltas: new Map()
@@ -46,10 +61,22 @@ export class IdentityKeyChangeTracker<TEntity extends {}, TEnhancedPropertyNames
 
                 // Let's only map Ids and identities
                 this._schema.merge(found as any, add as any);
+
+                // Set here, if we never save we should never attach.  We will have Ids at this point
+                const id = this._schema.hash(add as any, HashType.Ids);
+
+                this.attachments.set(id, found as any);
             }
+
+            this.additions = [];
 
             done(adds.length + removedCount + updates.length, error);
         });
+    }
+
+    remove(entities: NonNullEntity<TEntity>[], done: EntityCallbackMany<TEntity>) {
+        this.removals.push(...entities);
+        done(entities);
     }
 
     add(entities: NonNullCreateEntity<TEntity, TEnhancedPropertyNames | TComputedPropertyNames>[], done: EntityCallbackMany<TEntity>) {

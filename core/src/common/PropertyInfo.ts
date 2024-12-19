@@ -87,13 +87,6 @@ export class PropertyInfo<T extends {}> {
         };
     }
 
-    createAssignment() {
-        // const pathMetaData = this._resolvePathArray();
-
-
-        // return pathArray.join(".");
-    }
-
     get hasNullableParents() {
 
         let parent = this.parent;
@@ -115,7 +108,7 @@ export class PropertyInfo<T extends {}> {
         const resolved = this._resolvePathArray();
         const parts: string[] = [];
         const pathArray = [parent, ...resolved.parts];
-        const join = [ resolved.join[resolved.join.length - 1] === "?." ? "?." : "." , ...resolved.join];
+        const join = [resolved.join[resolved.join.length - 1] === "?." ? "?." : ".", ...resolved.join];
 
         for (let i = 0; i < pathArray.length; i++) {
 
@@ -129,5 +122,11 @@ export class PropertyInfo<T extends {}> {
         }
 
         return parts.join("");
+    }
+
+    getFullPath(parent?: string) {
+        const resolved = this._resolvePathArray();
+        const pathArray = !!parent ? [parent, ...resolved.parts] : resolved.parts;
+        return pathArray.join(".");
     }
 }

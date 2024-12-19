@@ -20,8 +20,7 @@ export {
 export {
     IDbPlugin,
     EntityChanges,
-    EntityModificationResult,
-    IAdditonsPayload
+    EntityModificationResult
 } from './plugins/types';
 
 export {
@@ -37,5 +36,6 @@ export {
     NonNullEntity,
     SchemaTypes,
     SchemaModifiers,
-    s
+    s,
+    HashType
 } from './schema';

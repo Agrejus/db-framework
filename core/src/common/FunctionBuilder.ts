@@ -13,6 +13,17 @@ export class FunctionBuilder<T extends string = never> {
         found.push(body);
     }
 
+    unshift(section: T, body: string) {
+
+        if (this._sections.has(section) === false) {
+            this._sections.set(section, []);
+        }
+
+        const found = this._sections.get(section)!;
+
+        found.unshift(body);
+    }
+
     get(section: T) {
         return this._sections.get(section) ?? [];
     }

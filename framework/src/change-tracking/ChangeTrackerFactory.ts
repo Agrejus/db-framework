@@ -2,7 +2,8 @@ import { CompiledSchema, IDbPlugin } from "@agrejus/db-framework-core";
 import { IChangeTracker } from "./types";
 import { SingleNonIdentityKeyChangeTracker } from './SingleNonIdentityKeyChangeTracker';
 import { MultiNonIdentityKeyChangeTracker } from './MultiNonIdentityKeyChangeTracker';
-import { IdentityKeyChangeTracker } from './IdentityKeyChangeTracker';
+import { MultiKeyIdentityChangeTracker } from './MultiKeyIdentityChangeTracker';
+import { SingleIdentityKeyChangeTracker } from './SingleKeyIdentityChangeTracker';
 
 export class ChangeTrackerFactory {
 
@@ -18,6 +19,10 @@ export class ChangeTrackerFactory {
             return new MultiNonIdentityKeyChangeTracker<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>(schema, dbPlugin);
         }
 
-        return new IdentityKeyChangeTracker<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>(schema, dbPlugin);
+        if (schema.idPropertyNames.length === 1) {
+            return new SingleIdentityKeyChangeTracker<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>(schema, dbPlugin);
+        }
+
+        return new MultiKeyIdentityChangeTracker<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>(schema, dbPlugin);
     }
 }

@@ -20,57 +20,36 @@ export class DbSet<TEntity extends {}, TEnhancedPropertyNames extends string = n
     }
 
     add(entities: NonNullCreateEntity<TEntity, TEnhancedPropertyNames | TComputedPropertyNames>[], done: EntityCallbackMany<TEntity>) {
-        this.changeTracker.add(entities, (r, e) => this._resolveMany(r, e, done));
+        this.changeTracker.add(entities, done);
     }
 
     addAsync(...entities: NonNullCreateEntity<TEntity, TEnhancedPropertyNames | TComputedPropertyNames>[]) {
         return new Promise<NonNullEntity<TEntity>[]>((resolve, reject) => {
-            this.add(entities, (r, e) => {
-                if (e != null) {
-                    reject(e);
-                    return;
-                }
-
-                resolve(r)
-            });
+            this.add(entities, (r, e) => this._resolvePromise(r, e, resolve, reject));
         });
     }
 
     // also need to remove by id
     remove(entities: NonNullEntity<TEntity>[], done: EntityCallbackMany<TEntity>) {
-
+        this.changeTracker.remove(entities, done);
     }
 
     removeAsync(...entities: NonNullEntity<TEntity>[]) {
         return new Promise<NonNullEntity<TEntity>[]>((resolve, reject) => {
-            this.remove(entities, (r, e) => {
-                if (e != null) {
-                    reject(e);
-                    return;
-                }
-
-                resolve(r)
-            });
+            this.remove(entities, (r, e) => this._resolvePromise(r, e, resolve, reject));
         });
     }
 
     find(selector: EntitySelector<TEntity>, done: EntityCallbackOne<TEntity>) {
-        this._dbPlugin.all<NonNullEntity<TEntity>>(
-            this.schema.tableName,
+        this._dbPlugin.all<TEntity>(
+            this.schema,
             (r, e) => this._resolveOne(r, e, done, selector)
         );
     }
 
     findAsync(selector: EntitySelector<TEntity>) {
         return new Promise<NonNullEntity<TEntity> | null>((resolve, reject) => {
-            this.find(selector, (r, e) => {
-                if (e != null) {
-                    reject(e);
-                    return;
-                }
-
-                resolve(r)
-            });
+            this.find(selector, (r, e) => this._resolvePromise(r, e, resolve, reject));
         });
     }
 
@@ -81,22 +60,24 @@ export class DbSet<TEntity extends {}, TEnhancedPropertyNames extends string = n
             filter: (selector: EntityParamsSelector<TEntity, T>, done: EntityCallbackMany<TEntity>) => {
                 const expression = toExpression(selector, params);
 
-                this._dbPlugin.query<NonNullEntity<TEntity>>(
+                this._dbPlugin.query<TEntity>(
+                    this.schema,
                     expression,
                     (r, e) => this._resolveMany(r, e, done)
                 );
             },
             first: (done: EntityCallbackOne<TEntity>) => {
                 // pass null for expression for first  ??
-                this._dbPlugin.all<NonNullEntity<TEntity>>(
-                    this.schema.tableName,
+                this._dbPlugin.all<TEntity>(
+                    this.schema,
                     (r, e) => this._resolveOne(r, e, done)
                 );
             },
             find: (selector: EntityParamsSelector<TEntity, T>, done: EntityCallbackOne<TEntity>) => {
                 const expression = toExpression(selector, params);
 
-                this._dbPlugin.query<NonNullEntity<TEntity>>(
+                this._dbPlugin.query<TEntity>(
+                    this.schema,
                     expression,
                     (r, e) => this._resolveOne(r, e, done)
                 );
@@ -104,7 +85,8 @@ export class DbSet<TEntity extends {}, TEnhancedPropertyNames extends string = n
             pluck: <TKey extends keyof NonNullEntity<TEntity>>(selector: EntityParamsSelector<TEntity, T>, propertyName: TKey, done: (value: NonNullEntity<TEntity>[TKey] | null, error?: any) => void) => {
                 const expression = toExpression(selector, params);
 
-                this._dbPlugin.query<NonNullEntity<TEntity>>(
+                this._dbPlugin.query<TEntity>(
+                    this.schema,
                     expression,
                     (r, e) => {
                         const found = r.length > 0 ? r[0] : null;
@@ -124,68 +106,40 @@ export class DbSet<TEntity extends {}, TEnhancedPropertyNames extends string = n
             filter: paramsSelectors.filter,
             filterAsync: (selector: EntityParamsSelector<TEntity, T>) => {
                 return new Promise<NonNullEntity<TEntity>[]>((resolve, reject) => {
-                    paramsSelectors.filter(selector, (r, e) => {
-                        if (e != null) {
-                            reject(e);
-                            return
-                        }
-
-                        resolve(r);
-                    });
+                    paramsSelectors.filter(selector, (r, e) => this._resolvePromise(r, e, resolve, reject));
                 })
             },
             find: paramsSelectors.find,
             findAsync: (selector: EntityParamsSelector<TEntity, T>) => {
                 return new Promise<NonNullEntity<TEntity> | null>((resolve, reject) => {
-                    paramsSelectors.find(selector, (r, e) => {
-                        if (e != null) {
-                            reject(e);
-                            return
-                        }
-
-                        resolve(r);
-                    });
+                    paramsSelectors.find(selector, (r, e) => this._resolvePromise(r, e, resolve, reject));
                 })
             },
             pluck: paramsSelectors.pluck,
             pluckAsync: <TKey extends keyof NonNullEntity<TEntity>>(selector: EntityParamsSelector<TEntity, T>, propertyName: TKey) => {
                 return new Promise<NonNullEntity<TEntity>[TKey] | null>((resolve, reject) => {
-                    paramsSelectors.pluck(selector, propertyName, (r, e) => {
-                        if (e != null) {
-                            reject(e);
-                            return
-                        }
-
-                        resolve(r);
-                    });
+                    paramsSelectors.pluck(selector, propertyName, (r, e) => this._resolvePromise(r, e, resolve, reject));
                 })
             }
         }
     }
 
     filter(selector: EntitySelector<TEntity>, done: EntityCallbackMany<TEntity>) {
-        this._dbPlugin.all<NonNullEntity<TEntity>>(
-            this.schema.tableName,
+        this._dbPlugin.all<TEntity>(
+            this.schema,
             (r, e) => this._resolveMany(r, e, done, selector)
         );
     }
 
     filterAsync(selector: EntitySelector<TEntity>) {
         return new Promise<NonNullEntity<TEntity>[]>((resolve, reject) => {
-            this.filter(selector, (r, e) => {
-                if (e != null) {
-                    reject(e);
-                    return
-                }
-
-                resolve(r);
-            });
+            this.filter(selector, (r, e) => this._resolvePromise(r, e, resolve, reject));
         });
     }
 
     get(ids: IdType[], done: EntityCallbackMany<TEntity>) {
-        this._dbPlugin.get<NonNullEntity<TEntity>>(
-            this.schema.tableName,
+        this._dbPlugin.get<TEntity>(
+            this.schema,
             ids,
             (r, e) => this._resolveMany(r, e, done)
         );
@@ -193,25 +147,20 @@ export class DbSet<TEntity extends {}, TEnhancedPropertyNames extends string = n
 
     getAsync(...ids: IdType[]) {
         return new Promise<NonNullEntity<TEntity>[]>((resolve, reject) => {
-            this.get(ids, (r, e) => {
-                if (e != null) {
-                    reject(e);
-                    return
-                }
-
-                resolve(r);
-            });
+            this.get(ids, (r, e) => this._resolvePromise(r, e, resolve, reject));
         });
     }
 
     pluck<TKey extends keyof NonNullEntity<TEntity>>(selector: EntitySelector<TEntity>, propertyName: TKey, done: (value: NonNullEntity<TEntity>[TKey] | null, error?: any) => void) {
-        this._dbPlugin.all<NonNullEntity<TEntity>>(
-            this.schema.tableName,
+        this._dbPlugin.all<TEntity>(
+            this.schema,
             (r, e) => {
                 const found = r.length > 0 ? r[0] : null;
 
                 if (found != null) {
-                    done(e[propertyName]);
+                    const enriched = this.schema.enrich(found)
+                    const resolved = this.changeTracker.resolve([enriched]);
+                    done(resolved[0][propertyName]);
                     return;
                 }
 
@@ -222,31 +171,59 @@ export class DbSet<TEntity extends {}, TEnhancedPropertyNames extends string = n
 
     pluckAsync<TKey extends keyof NonNullEntity<TEntity>>(selector: EntitySelector<TEntity>, propertyName: TKey, resolve: (value: NonNullEntity<TEntity>[TKey] | null, error?: any) => void) {
         return new Promise<NonNullEntity<TEntity>[TKey] | null>((resolve, reject) => {
-            this.pluck(selector, propertyName, resolve);
+            this.pluck(selector, propertyName, (r, e) => this._resolvePromise(r, e, resolve, reject));
         });
     }
 
-    private _resolveMany(entities: NonNullEntity<TEntity>[], error: any, done: (entities: NonNullEntity<TEntity>[], error?: any) => void, selector?: EntitySelector<TEntity>) {
-        // run post select operations
-
-        if (selector != null) {
-            done(entities.filter(selector), error)
+    private _resolvePromise<R>(data: R, error: any | undefined, resolve: (data: R) => void, reject: (error?: any) => void) {
+        if (error != null) {
+            reject(error);
             return
         }
 
-        done(entities, error);
+        resolve(data);
+    }
+
+    private _resolveMany(entities: NonNullEntity<TEntity>[], error: any, done: (entities: NonNullEntity<TEntity>[], error?: any) => void, selector?: EntitySelector<TEntity>) {
+
+        const enriched = entities.map(w => this.schema.enrich(w));
+        const resolved = this.changeTracker.resolve(enriched);
+
+        if (selector != null) {
+            done(resolved.filter(selector), error)
+            return
+        }
+
+        done(resolved, error);
     }
 
     private _resolveOne(entities: NonNullEntity<TEntity>[], error: any, done: (entity: NonNullEntity<TEntity> | null, error?: any) => void, selector?: EntitySelector<TEntity>) {
-        // run enrichers
 
-        // on save we want to run our striping functions to ensure functions are not saved into the database
+        const enriched = entities.map(w => this.schema.enrich(w));
 
-        if (entities.length === 0) {
-            done(null);
+        if (enriched.length === 0) {
+            done(null, error);
+            return;
+        }
+        
+        if (selector != null) {
+            const filtered = enriched.filter(selector);
+
+            if (filtered.length === 0) {
+                done(null, error);
+                return;
+            }
+
+            const first = filtered[0];
+            const resolved = this.changeTracker.resolve([first]);
+    
+            done(resolved[0], error);
             return;
         }
 
-        done(entities[0]);
+        const first = enriched[0];
+        const resolved = this.changeTracker.resolve([first]);
+
+        done(resolved[0], error);
     }
 }

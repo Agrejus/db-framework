@@ -24,14 +24,12 @@ export class PouchDbPlugin implements IDbPlugin {
         }
         const errors: any[] = [];
 
-        this.doWork((w, d) => {
+        this._doWork((w, d) => {
             try {
 
-                // if the schema hash any identitys, then we need to reselect, otherwise we can skip and be faster!
-
-                const { adds } = operations;
-
-                w.bulkDocs([...adds], null, (error, response) => {
+                const { adds, removes } = operations;
+                const s = performance.now();
+                w.bulkDocs([...adds, ...removes.map(w => ({ _id: w._id, _rev: w._rev, _deleted: true }))], null, (error, response) => {
 
                     if (error) {
                         errors.push(error);
@@ -73,6 +71,8 @@ export class PouchDbPlugin implements IDbPlugin {
                             }
 
                         }
+
+                        console.log("Bulk Docs", performance.now() - s)
                         d(result, errors.length > 0 ? errors : null)
                     });
 
@@ -90,15 +90,15 @@ export class PouchDbPlugin implements IDbPlugin {
             removedCount: 0,
             updates: []
         }
-
-        this.doWork((w, d) => {
+        const s = performance.now();
+        this._doWork((w, d) => {
             try {
 
-                const { adds } = operations;
+                const { adds, removes } = operations;
 
                 const errors: any[] = [];
 
-                w.bulkDocs([...adds], null, (error, response) => {
+                w.bulkDocs([...adds, ...removes.map(w => ({ _id: w._id, _rev: w._rev, _deleted: true }))], null, (error, response) => {
 
                     if (error != null) {
                         errors.push(error)
@@ -123,6 +123,7 @@ export class PouchDbPlugin implements IDbPlugin {
                         } as any)
                     }
 
+                    console.log("Bulk Docs", performance.now() - s)
                     d(result, errors.length > 0 ? errors : null)
 
                 });
@@ -146,8 +147,9 @@ export class PouchDbPlugin implements IDbPlugin {
         this._defaultBulkOperations(operations, done);
     }
 
-    doWork<TResult, TEntity>(action: (db: PouchDB.Database<TEntity>, done: (result: TResult, error?: any) => void) => void, done: (result: TResult, error?: any) => void, shouldClose: boolean = true) {
+    private _doWork<TResult, TEntity>(action: (db: PouchDB.Database<TEntity>, done: (result: TResult, error?: any) => void) => void, done: (result: TResult, error?: any) => void, shouldClose: boolean = true) {
         const db = new PouchDB<TEntity>(this._name, this._options);
+
 
         action(db, (result, error) => {
             if (shouldClose) {
@@ -160,14 +162,14 @@ export class PouchDbPlugin implements IDbPlugin {
     }
 
     destroy(done: (error?: any) => void): void {
-        this.doWork((w, d) => {
+        this._doWork((w, d) => {
             w.destroy(null, d);
         }, done);
     }
 
-    query<TEntity extends {}>(expression: Expression, done: (entities: TEntity[], error?: any) => void): void {
+    query<TEntity extends {}>(schema: CompiledSchema<TEntity>, expression: Expression, done: (entities: TEntity[], error?: any) => void): void {
         const selector = toMango(expression);
-        this.doWork((w, d) => {
+        this._doWork((w, d) => {
             w.find({
                 selector: selector
             }, (error, result) => {
@@ -176,24 +178,26 @@ export class PouchDbPlugin implements IDbPlugin {
         }, done);
     }
 
-    all<TEntity extends {}>(tableName: string, done: (entities: TEntity[], error?: any) => void): void {
-        this.doWork((w, d) => {
+    all<TEntity extends {}>(schema: CompiledSchema<TEntity>, done: (entities: TEntity[], error?: any) => void): void {
+        this._doWork((w, d) => {
             w.find({
                 selector: {
-                    documentType: tableName
-                }
+                    documentType: schema.tableName
+                },
+                limit: 1000
             }, (error, result) => {
                 d((result.docs as any) as TEntity[], error)
             });
         }, done);
     }
 
-    get<TEntity extends {}>(tableName: string, ids: string[], done: (entities: TEntity[], error?: any) => void): void {
-        this.doWork((w, d) => {
+    get<TEntity extends {}>(schema: CompiledSchema<TEntity>, ids: string[], done: (entities: TEntity[], error?: any) => void): void {
+        this._doWork((w, d) => {
             w.find({
                 selector: {
-                    documentType: tableName
-                }
+                    documentType: schema.tableName
+                },
+                limit: 1000
             }, (error, result) => {
                 d((result.docs as any) as TEntity[], error)
             });
