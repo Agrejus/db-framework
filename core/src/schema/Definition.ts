@@ -214,6 +214,7 @@ function ${name}(${parameters.join(",")}) {
     }
 
     private _appendCompare(property: PropertyInfo<any>, builder: { returnBody: string[], declarations: string[] }, path: string) {
+        
         if (property.isUnmapped == true) {
             return;
         }
@@ -233,9 +234,23 @@ function ${name}(${parameters.join(",")}) {
         builder.returnBody.push(`${path.replace("entity.", "a.")} == ${path.replace("entity.", "b.")}`);
     }
 
-    private _appendPrepare(property: PropertyInfo<any>, builder: FunctionBuilder<"return" | "functions">, value: string, selectorPath?: string) {
+    private _appendPrepare(property: PropertyInfo<any>, builder: FunctionBuilder<"return" | "functions" | "optionals">, value: string, selectorPath?: string) {
 
-        if (property.isUnmapped === true || property.isIdentity === true) {
+        if (property.isUnmapped === true) {
+            return;
+        }
+
+        if (property.isIdentity === true && selectorPath != null) {
+            // Optionally map for updates.  Identities need to be sent in for updates, but not for additions
+            const path = property.getSelectrorPath("entity");
+            const assignmentPath = property.getAssignmentPath("result");
+            const optionalAssignment = `
+if (${path} != null) {
+    ${assignmentPath} = ${path};
+}
+            `;
+
+            builder.append("optionals", optionalAssignment)
             return;
         }
 
@@ -459,7 +474,7 @@ if (${["source", ...split].join("?.")} != null) {
         if (property.type === SchemaTypes.Object) {
             const changedPath = ["enriched", ...split.slice(1, split.length)].join(".");
             const enableChangeTracking = `
-${changedPath} = enableChangeTracking(${changedPath}, "${property.getFullPath()}", enriched);`
+${changedPath} = enableChangeTracking(${changedPath}, "${property.getAssignmentPath()}", enriched);`
             builder.unshift("change-tracking", enableChangeTracking);
         }
 
@@ -471,6 +486,7 @@ ${changedPath} = enableChangeTracking(${changedPath}, "${property.getFullPath()}
         const DIRTY_ENTITY_MARKER: string = "isDirty";
         const CHANGES_ENTITY_KEY: string = "changes";
         const ORIGINAL_ENTITY_KEY: string = "original";
+        const PAUSED_ENTITY_KEY: string = "isPaused";
         const TRACKING_KEY: string = "__tracking__";
         const PROXY_MARKER: string = "__isProxy__";
 
@@ -491,10 +507,20 @@ ${changedPath} = enableChangeTracking(${changedPath}, "${property.getFullPath()}
 
                     if (resolvedParent[TRACKING_KEY] == null) {
                         resolvedParent[TRACKING_KEY] = {
-                            changes: {},
-                            isDirty: false,
-                            original: {}
+                            [CHANGES_ENTITY_KEY]: {},
+                            [DIRTY_ENTITY_MARKER]: false,
+                            [ORIGINAL_ENTITY_KEY]: {},
+                            [PAUSED_ENTITY_KEY]: false
                         }
+                    }
+
+                    if (key == TRACKING_KEY) {
+                        return true;
+                    }
+
+                    if (resolvedParent[TRACKING_KEY] != null && resolvedParent[TRACKING_KEY][PAUSED_ENTITY_KEY] === true) {
+                        Reflect.set(indexableEntity, property, value);
+                        return true;
                     }
 
                     const resolvedPath = path == null ? key : `${path}.${key}`;
@@ -549,7 +575,7 @@ ${changedPath} = enableChangeTracking(${changedPath}, "${property.getFullPath()}
         const schema = this;
 
         // Prepare should strip and serialize
-        const prepareBuilder = new FunctionBuilder().use("return").use("functions");
+        const prepareBuilder = new FunctionBuilder().use("return").use("functions").use("optionals");
         const hashTypeBuilder = new FunctionBuilder().use("return");
         const hashBuilder = new FunctionBuilder().use("return-object").use("return-ids").use("functions");
         const deserializeBuilder = new FunctionBuilder().use("return").use("variables");
@@ -570,7 +596,22 @@ function stringifyDate(d) {
     }
 
     return d.toString();
-}`)
+}`);
+
+        mergeFunciton.append("functions", `
+function pause() {
+    // initiate change tracking if needed
+    if (destination.__tracking__ == null) {
+        destination.__tracking__ = {};
+    }
+
+    destination.__tracking__.isPaused = true;
+}    
+
+function unpause() {
+    destination.__tracking__.isPaused  = false;
+}    
+`)
 
         // Call _iterate to process the schema and build the function body
         const idPropertyNames: string[] = [];
@@ -724,28 +765,54 @@ if (${hashTypeBuilder.join("return", " || ")}) {
 
 return "Ids"
 `;
-        const prepareFunctionBody = `${prepareBuilder.join("functions", "")} return { ${prepareBuilder.join("return", "").replace(/,\s*$/, "")} };`;
+        const prepareFunctionBody = `
+${prepareBuilder.join("functions", "")} 
+
+const result = { 
+    ${prepareBuilder.join("return", "").replace(/,\s*$/, "")} 
+};
+
+${prepareBuilder.join("optionals", "\r\n")}
+
+return result;
+`;
         const stripFunctionBody = `return {${stripperLines.join("").replace(/,\s*$/, "")}};`;
         const cloneFunctionBody = `return {${cloneLines.join("").replace(/,\s*$/, "")}};`;
         const deserializeFunctionBody = `${deserializeBuilder.join("variables", ";")}  return {${deserializeBuilder.join("return", "").replace(/,\s*$/, "")}};`;
-        const enrichFunctionBody = `return function(entity) { 
-function ${this.createChangeTracker.toString()}
+        const enrichFunctionBody = `
+return function(entity) { 
 
-const enableChangeTracking = createChangeTracker();
+    function ${this.createChangeTracker.toString()}
 
-${enrichFunciton.join("functions", "\r\n")} 
-const enriched = {
-    ${enrichFunciton.join("entity", "").replace(/,\s*$/, "")}
-}; 
+    const enableChangeTracking = createChangeTracker();
 
-${enrichFunciton.join("enrichments", "")} 
+    ${enrichFunciton.join("functions", "\r\n")} 
+    const enriched = {
+        ${enrichFunciton.join("entity", "").replace(/,\s*$/, "")}
+    }; 
 
-${enrichFunciton.join("change-tracking", "\r\n")} 
+    ${enrichFunciton.join("enrichments", "")} 
 
-return enableChangeTracking(enriched); 
+    ${enrichFunciton.join("change-tracking", "\r\n")} 
+
+    return enableChangeTracking(enriched); 
 }`;
 
-        const mergeFunctionBody = `return function(destination, source) {\r\n${mergeFunciton.join("functions", "\r\n")}\r\n${mergeFunciton.join("assignments", ";\r\n")}\r\n${mergeFunciton.join("post-ifs", "\r\n")} \r\nreturn destination; }`;
+        const mergeFunctionBody = `
+return function(destination, source) {
+
+${mergeFunciton.join("functions", "\r\n")}
+
+pause();
+
+${mergeFunciton.join("assignments", ";\r\n")}
+
+${mergeFunciton.join("post-ifs", "\r\n")}
+
+unpause();
+
+return destination; 
+}`;
         const compareFunctionBody = `${compareFunction.declarations.join(";")}  return ${compareFunction.returnBody.join(" && ").replace(/,\s*$/, "")};`
         const hashFunctionBody = `${hashBuilder.join("functions", "")} 
 if (type === "Ids") {

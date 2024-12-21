@@ -1,5 +1,5 @@
 import PouchDB from 'pouchdb';
-import { CompiledSchema, EntityChanges, EntityModificationResult, Expression, IDbPlugin, IdType } from '@agrejus/db-framework-core';
+import { CompiledSchema, EntityChanges, EntityModificationResult, Expression, IDbPlugin, IdType, toMap } from '@agrejus/db-framework-core';
 import { toMango } from './expression/resolver';
 import findAdapter from 'pouchdb-find';
 import { performance } from 'perf_hooks';
@@ -24,12 +24,17 @@ export class PouchDbPlugin implements IDbPlugin {
         }
         const errors: any[] = [];
 
-        this._doWork((w, d) => {
+        this._doWork((db, d) => {
             try {
 
-                const { adds, removes } = operations;
+                const { adds, removes, updates } = operations;
+                const updatedDocuments = [...updates].map(w => w[1].doc);
                 const s = performance.now();
-                w.bulkDocs([...adds, ...removes.map(w => ({ _id: w._id, _rev: w._rev, _deleted: true }))], null, (error, response) => {
+
+                const removesMap = toMap(removes, w => (w as any)._id);
+                const updatesMap = toMap(updatedDocuments, w => (w as any)._id);
+
+                db.bulkDocs([...adds, ...removes.map(w => ({ _id: w._id, _rev: w._rev, _deleted: true })), ...updatedDocuments], null, (error, response) => {
 
                     if (error) {
                         errors.push(error);
@@ -46,16 +51,17 @@ export class PouchDbPlugin implements IDbPlugin {
                             if (reason) {
                                 errors.push(reason.toString())
                             }
-                            return;
+                            
+                            continue;
                         }
 
                         ids.push(item.id);
                     }
 
-                    w.bulkGet<T>({
+                    db.bulkGet<T>({
                         docs: ids.map(w => ({ id: w as string }))
                     }, (error, bulkGetResponse) => {
-
+ 
                         if (error) {
                             errors.push(error);
                         }
@@ -65,20 +71,30 @@ export class PouchDbPlugin implements IDbPlugin {
                             if ("docs" in item && "id" in item && item.docs.length > 0) {
                                 const doc = item.docs[0];
                                 if ("ok" in doc) {
-                                    result.adds.push(doc.ok as any)
+                                    if (removesMap.has(item.id)) {
+                                        result.removedCount += 1;
+                                        continue;
+                                    }
+
+                                    if (updatesMap.has(item.id)) {
+                                        result.updates.push(doc.ok as any);
+                                        continue;
+                                    }
+
+                                    result.adds.push(doc.ok as any);
                                 }
                                 continue;
                             }
 
                         }
 
-                        console.log("Bulk Docs", performance.now() - s)
+                        console.log("IDENTITY Bulk Docs", performance.now() - s)
                         d(result, errors.length > 0 ? errors : null)
                     });
-
                 });
             } catch (e) {
-                d(result, errors)
+                debugger;
+                d(result, [e, ...errors])
             }
         }, done);
     }
@@ -90,15 +106,18 @@ export class PouchDbPlugin implements IDbPlugin {
             removedCount: 0,
             updates: []
         }
+        const errors: any[] = [];
         const s = performance.now();
-        this._doWork((w, d) => {
+        this._doWork((db, d) => {
             try {
 
-                const { adds, removes } = operations;
+                const { adds, removes, updates } = operations;
 
-                const errors: any[] = [];
+                const updatedDocuments = [...updates].map(w => w[1].doc);
+                const removesMap = toMap(removes, w => (w as any)._id);
+                const updatesMap = toMap(updatedDocuments, w => (w as any)._id);
 
-                w.bulkDocs([...adds, ...removes.map(w => ({ _id: w._id, _rev: w._rev, _deleted: true }))], null, (error, response) => {
+                db.bulkDocs([...adds, ...removes.map(w => ({ _id: w._id, _rev: w._rev, _deleted: true })), ...updatedDocuments], null, (error, response) => {
 
                     if (error != null) {
                         errors.push(error)
@@ -114,21 +133,34 @@ export class PouchDbPlugin implements IDbPlugin {
                             if (reason) {
                                 errors.push(reason.toString())
                             }
-                            return;
+                            continue;
+                        }
+
+                        if (removesMap.has(item.id)) {
+                            result.removedCount += 1;
+                            continue;
+                        }
+
+                        if (updatesMap.has(item.id)) {
+                            result.updates.push({
+                                _id: item.id,
+                                _rev: item.rev
+                            } as any);
+                            continue;
                         }
 
                         result.adds.push({
                             _id: item.id,
                             _rev: item.rev
-                        } as any)
+                        } as any);
                     }
 
-                    console.log("Bulk Docs", performance.now() - s)
+                    console.log("DEFAULT Bulk Docs", performance.now() - s)
                     d(result, errors.length > 0 ? errors : null)
 
                 });
             } catch (e) {
-                d(result, e)
+                d(result, [e, ...errors])
             }
         }, done);
     }
@@ -150,8 +182,8 @@ export class PouchDbPlugin implements IDbPlugin {
     private _doWork<TResult, TEntity>(action: (db: PouchDB.Database<TEntity>, done: (result: TResult, error?: any) => void) => void, done: (result: TResult, error?: any) => void, shouldClose: boolean = true) {
         const db = new PouchDB<TEntity>(this._name, this._options);
 
-
         action(db, (result, error) => {
+
             if (shouldClose) {
                 db.close(() => done(result, error));
                 return
@@ -184,7 +216,7 @@ export class PouchDbPlugin implements IDbPlugin {
                 selector: {
                     documentType: schema.tableName
                 },
-                limit: 1000
+                limit: 0
             }, (error, result) => {
                 d((result.docs as any) as TEntity[], error)
             });

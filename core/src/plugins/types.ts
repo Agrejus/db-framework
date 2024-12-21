@@ -11,10 +11,7 @@ export interface IDbPlugin {
 export type EntityChanges<T extends {}> = {
     adds: NonNullCreateEntity<T>[];
     removes: NonNullEntity<T>[];
-    updates: {
-        data: NonNullEntity<T>[];
-        deltas: Map<IdType, NonNullEntity<T>>;
-    };
+    updates: Map<IdType, { doc: NonNullEntity<T>, delta: { [key:string]: string | number | Date } }>;
 }
 
 export type EntityModificationResult<T extends {}> = {

@@ -1,5 +1,5 @@
 import { IDbPlugin, NonNullCreateEntity, NonNullEntity, CompiledSchema, toMap } from "@agrejus/db-framework-core";
-import { EntityCallbackMany } from "../types";
+import { ChangeTrackedEntity, EntityCallbackMany } from "../types";
 import { IChangeTracker } from "./types";
 import { HashType } from "@agrejus/db-framework-core/dist/schema";
 import { IdType } from "@agrejus/db-framework-core/src";
@@ -15,6 +15,22 @@ export class SingleIdentityKeyChangeTracker<TEntity extends {}, TEnhancedPropert
     constructor(schema: CompiledSchema<TEntity>, dbPlugin: IDbPlugin) {
         this._schema = schema;
         this._dbPlugin = dbPlugin;
+    }
+
+    private _hasAttachmentsChanges() {
+        for(const [,doc] of this.attachments) {
+            const changeTrackedDoc: ChangeTrackedEntity<{}> = doc as any;
+
+            if (changeTrackedDoc.__tracking__?.isDirty === true) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+    
+    hasChanges() {
+        return this.additions.length > 0 || this.removals.length > 0 || this._hasAttachmentsChanges() === true;
     }
 
     resolve(entities: NonNullEntity<TEntity>[]) {
@@ -39,7 +55,28 @@ export class SingleIdentityKeyChangeTracker<TEntity extends {}, TEnhancedPropert
         return result;
     }
 
+    private _getAttachmentsChanges() {
+        const result = new Map<IdType, { doc: NonNullEntity<TEntity>, delta: { [key: string]: string | number | Date } }>();
+        for (const [, doc] of this.attachments) {
+            const changeTrackedDoc: ChangeTrackedEntity<{}> = doc as any;
+
+            if (!changeTrackedDoc.__tracking__?.isDirty) {
+                continue;
+            }
+
+            const id = this._schema.getIds(doc)[0];
+            result.set(id, { doc: this._schema.prepare(doc as any) as any, delta: changeTrackedDoc.__tracking__.changes })
+        }
+
+        return result;
+    }
+
     saveChanges(done: (result: number, error?: any) => void) {
+
+        if (this.hasChanges() === false) {
+            done(0, null);
+            return;
+        }
 
         const preparedAdds = this.additions.map(w => this._schema.prepare(w));
 
@@ -51,10 +88,7 @@ export class SingleIdentityKeyChangeTracker<TEntity extends {}, TEnhancedPropert
             // with only properties that should be saved and run any serializers
             adds: preparedAdds,
             removes: this.removals.map(w => this._schema.prepare(w as any)),
-            updates: {
-                data: [],
-                deltas: new Map()
-            }
+            updates: this._getAttachmentsChanges()
         }, ({ adds, removedCount, updates }, error) => {
 
             // need to merge adds with data sent in

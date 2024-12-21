@@ -1,5 +1,5 @@
 import { IDbPlugin, IdType, NonNullCreateEntity, NonNullEntity, CompiledSchema } from "@agrejus/db-framework-core";
-import { EntityCallbackMany } from "../types";
+import { ChangeTrackedEntity, EntityCallbackMany } from "../types";
 import { IChangeTracker } from "./types";
 
 export class SingleNonIdentityKeyChangeTracker<TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never> implements IChangeTracker<TEntity, TEnhancedPropertyNames, TComputedPropertyNames> {
@@ -16,28 +16,21 @@ export class SingleNonIdentityKeyChangeTracker<TEntity extends {}, TEnhancedProp
         this._dbPlugin = dbPlugin;
     }
 
-    // The below example from EF has entity.Entity and found as the same reference
-    // This means
-    // var entity = _context.BrandTypes.Add(new BrandType
-    // {
-    //     type = "Sample2"
-    // });
-    //
-    // entity.Entity.type = "Changed2";
-    //
-    // _context.SaveChanges();
-    //
-    // entity.Entity.type = "MOAR";
-    //
-    // var found = _context.BrandTypes.FirstOrDefault(w => w.type == "Changed2");
-    //
-    // found.type = "NEW";
-    //
-    // Console.Write(found);
-    //
-    // _context.SaveChanges();
-    //
-    // Console.Write(found);
+    private _hasAttachmentsChanges() {
+        for(const [,doc] of this.attachments) {
+            const changeTrackedDoc: ChangeTrackedEntity<{}> = doc as any;
+
+            if (changeTrackedDoc.__tracking__?.isDirty === true) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+    
+    hasChanges() {
+        return this.additions.size > 0 || this.removals.length > 0 || this._hasAttachmentsChanges() === true;
+    }
 
     resolve(entities: NonNullEntity<TEntity>[]) {
         const result: NonNullEntity<TEntity>[] = [];
@@ -53,7 +46,23 @@ export class SingleNonIdentityKeyChangeTracker<TEntity extends {}, TEnhancedProp
             }
 
             this.attachments.set(key, entity);
-            result.push(existing);         
+            result.push(entity);         
+        }
+
+        return result;
+    }
+
+    private _getAttachmentsChanges() {
+        const result = new Map<IdType, { doc: NonNullEntity<TEntity>, delta: { [key: string]: string | number | Date } }>();
+        for (const [, doc] of this.attachments) {
+            const changeTrackedDoc: ChangeTrackedEntity<{}> = doc as any;
+
+            if (!changeTrackedDoc.__tracking__?.isDirty) {
+                continue;
+            }
+
+            const id = this._schema.getIds(doc)[0];
+            result.set(id, { doc: this._schema.prepare(doc as any) as any, delta: changeTrackedDoc.__tracking__.changes })
         }
 
         return result;
@@ -61,19 +70,24 @@ export class SingleNonIdentityKeyChangeTracker<TEntity extends {}, TEnhancedProp
 
     saveChanges(done: (result: number, error?: any) => void) {
 
+        if (this.hasChanges() === false) {
+            done(0, null);
+            return;
+        }
+
         this._dbPlugin.bulkOperations<any>(this._schema, {
             // prepare is responsible for creating a new clean object 
             // with only properties that should be saved and run any serializers
             adds: [...this.additions.values()].map(w => this._schema.prepare(w)),
             removes: this.removals.map(w => this._schema.prepare(w as any)),
-            updates: {
-                data: [],
-                deltas: new Map()
-            }
+            updates: this._getAttachmentsChanges()
         }, ({ adds, removedCount, updates }, error) => {
 
             // need to merge adds with data sent in
             for (let i = 0; i < adds.length; i++) {
+
+                // we are sending back adds incorrectly
+
                 const add = adds[i];
                 const id = this._schema.getIds(add as any)[0];
                 const found = this.additions.get(id);

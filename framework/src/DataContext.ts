@@ -1,5 +1,6 @@
-import { CompiledSchema, IDbPlugin, toMap } from '@agrejus/db-framework-core';
+import { CompiledSchema, IDbPlugin } from '@agrejus/db-framework-core';
 import { DbSet } from './DbSet';
+import { forEach } from './utilities';
 import { performance } from 'perf_hooks';
 
 export class DataContext {
@@ -24,12 +25,10 @@ export class DataContext {
 
         let success_count = 0;
         const errors: any[] = [];
-        const size = this._dbsets.size;
-        let completedCounter = 0;
-
         const s = performance.now();
-        for (const [, dbset] of this._dbsets) {
+        const dbSets = [...this._dbsets.values()];
 
+        forEach(dbSets, (dbset, next) => {
             dbset.changeTracker.saveChanges((r, e) => {
 
                 success_count += r;
@@ -38,14 +37,12 @@ export class DataContext {
                     errors.push(e);
                 }
 
-                completedCounter++;
-
-                if (completedCounter == size) {
-                    console.log(performance.now() - s)
-                    done(success_count, errors.length == 0 ? null : errors);
-                }
+                next();
             });
-        }
+        }, () => {
+            console.log("DONE", performance.now() - s)
+            done(success_count, errors.length == 0 ? null : errors);
+        });
     }
 
     saveChangesAsync() {

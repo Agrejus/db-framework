@@ -1,5 +1,5 @@
 import { IDbPlugin, IdType, NonNullCreateEntity, NonNullEntity, CompiledSchema, toMap } from "@agrejus/db-framework-core";
-import { EntityCallbackMany } from "../types";
+import { ChangeTrackedEntity, EntityCallbackMany } from "../types";
 import { IChangeTracker } from "./types";
 import { HashType } from "@agrejus/db-framework-core/dist/schema";
 
@@ -16,7 +16,23 @@ export class MultiNonIdentityKeyChangeTracker<TEntity extends {}, TEnhancedPrope
         this._schema = schema;
         this._dbPlugin = dbPlugin;
     }
+
+    private _hasAttachmentsChanges() {
+        for(const [,doc] of this.attachments) {
+            const changeTrackedDoc: ChangeTrackedEntity<{}> = doc as any;
+
+            if (changeTrackedDoc.__tracking__?.isDirty === true) {
+                return true;
+            }
+        }
+
+        return false;
+    }
     
+    hasChanges() {
+        return this.additions.size > 0 || this.removals.length > 0 || this._hasAttachmentsChanges() === true;
+    }
+
     resolve(entities: NonNullEntity<TEntity>[]) {
         const result: NonNullEntity<TEntity>[] = [];
         for(let i = 0; i < entities.length; i++) {
@@ -31,23 +47,42 @@ export class MultiNonIdentityKeyChangeTracker<TEntity extends {}, TEnhancedPrope
             }
 
             this.attachments.set(key, entity);
-            result.push(existing);         
+            result.push(entity);         
         }
 
         return result;
     }
 
+    private _getAttachmentsChanges() {
+        const result = new Map<IdType, { doc: NonNullEntity<TEntity>, delta: { [key: string]: string | number | Date } }>();
+        for (const [, doc] of this.attachments) {
+            const changeTrackedDoc: ChangeTrackedEntity<{}> = doc as any;
+
+            if (!changeTrackedDoc.__tracking__?.isDirty) {
+                continue;
+            }
+
+            const id = this._schema.hash(doc as any, HashType.Ids);
+            result.set(id, { doc: this._schema.prepare(doc as any) as any, delta: changeTrackedDoc.__tracking__.changes })
+        }
+
+        return result;
+    }
+
+
     saveChanges(done: (result: number, error?: any) => void) {
+
+        if (this.hasChanges() === false) {
+            done(0, null);
+            return;
+        }
 
         this._dbPlugin.bulkOperations<any>(this._schema, {
             // prepare is responsible for creating a new clean object 
             // with only properties that should be saved and run any serializers
             adds: [...this.additions.values()].map(w => this._schema.prepare(w)),
             removes: this.removals.map(w => this._schema.prepare(w as any)),
-            updates: {
-                data: [],
-                deltas: new Map()
-            }
+            updates: this._getAttachmentsChanges()
         }, ({ adds, removedCount, updates }, error) => {
 
             // need to merge adds with data sent in

@@ -14,3 +14,25 @@ export const setPropertyValue = (instance: any, path: string, value: any) => {
         deepInstance = instance[key];
     }
 }
+
+export const forEach = <T>(data: T[], callback: (item: T, next: () => void) => void, done: () => void) => {
+
+    if (data.length === 0) {
+        done();
+        return;
+    }
+    let index = 0;
+    const next = () => {
+        index++;
+
+        if (index >= data.length) {
+            done();
+            return;
+        }
+
+        callback(data[index], next);
+    }
+
+    callback(data[index], next);
+
+}

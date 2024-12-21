@@ -124,7 +124,7 @@ export class PropertyInfo<T extends {}> {
         return parts.join("");
     }
 
-    getFullPath(parent?: string) {
+    getAssignmentPath(parent?: string) {
         const resolved = this._resolvePathArray();
         const pathArray = !!parent ? [parent, ...resolved.parts] : resolved.parts;
         return pathArray.join(".");

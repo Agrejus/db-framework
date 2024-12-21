@@ -4,6 +4,15 @@ export type EntitySelector<T extends {}> = (entity:  NonNullEntity<T>, index?: n
 export type EntityParamsSelector<T extends {}, P> = (payload: [NonNullEntity<T>, P], index?: number, array?:  NonNullEntity<T>[]) => boolean;
 export type EntityCallbackOne<T extends {}> = (entity: NonNullEntity<T> | null, error?: any) => void;
 export type EntityCallbackMany<T extends {}> = (entities: NonNullEntity<T>[], error?: any) => void;
+export type ChangeTrackedEntity<T extends {}> = T & {
+    __tracking__?: {
+        isDirty: boolean;
+        changes: { [K in keyof T]: T[K] },
+        original: { [K in keyof T]: T[K] },
+        isPaused: boolean
+    },
+    __isProxy__: true
+}
 
 export type Enricher<T extends {}> = (instance: T) => void;
 export type IdGetter<T extends {}> = (instance: T) => IdType;
