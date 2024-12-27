@@ -103,6 +103,24 @@ export class PropertyInfo<T extends {}> {
         return false;
     }
 
+    get hasIdentityChildren() {
+        const children = [...this.children];
+
+        for(let i = 0; i < children.length; i++){
+            const child = children[i];
+
+            if (child.isIdentity === true) {
+                return true;
+            }
+
+            if (child.children.length > 0) {
+                children.push(...child.children)
+            }
+        }
+
+        return false;
+    }
+
     getSelectrorPath(parent: string) {
 
         const resolved = this._resolvePathArray();

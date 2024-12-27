@@ -1,6 +1,6 @@
 import { IDbPlugin, NonNullCreateEntity, NonNullEntity, CompiledSchema, toMap, HashType } from "@agrejus/db-framework-core";
-import { ChangeTrackedEntity, EntityCallbackMany } from "../types";
-import { IChangeTracker } from "./types";
+import { ChangeTrackedEntity, EntityCallbackMany } from "../../types";
+import { IChangeTracker } from "../types";
 import { IdType } from "@agrejus/db-framework-core/src";
 
 export class MultiKeyIdentityChangeTracker<TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never> implements IChangeTracker<TEntity, TEnhancedPropertyNames, TComputedPropertyNames> {

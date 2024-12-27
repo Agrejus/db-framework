@@ -1,21 +1,36 @@
 {
   "name": "@agrejus/db-framework-plugin-pouchdb",
-  "version": "1.0.0",
+  "version": "2.0.0-beta.3",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "source": "./src/index.ts",
   "scripts": {
     "build": "tsc"
   },
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "author": "James DeMeuse <james.demeuse@gmail.com>",
+  "license": "MIT",
+  "repository": "Agrejus/db-framework",
+  "keywords": [
+    "orm",
+    "typescript",
+    "web",
+    "indexeddb",
+    "electron",
+    "data access layer",
+    "entities",
+    "entity framework",
+    "database"
+  ],
+  "description": "PouchDB plugin for db-framework",
   "dependencies": {
-    "@agrejus/db-framework-core": "file://../../core",
     "pouchdb": "^9.0.0",
     "pouchdb-find": "^9.0.0"
   },
+  "peerDependencies": {
+    "@agrejus/db-framework-core": "^2.0.0-beta.3"
+  },
   "devDependencies": {
+    "@agrejus/db-framework-core": "file://../../core",
     "@types/pouchdb": "^6.4.2"
   }
 }

@@ -158,7 +158,7 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
 
                 // arrow function has a return keyword
                 const fn = `
-const ${name} = ${stringifiedFunction}`
+    const ${name} = ${stringifiedFunction}`
                 const parameters = split[0].replace(/\(|\)/g, "").split(",");
                 const build = (returningStatement: string) => fn.toString();
 
@@ -174,9 +174,9 @@ const ${name} = ${stringifiedFunction}`
             const parameters = split[0].replace(/\(|\)/g, "").split(",");
             const build = (returningStatement: string) => {
                 return `
-function ${name}(${parameters.join(",")}) {
-    return ${returningStatement};
-}`
+    function ${name}(${parameters.join(",")}) {
+        return ${returningStatement};
+    }`
             }
 
             return {
@@ -190,13 +190,13 @@ function ${name}(${parameters.join(",")}) {
 
         if (stringifiedFunction.startsWith("function")) {
             const split = stringifiedFunction.split(/\(|\)/g);
-            const functionBodyWithBraces = stringifiedFunction.replace(/function[\s]{0,}\(.{1,}?\)/, "");
+            const functionBodyWithBraces = stringifiedFunction.replace(/function.{0,}\(.{1,}?\)/, "");
             const parameters = split[1].split(",");
             const build = (returningStatement: string) => {
                 return `
-function ${name}(${parameters.join(",")}) {
-    return ${returningStatement}
-}`
+    function ${name}(${parameters.join(",")}) {
+        return ${returningStatement}
+    }`
             }
             const returning = functionBodyWithBraces.trim().slice(1, functionBodyWithBraces.length - 2).trim();
             const correctedReturn = returning.replace("return", "").trim();
@@ -245,9 +245,9 @@ function ${name}(${parameters.join(",")}) {
             const path = property.getSelectrorPath("entity");
             const assignmentPath = property.getAssignmentPath("result");
             const optionalAssignment = `
-if (${path} != null) {
-    ${assignmentPath} = ${path};
-}
+    if (${path} != null) {
+        ${assignmentPath} = ${path};
+    }
             `;
 
             builder.append("optionals", optionalAssignment)
@@ -330,10 +330,10 @@ if (${path} != null) {
         const assignmentPath = [parentName, ...splitSelectorPath.slice(1, splitSelectorPath.length)].join(".")
 
         return `
-if (${parentPath} != null) {
-    ${assignmentPath} = ${functionBody};
-}
-`
+    if (${parentPath} != null) {
+        ${assignmentPath} = ${functionBody};
+    }
+    `
     }
 
     private _createIfConditionalPropertyAssignment(splitSelectorPath: string[], parentName: string) {
@@ -341,9 +341,9 @@ if (${parentPath} != null) {
         const assignmentPath = [parentName, ...splitSelectorPath.slice(1, splitSelectorPath.length)].join(".")
 
         return `
-if (${splitSelectorPath.join("?.")} != null) {
-    ${assignmentPath} = ${splitSelectorPath.join(".")};
-}
+    if (${splitSelectorPath.join("?.")} != null) {
+        ${assignmentPath} = ${splitSelectorPath.join(".")};
+    }
 `
 
     }
@@ -358,10 +358,10 @@ if (${splitSelectorPath.join("?.")} != null) {
         if (property.valueDeserializer != null) {
             const fn = this._toNamedFunction(property.valueDeserializer.toString());
             const assignment = `
-if (${fullSplit.join("?.")} != null) {
-    ${fullSplit.join(".")} = ${fn.name}(${fullSplit.join(".")});
-}
-`
+    if (${fullSplit.join("?.")} != null) {
+        ${fullSplit.join(".")} = ${fn.name}(${fullSplit.join(".")});
+    }
+    `
             builder.append("functions", fn.body);
             builder.append("deserializers", assignment);
             return;
@@ -398,17 +398,19 @@ if (${fullSplit.join("?.")} != null) {
             return;
         }
 
-        if (property.type === SchemaTypes.Object) {
+        if (property.type === SchemaTypes.Object && property.hasIdentityChildren === true) {
+            // needs love
             builder.append("assignments", `${["destination", ...split].join(".")} = {}`);
             return;
         }
 
         if (property.isKey === true || property.isIdentity === true) {
             const conditionalAssignment = `
-if (${["source", ...split].join("?.")} != null) {
-    ${["destination", ...split].join(".")} = ${["source", ...split].join("?.")}
-}`
+    if (${["source", ...split].join("?.")} != null) {
+        ${["destination", ...split].join(".")} = ${["source", ...split].join("?.")}
+    }`
             builder.append("post-ifs", conditionalAssignment);
+            return;
         }
 
         // do not map everything, only what is needed
@@ -585,32 +587,32 @@ ${changedPath} = enableChangeTracking(${changedPath}, "${property.getAssignmentP
         const mergeFunciton = new FunctionBuilder().use("assignments").use("functions").use("deserializers").use("post-ifs");
         const enrichFunciton = new FunctionBuilder().use("enrichments").use("functions").use("variables").use("entity").use("change-tracking");
         hashBuilder.append("functions", `
-function stringifyDate(d) {
+    function stringifyDate(d) {
 
-    if (typeof d === "string") {
-        return d;
-    }
+        if (typeof d === "string") {
+            return d;
+        }
 
-    if ("toISOString" in d) {
-        return d.toISOString();
-    }
+        if ("toISOString" in d) {
+            return d.toISOString();
+        }
 
-    return d.toString();
-}`);
+        return d.toString();
+    }`);
 
         mergeFunciton.append("functions", `
-function pause() {
-    // initiate change tracking if needed
-    if (destination.__tracking__ == null) {
-        destination.__tracking__ = {};
-    }
+    function pause() {
+        // initiate change tracking if needed
+        if (destination.__tracking__ == null) {
+            destination.__tracking__ = {};
+        }
 
-    destination.__tracking__.isPaused = true;
-}    
+        destination.__tracking__.isPaused = true;
+    }    
 
-function unpause() {
-    destination.__tracking__.isPaused  = false;
-}    
+    function unpause() {
+        destination.__tracking__.isPaused  = false;
+    }    
 `)
 
         // Call _iterate to process the schema and build the function body
@@ -759,66 +761,69 @@ function unpause() {
         });
 
         const hashTypeFunctionBody = `
-if (${hashTypeBuilder.join("return", " || ")}) {
-    return "Object";
-}
+    if (${hashTypeBuilder.join("return", " || ")}) {
+        return "Object";
+    }
 
-return "Ids"
+    return "Ids"
 `;
         const prepareFunctionBody = `
-${prepareBuilder.join("functions", "")} 
+    ${prepareBuilder.join("functions", "")} 
 
-const result = { 
-    ${prepareBuilder.join("return", "").replace(/,\s*$/, "")} 
-};
+    const result = { 
+        ${prepareBuilder.join("return", "").replace(/,\s*$/, "")} 
+    };
 
-${prepareBuilder.join("optionals", "\r\n")}
+    ${prepareBuilder.join("optionals", "\r\n")}
 
-return result;
+    return result;
 `;
         const stripFunctionBody = `return {${stripperLines.join("").replace(/,\s*$/, "")}};`;
         const cloneFunctionBody = `return {${cloneLines.join("").replace(/,\s*$/, "")}};`;
         const deserializeFunctionBody = `${deserializeBuilder.join("variables", ";")}  return {${deserializeBuilder.join("return", "").replace(/,\s*$/, "")}};`;
         const enrichFunctionBody = `
-return function(entity) { 
+    return function(entity) { 
 
-    function ${this.createChangeTracker.toString()}
+        function ${this.createChangeTracker.toString()}
 
-    const enableChangeTracking = createChangeTracker();
+        const enableChangeTracking = createChangeTracker();
 
-    ${enrichFunciton.join("functions", "\r\n")} 
-    const enriched = {
-        ${enrichFunciton.join("entity", "").replace(/,\s*$/, "")}
-    }; 
+        ${enrichFunciton.join("functions", "\r\n")} 
+        const enriched = {
+            ${enrichFunciton.join("entity", "").replace(/,\s*$/, "")}
+        }; 
 
-    ${enrichFunciton.join("enrichments", "")} 
+        ${enrichFunciton.join("enrichments", "")} 
 
-    ${enrichFunciton.join("change-tracking", "\r\n")} 
+        ${enrichFunciton.join("change-tracking", "\r\n")} 
 
-    return enableChangeTracking(enriched); 
-}`;
+        return enableChangeTracking(enriched); 
+    }`;
 
         const mergeFunctionBody = `
-return function(destination, source) {
+    return function(destination, source) {
 
-${mergeFunciton.join("functions", "\r\n")}
+        ${mergeFunciton.join("functions", "\r\n")}
 
-pause();
+        pause();
 
-${mergeFunciton.join("assignments", ";\r\n")}
+        ${mergeFunciton.join("assignments", ";\r\n")}
 
-${mergeFunciton.join("post-ifs", "\r\n")}
+        ${mergeFunciton.join("post-ifs", "\r\n")}
 
-unpause();
+        unpause();
 
-return destination; 
-}`;
+        return destination; 
+    }`;
         const compareFunctionBody = `${compareFunction.declarations.join(";")}  return ${compareFunction.returnBody.join(" && ").replace(/,\s*$/, "")};`
-        const hashFunctionBody = `${hashBuilder.join("functions", "")} 
-if (type === "Ids") {
-    return \`${hashBuilder.join("return-ids", "")}\`;
-}
-return \`${hashBuilder.join("return-object", "")}\`;`
+        const hashFunctionBody = `${
+    hashBuilder.join("functions", "")} 
+    
+    if (type === "Ids") {
+        return \`${hashBuilder.join("return-ids", "")}\`;
+    }
+
+    return \`${hashBuilder.join("return-object", "")}\`;`
 
         // enrich should enable change tracking!
 

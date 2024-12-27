@@ -21,7 +21,9 @@ export const forEach = <T>(data: T[], callback: (item: T, next: () => void) => v
         done();
         return;
     }
+
     let index = 0;
+    
     const next = () => {
         index++;
 

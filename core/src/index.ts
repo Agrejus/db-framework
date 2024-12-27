@@ -24,7 +24,8 @@ export {
 } from './plugins/types';
 
 export {
-    toMap
+    toMap,
+    createUUID
 } from './utilities';
 
 export {

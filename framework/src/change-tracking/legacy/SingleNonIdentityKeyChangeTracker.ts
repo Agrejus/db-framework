@@ -1,12 +1,11 @@
 import { IDbPlugin, IdType, NonNullCreateEntity, NonNullEntity, CompiledSchema } from "@agrejus/db-framework-core";
-import { ChangeTrackedEntity, EntityCallbackMany } from "../types";
-import { IChangeTracker } from "./types";
+import { ChangeTrackedEntity, EntityCallbackMany } from "../../types";
+import { IChangeTracker } from "../types";
 
 export class SingleNonIdentityKeyChangeTracker<TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never> implements IChangeTracker<TEntity, TEnhancedPropertyNames, TComputedPropertyNames> {
 
     protected removals: NonNullEntity<TEntity>[] = [];
     protected additions: Map<IdType, NonNullCreateEntity<TEntity>> = new Map<IdType, NonNullCreateEntity<TEntity>>();
-    protected removeById: Set<IdType> = new Set<IdType>();
     protected attachments: Map<IdType, NonNullEntity<TEntity>> = new Map<IdType, NonNullEntity<TEntity>>();
     private _schema: CompiledSchema<TEntity>;
     private readonly _dbPlugin: IDbPlugin;
@@ -85,8 +84,6 @@ export class SingleNonIdentityKeyChangeTracker<TEntity extends {}, TEnhancedProp
 
             // need to merge adds with data sent in
             for (let i = 0; i < adds.length; i++) {
-
-                // we are sending back adds incorrectly
 
                 const add = adds[i];
                 const id = this._schema.getIds(add as any)[0];

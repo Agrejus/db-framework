@@ -1,6 +1,5 @@
 import { DataContext } from "@agrejus/db-framework";
-import { s } from "@agrejus/db-framework-core";
-import { createUUID } from "@agrejus/db-framework-core/dist/utilities";
+import { s, createUUID } from "@agrejus/db-framework-core";
 import { PouchDbPlugin } from "@agrejus/db-framework-plugin-pouchdb";
 import { performance } from 'perf_hooks'
 
@@ -9,13 +8,13 @@ const model = s.define("MY_TABLE", {
     _rev: s.string().identity(),
     name: s.string(),
     year: s.number(),
-    // date: s.date().default(new Date()).deserialize(w => new Date(w)).serialize(w => w.toISOString())
+    date: s.date().default(new Date()).deserialize(w => new Date(w)).serialize(w => w.toISOString())
 }).
-// modify(w => ({
-//     test: w.computed(w => w._id),
-//     toString: w.function(w => w.date.toISOString()),
-//     documentType: w.computed((_, t) => t).tracked()
-// })).
+modify(w => ({
+    test: w.computed(w => w._id),
+    toString: w.function(w => w.date.toISOString()),
+    documentType: w.computed((_, t) => t).tracked()
+})).
 compile();
 
 const nested = s.define("MY_NESTED_TABLE", {
@@ -52,12 +51,12 @@ const r = async () => {
             }
         });
 
-        console.log(nestedAdd);
+        // console.log(nestedAdd);
 
-        const [added] =  await ctx.test.addAsync({
-            name: "James8",
-            year: 2024
-        });
+        // const [added] =  await ctx.test.addAsync({
+        //     name: "James8",
+        //     year: 2024
+        // });
 
         await ctx.saveChangesAsync();
         // // let's not run prepare when getting changes. 
@@ -93,7 +92,7 @@ const r = async () => {
     }
 }
 
-// r();
+r();
 // maybe use a db context factory?  That way we can quickly get a new db context
 // from the cache vs creating a new one
 
@@ -158,7 +157,6 @@ const profileExecution = async (iterations: number) => {
     const averageTime = totalTime / iterations;
     console.log(`Average execution time: ${averageTime.toFixed(4)}ms, Total execution time: ${totalTime.toFixed(4)}ms, H: ${high.toFixed(4)}, L: ${low.toFixed(4)}`);
 
-    
     await new Promise((resolve, reject) => {
         const saveStart = performance.now();
         ctx.saveChanges((r, e) => {
@@ -174,4 +172,4 @@ const profileExecution = async (iterations: number) => {
 };
 
 // Run the profiler with the desired number of iterations
-profileExecution(1000);
+// profileExecution(1000);

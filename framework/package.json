@@ -1,19 +1,35 @@
 {
   "name": "@agrejus/db-framework",
-  "version": "1.0.0",
+  "version": "2.0.0-beta.3",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "source": "./src/index.ts",
   "scripts": {
     "build": "tsc"
   },
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "author": "James DeMeuse <james.demeuse@gmail.com>",
+  "license": "MIT",
+  "repository": "Agrejus/db-framework",
+  "keywords": [
+    "orm",
+    "typescript",
+    "web",
+    "indexeddb",
+    "electron",
+    "data access layer",
+    "entities",
+    "entity framework",
+    "database"
+  ],
+  "description": "JavaScript Data Interaction Layer modeled after .NET Entity Framework",
   "dependencies": {
-    "@agrejus/db-framework-core": "file://../core"
+    
+  },
+  "peerDependencies": {
+    "@agrejus/db-framework-core": "^2.0.0-beta.3"
   },
   "devDependencies": {
+    "@agrejus/db-framework-core": "file://../core",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.3"
   }

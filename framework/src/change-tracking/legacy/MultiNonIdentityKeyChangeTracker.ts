@@ -1,14 +1,13 @@
-import { IDbPlugin, NonNullCreateEntity, NonNullEntity, CompiledSchema, toMap } from "@agrejus/db-framework-core";
-import { ChangeTrackedEntity, EntityCallbackMany } from "../types";
-import { IChangeTracker } from "./types";
+import { IDbPlugin, IdType, NonNullCreateEntity, NonNullEntity, CompiledSchema, toMap } from "@agrejus/db-framework-core";
+import { ChangeTrackedEntity, EntityCallbackMany } from "../../types";
+import { IChangeTracker } from "../types";
 import { HashType } from "@agrejus/db-framework-core/dist/schema";
-import { IdType } from "@agrejus/db-framework-core/src";
 
-export class SingleIdentityKeyChangeTracker<TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never> implements IChangeTracker<TEntity, TEnhancedPropertyNames, TComputedPropertyNames> {
+export class MultiNonIdentityKeyChangeTracker<TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never> implements IChangeTracker<TEntity, TEnhancedPropertyNames, TComputedPropertyNames> {
 
     protected removals: NonNullEntity<TEntity>[] = [];
-    protected additions: NonNullCreateEntity<TEntity>[] = [];
-    protected attachments: Map<IdType, NonNullEntity<TEntity>> = new Map<IdType, NonNullEntity<TEntity>>();
+    protected additions: Map<string, NonNullCreateEntity<TEntity>> = new Map<string, NonNullCreateEntity<TEntity>>();
+    protected attachments: Map<string, NonNullEntity<TEntity>> = new Map<string, NonNullEntity<TEntity>>();
     private _schema: CompiledSchema<TEntity>;
     private readonly _dbPlugin: IDbPlugin;
 
@@ -30,17 +29,15 @@ export class SingleIdentityKeyChangeTracker<TEntity extends {}, TEnhancedPropert
     }
     
     hasChanges() {
-        return this.additions.length > 0 || this.removals.length > 0 || this._hasAttachmentsChanges() === true;
+        return this.additions.size > 0 || this.removals.length > 0 || this._hasAttachmentsChanges() === true;
     }
 
     resolve(entities: NonNullEntity<TEntity>[]) {
-
         const result: NonNullEntity<TEntity>[] = [];
-
         for(let i = 0; i < entities.length; i++) {
             
             const entity = entities[i];
-            const key = this._schema.getIds(entity)[0];
+            const key = this._schema.hash(entity, HashType.Ids);
             const existing = this.attachments.get(key);
 
             if (existing != null) {
@@ -64,12 +61,13 @@ export class SingleIdentityKeyChangeTracker<TEntity extends {}, TEnhancedPropert
                 continue;
             }
 
-            const id = this._schema.getIds(doc)[0];
+            const id = this._schema.hash(doc as any, HashType.Ids);
             result.set(id, { doc: this._schema.prepare(doc as any) as any, delta: changeTrackedDoc.__tracking__.changes })
         }
 
         return result;
     }
+
 
     saveChanges(done: (result: number, error?: any) => void) {
 
@@ -78,15 +76,10 @@ export class SingleIdentityKeyChangeTracker<TEntity extends {}, TEnhancedPropert
             return;
         }
 
-        const preparedAdds = this.additions.map(w => this._schema.prepare(w));
-
-        // need to hash here, not on add in case something is changed after adding
-        const hashedAdds = toMap(this.additions, w => this._schema.hash(w, HashType.Object));
-
         this._dbPlugin.bulkOperations<any>(this._schema, {
             // prepare is responsible for creating a new clean object 
             // with only properties that should be saved and run any serializers
-            adds: preparedAdds,
+            adds: [...this.additions.values()].map(w => this._schema.prepare(w)),
             removes: this.removals.map(w => this._schema.prepare(w as any)),
             updates: this._getAttachmentsChanges()
         }, ({ adds, removedCount, updates }, error) => {
@@ -94,18 +87,17 @@ export class SingleIdentityKeyChangeTracker<TEntity extends {}, TEnhancedPropert
             // need to merge adds with data sent in
             for (let i = 0; i < adds.length; i++) {
                 const add = adds[i];
-                const hash = this._schema.hash(add as any, HashType.Object);
-                const found = hashedAdds.get(hash);
+                const id = this._schema.hash(add as any, HashType.Ids)
+                const found = this.additions.get(id);
 
                 // Let's only map Ids and identities
                 this._schema.merge(found as any, add as any);
 
-                const id = this._schema.getIds(found as any)[0];
                 // Set here, if we never save we should never attach
                 this.attachments.set(id, found as any);
             }
 
-            this.additions = [];
+            this.additions = new Map<string, NonNullCreateEntity<TEntity>>();
 
             done(adds.length + removedCount + updates.length, error);
         });
@@ -126,8 +118,9 @@ export class SingleIdentityKeyChangeTracker<TEntity extends {}, TEnhancedPropert
                 const entity = entities[i];
 
                 const enriched: NonNullCreateEntity<TEntity> = this._schema.enrich(entity as any) as any;
+                const id = this._schema.hash(enriched as any, HashType.Ids);
 
-                this.additions.push(enriched);
+                this.additions.set(id, enriched);
 
                 result.push(enriched as any);
             }
