@@ -15,6 +15,7 @@ export class PropertyInfo<T extends {}> {
     readonly isReadonly: boolean;
     readonly isUnmapped: boolean;
 
+    readonly injected: any | null = null;
     readonly defaultValue: DefaultValue<any> | null = null;
     readonly valueSerializer: PropertySerializer<T> | null = null;
     readonly valueDeserializer: PropertyDeserializer<T> | null = null;
@@ -36,6 +37,7 @@ export class PropertyInfo<T extends {}> {
         this.isIdentity = schema.isIdentity;
         this.isReadonly = schema.isReadonly;
         this.isUnmapped = schema.isUnmapped;
+        this.injected = schema.injected;
 
         this.defaultValue = schema.defaultValue;
         this.valueSerializer = schema.valueSerializer;

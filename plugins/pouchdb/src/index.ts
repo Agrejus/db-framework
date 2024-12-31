@@ -1,8 +1,9 @@
+// @ts-nocheck
+
 import PouchDB from 'pouchdb';
-import { CompiledSchema, EntityChanges, EntityModificationResult, Expression, IDbPlugin, IdType, toMap } from '@agrejus/db-framework-core';
+import { CompiledSchema, EntityChanges, EntityModificationResult, Expression, IDbPlugin, IdType, NonNullEntity, toMap } from '@agrejus/db-framework-core';
 import { toMango } from './expression/resolver';
 import findAdapter from 'pouchdb-find';
-import { performance } from 'perf_hooks';
 
 PouchDB.plugin(findAdapter);
 
@@ -29,12 +30,10 @@ export class PouchDbPlugin implements IDbPlugin {
 
                 const { adds, removes, updates } = operations;
                 const updatedDocuments = [...updates].map(w => w[1].doc);
-                const s = performance.now();
-
                 const removesMap = toMap(removes, w => (w as any)._id);
                 const updatesMap = toMap(updatedDocuments, w => (w as any)._id);
 
-                db.bulkDocs([...adds, ...removes.map(w => ({ _id: w._id, _rev: w._rev, _deleted: true })), ...updatedDocuments], null, (error, response) => {
+                db.bulkDocs([...adds, ...removes.map(w => ({ _id: (w as any)._id, _rev: (w as any)._rev, _deleted: true })), ...updatedDocuments], null, (error, response) => {
 
                     if (error) {
                         errors.push(error);
@@ -88,7 +87,6 @@ export class PouchDbPlugin implements IDbPlugin {
 
                         }
 
-                        console.log("IDENTITY Bulk Docs", performance.now() - s)
                         d(result, errors.length > 0 ? errors : null)
                     });
                 });
@@ -107,7 +105,7 @@ export class PouchDbPlugin implements IDbPlugin {
             updates: []
         }
         const errors: any[] = [];
-        const s = performance.now();
+
         this._doWork((db, d) => {
             try {
 
@@ -117,7 +115,7 @@ export class PouchDbPlugin implements IDbPlugin {
                 const removesMap = toMap(removes, w => (w as any)._id);
                 const updatesMap = toMap(updatedDocuments, w => (w as any)._id);
 
-                db.bulkDocs([...adds, ...removes.map(w => ({ _id: w._id, _rev: w._rev, _deleted: true })), ...updatedDocuments], null, (error, response) => {
+                db.bulkDocs([...adds, ...removes.map(w => ({ _id: (w as any)._id, _rev: (w as any)._rev, _deleted: true })), ...updatedDocuments], null, (error, response) => {
 
                     if (error != null) {
                         errors.push(error)
@@ -155,7 +153,6 @@ export class PouchDbPlugin implements IDbPlugin {
                         } as any);
                     }
 
-                    console.log("DEFAULT Bulk Docs", performance.now() - s)
                     d(result, errors.length > 0 ? errors : null)
 
                 });
@@ -165,18 +162,21 @@ export class PouchDbPlugin implements IDbPlugin {
         }, done);
     }
 
-    bulkOperations<T extends {}>(schema: CompiledSchema<T>, operations: EntityChanges<T>, done: (result: EntityModificationResult<T>, error?: any) => void) {
+    bulkOperations<TEntity extends {}>(
+        schema: CompiledSchema<TEntity>, 
+        operations: EntityChanges<TEntity>,
+        done: (result: EntityModificationResult<TEntity>, error?: any) => void) {
 
         if (schema.idPropertyNames.length > 1) {
             throw new Error("PouchDB cannot have more than one key per document.  Only '_id' is allowed to be the key")
         }
 
         if (schema.hasIdentityKeys === true) {
-            this._identityBulkOperations(operations, done);
+            this._identityBulkOperations<TEntity>(operations, done);
             return;
         }
 
-        this._defaultBulkOperations(operations, done);
+        this._defaultBulkOperations<TEntity>(operations, done);
     }
 
     private _doWork<TResult, TEntity>(action: (db: PouchDB.Database<TEntity>, done: (result: TResult, error?: any) => void) => void, done: (result: TResult, error?: any) => void, shouldClose: boolean = true) {
@@ -199,18 +199,18 @@ export class PouchDbPlugin implements IDbPlugin {
         }, done);
     }
 
-    query<TEntity extends {}>(schema: CompiledSchema<TEntity>, expression: Expression, done: (entities: TEntity[], error?: any) => void): void {
+    query<TEntity extends {}>(schema: CompiledSchema<TEntity>, expression: Expression, options: QueryOptions, done: (entities: NonNullEntity<TEntity>[], error?: any) => void): void {
         const selector = toMango(expression);
         this._doWork((w, d) => {
             w.find({
                 selector: selector
             }, (error, result) => {
-                d((result.docs as any) as TEntity[], error)
+                d(result.docs as NonNullEntity<TEntity>[], error)
             });
         }, done);
     }
 
-    all<TEntity extends {}>(schema: CompiledSchema<TEntity>, done: (entities: TEntity[], error?: any) => void): void {
+    all<TEntity extends {}>(schema: CompiledSchema<TEntity>, done: (entities: NonNullEntity<TEntity>[], error?: any) => void): void {
         this._doWork((w, d) => {
             w.find({
                 selector: {
@@ -218,20 +218,20 @@ export class PouchDbPlugin implements IDbPlugin {
                 },
                 limit: 0
             }, (error, result) => {
-                d((result.docs as any) as TEntity[], error)
+                d(result.docs as NonNullEntity<TEntity>[], error)
             });
         }, done);
     }
 
-    get<TEntity extends {}>(schema: CompiledSchema<TEntity>, ids: string[], done: (entities: TEntity[], error?: any) => void): void {
+    get<TEntity extends {}>(schema: CompiledSchema<TEntity>, ids: IdType[], done: (entities: NonNullEntity<TEntity>[], error?: any) => void): void {
         this._doWork((w, d) => {
             w.find({
                 selector: {
                     documentType: schema.tableName
                 },
-                limit: 1000
+                limit: 0
             }, (error, result) => {
-                d((result.docs as any) as TEntity[], error)
+                d(result.docs as NonNullEntity<TEntity>[], error)
             });
         }, done);
     }

@@ -1,11 +1,12 @@
 {
   "name": "@agrejus/db-framework",
-  "version": "2.0.0-beta.3",
+  "version": "2.0.0-beta.5",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "source": "./src/index.ts",
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "test": "vitest"
   },
   "author": "James DeMeuse <james.demeuse@gmail.com>",
   "license": "MIT",
@@ -22,15 +23,13 @@
     "database"
   ],
   "description": "JavaScript Data Interaction Layer modeled after .NET Entity Framework",
-  "dependencies": {
-    
-  },
   "peerDependencies": {
-    "@agrejus/db-framework-core": "^2.0.0-beta.3"
+    "@agrejus/db-framework-core": "^2.0.0-beta.6"
   },
   "devDependencies": {
     "@agrejus/db-framework-core": "file://../core",
     "ts-node": "^10.9.2",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
   }
 }

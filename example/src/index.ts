@@ -4,7 +4,7 @@ import { PouchDbPlugin } from "@agrejus/db-framework-plugin-pouchdb";
 import { performance } from 'perf_hooks'
 
 const model = s.define("MY_TABLE", {
-    _id: s.string().key().default(createUUID),
+    _id: s.string().key().default((i) => i.createUUID(64), { createUUID }),
     _rev: s.string().identity(),
     name: s.string(),
     year: s.number(),
@@ -32,7 +32,7 @@ const plugin = new PouchDbPlugin("testing-db");
 class Ctx extends DataContext {
 
     constructor() {
-        super(plugin as any);
+        super(plugin);
     }
 
     test = this.dbset(model);
@@ -44,27 +44,30 @@ const r = async () => {
     try {
         const ctx = new Ctx();
 
-        const [nestedAdd] =  await ctx.nested.addAsync({
-            name: "James6",
-            child: {
-                name: "test"
-            }
-        });
+        // const [nestedAdd] =  await ctx.nested.addAsync({
+        //     name: "James6",
+        //     child: {
+        //         name: "test"
+        //     }
+        // });
 
         // console.log(nestedAdd);
 
-        // const [added] =  await ctx.test.addAsync({
-        //     name: "James8",
-        //     year: 2024
-        // });
-
+        const [added] =  await ctx.test.addAsync({
+            name: "James8",
+            year: 2024
+        });
         await ctx.saveChangesAsync();
         // // let's not run prepare when getting changes. 
         // // after we call 'getChanges', we should call prepare on the adds and return a new object, then
         // // we can merge on the result and merge the resulting object.  We can forget about the object we send 
         // // over to save
-    
-        // ctx.test.find(w => w.name === added.name, async (r, e) => {
+        debugger;
+        // we need to recognize this
+        const found = await ctx.test.where(([w, p]) => w.name === p.name, { name: "James8" }).toArrayAsync();
+
+        console.log(found)
+        // ctx.test.find(w => w.name === added.name, async (r, e) => {  
         //     console.log("FOUND", r, added, e);
 
         //     added.name = "changed";

@@ -1,7 +1,6 @@
 import { CompiledSchema, IDbPlugin } from '@agrejus/db-framework-core';
 import { DbSet } from './DbSet';
 import { forEach } from './utilities';
-import { performance } from 'perf_hooks';
 
 export class DataContext {
 
@@ -25,7 +24,6 @@ export class DataContext {
 
         let success_count = 0;
         const errors: any[] = [];
-        const s = performance.now();
         const dbSets = [...this._dbsets.values()];
 
         forEach(dbSets, (dbset, next) => {
@@ -40,7 +38,6 @@ export class DataContext {
                 next();
             });
         }, () => {
-            console.log("DONE", performance.now() - s)
             done(success_count, errors.length == 0 ? null : errors);
         });
     }
@@ -60,5 +57,19 @@ export class DataContext {
 
     previewChanges() {
 
+    }
+
+    hasChanges() {
+        for (const [, dbset] of this._dbsets) {
+            if (dbset.changeTracker.hasChanges() === true) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    destroy(done: (error?: any) => void) {
+        this._dbPlugin.destroy(done);
     }
 }

@@ -9,7 +9,8 @@ export {
 } from './expressions/types';
 
 export {
-    toExpression
+    toExpression,
+    combineExpressions
 } from './expressions/parser';
 
 export {
@@ -20,7 +21,9 @@ export {
 export {
     IDbPlugin,
     EntityChanges,
-    EntityModificationResult
+    EntityModificationResult,
+    QueryOptions,
+    QueryField
 } from './plugins/types';
 
 export {

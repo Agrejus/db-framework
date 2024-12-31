@@ -4,13 +4,14 @@ import { SchemaBase } from "../base/Base";
 import { SchemaDeserialize } from "./Deserialize";
 import { SchemaSerialize } from "./Serialize";
 
-export class SchemaDefault<T extends any, TModifiers extends SchemaModifiers> extends SchemaBase<T, TModifiers> {
+export class SchemaDefault<T extends any, I, TModifiers extends SchemaModifiers> extends SchemaBase<T, TModifiers> {
     instance: T;
     private _schemaDefault = true;
 
-    constructor(defaultValue: DefaultValue<T>, current: SchemaBase<T, TModifiers>) {
+    constructor(defaultValue: DefaultValue<T, I>, injected: I, current: SchemaBase<T, TModifiers>) {
         super(current);
         this.instance = current.instance;
+        this.injected = injected;
         this.defaultValue = defaultValue;
     }
 

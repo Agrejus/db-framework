@@ -13,6 +13,7 @@ export abstract class SchemaBase<T extends any, TModifiers extends SchemaModifie
     isIdentity: boolean = false;
     isReadonly: boolean = false;
     
+    injected: any = null;
     defaultValue: DefaultValue<T> | null = null;
     valueSerializer: PropertySerializer<T> | null = null;
     valueDeserializer: PropertyDeserializer<T> | null = null;
@@ -33,6 +34,7 @@ export abstract class SchemaBase<T extends any, TModifiers extends SchemaModifie
             this.isReadonly = entity.isReadonly;
             this.defaultValue = entity.defaultValue;
             this.type = entity.type;
+            this.injected = entity.injected;
         }
     }
 }

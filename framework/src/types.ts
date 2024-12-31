@@ -1,7 +1,13 @@
 import { IdType, NonNullEntity } from "@agrejus/db-framework-core";
 
-export type EntitySelector<T extends {}> = (entity:  NonNullEntity<T>, index?: number, array?:  NonNullEntity<T>[]) => boolean;
-export type EntityParamsSelector<T extends {}, P> = (payload: [NonNullEntity<T>, P], index?: number, array?:  NonNullEntity<T>[]) => boolean;
+export type QueryResult<T> = (value: T, error?: any) => void;
+export type EntityMap<T extends {}, R> = (entity:  T) => R;
+export type EntitySelector<T extends {}> = (entity:  NonNullEntity<T>) => boolean;
+export type EntityParamsSelector<T extends {}, P> = (payload: [NonNullEntity<T>, P]) => boolean;
+
+export type Filter<T extends {}> = (entity:  T) => boolean;
+export type ParamsFilter<T extends {}, P> = (payload: [T, P]) => boolean;
+
 export type EntityCallbackOne<T extends {}> = (entity: NonNullEntity<T> | null, error?: any) => void;
 export type EntityCallbackMany<T extends {}> = (entities: NonNullEntity<T>[], error?: any) => void;
 export type ChangeTrackedEntity<T extends {}> = T & {
@@ -16,9 +22,11 @@ export type ChangeTrackedEntity<T extends {}> = T & {
 
 export type Enricher<T extends {}> = (instance: T) => void;
 export type IdGetter<T extends {}> = (instance: T) => IdType;
-export type DeepKeyOf<T> = {
-    [Key in keyof T & (string | number)]: T[Key] extends object ? `${Key}` | `${Key}.${DeepKeyOf<T[Key]>}` : `${Key}`
-}[keyof T & (string | number)];
+export type DeepKeyOf<T> = T extends object ? {
+    [Key in keyof T & (string | number)]: T[Key] extends object 
+        ? `${Key & string}` | `${Key & string}.${DeepKeyOf<T[Key]>}` 
+        : `${Key & string}`
+}[keyof T & (string | number)] : never;
 export type NonOverlappingKeys<T, U> = Exclude<keyof T, keyof U>;
 
 export type DeepNonOverlappingKeys<

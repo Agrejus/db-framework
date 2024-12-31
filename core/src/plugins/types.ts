@@ -1,11 +1,10 @@
 import { CompiledSchema, DeepPartial, Expression, IdType, NonNullCreateEntity, NonNullEntity } from "..";
 
 export interface IDbPlugin {
-    query<TEntity extends {}>(schema: CompiledSchema<TEntity>, expression: Expression, done: (entities: NonNullEntity<TEntity>[], error?: any) => void): void;
+    query<TEntity extends {}>(schema: CompiledSchema<TEntity>, expression: Expression, options: QueryOptions, done: (entities: NonNullEntity<TEntity>[], error?: any) => void): void;
     all<TEntity extends {}>(schema: CompiledSchema<TEntity>, done: (entities: NonNullEntity<TEntity>[], error?: any) => void): void;
-    get<TEntity extends {}>(schema: CompiledSchema<TEntity>, ids: IdType[], done: (entities: NonNullEntity<TEntity>[], error?: any) => void): void;
     destroy(done: (error?: any) => void): void;
-    bulkOperations<TEntity extends {}>(schema: CompiledSchema<TEntity>, operations: EntityChanges<TEntity>, done: (result: EntityModificationResult<NonNullEntity<TEntity>>, error?: any) => void): void;
+    bulkOperations<TEntity extends {}>(schema: CompiledSchema<TEntity>, operations: EntityChanges<TEntity>, done: (result: EntityModificationResult<TEntity>, error?: any) => void): void;
 }
 
 export type EntityChanges<T extends {}> = {
@@ -19,3 +18,17 @@ export type EntityModificationResult<T extends {}> = {
     removedCount: number;
     updates: NonNullEntity<T>[];
 }
+
+export type QueryOptions = {
+    skip?: number;
+    take?: number;
+    order?: { key: string, direction: "asc" | "desc" }[],
+    min?: boolean;
+    max?: boolean;
+    count?: boolean;
+    sum?: boolean;
+    distinct?: boolean;
+    fields?: QueryField[];
+}
+
+export type QueryField = { sourceName: string, destinationName: string };

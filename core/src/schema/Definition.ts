@@ -22,13 +22,13 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
     }
 
     modify<R>(builder: (d: {
-        function: <UU>(fn: (entity: InferType<SchemaDefinition<T>>, tableName: string) => UU) => SchemaFunction<UU, "unmapped">;
-        computed: <UU>(fn: (entity: InferType<SchemaDefinition<T>>, tableName: string) => UU) => SchemaComputed<UU, "unmapped">;
+        function: <UU, I = never>(fn: (entity: InferType<SchemaDefinition<T>>, tableName: string, injected: I) => UU, injected?: I) => SchemaFunction<UU, I, "unmapped">;
+        computed: <UU, I = never>(fn: (entity: InferType<SchemaDefinition<T>>, tableName: string, injected: I) => UU, injected?: I) => SchemaComputed<UU, I, "unmapped">;
     }) => R) {
 
         const b = {
-            function: <UU>(fn: (entity: InferType<SchemaDefinition<T>>, tableName: string) => UU) => new SchemaFunction<UU, "unmapped">(fn as any, this.instance as any),
-            computed: <UU>(fn: (entity: InferType<SchemaDefinition<T>>, tableName: string) => UU) => new SchemaComputed<UU, "unmapped">(fn as any, this.instance as any)
+            function: <UU, I = never>(fn: (entity: InferType<SchemaDefinition<T>>, tableName: string, injected: I) => UU, injected?: I) => new SchemaFunction<UU, I, "unmapped">(fn as any, injected, this.instance as any),
+            computed: <UU, I = never>(fn: (entity: InferType<SchemaDefinition<T>>, tableName: string, injected: I) => UU, injected?: I) => new SchemaComputed<UU, I, "unmapped">(fn as any, injected, this.instance as any)
         }
 
         const r = builder(b)
@@ -214,7 +214,7 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
     }
 
     private _appendCompare(property: PropertyInfo<any>, builder: { returnBody: string[], declarations: string[] }, path: string) {
-        
+
         if (property.isUnmapped == true) {
             return;
         }
@@ -358,10 +358,10 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         if (property.valueDeserializer != null) {
             const fn = this._toNamedFunction(property.valueDeserializer.toString());
             const assignment = `
-    if (${fullSplit.join("?.")} != null) {
-        ${fullSplit.join(".")} = ${fn.name}(${fullSplit.join(".")});
-    }
-    `
+        if (${fullSplit.join("?.")} != null) {
+            ${fullSplit.join(".")} = ${fn.name}(${fullSplit.join(".")});
+        }
+        `
             builder.append("functions", fn.body);
             builder.append("deserializers", assignment);
             return;
@@ -369,9 +369,15 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
 
         if (property.functionBody != null) {
 
+            const parameterNames: string[] = ["destination", "tableName"];
+
+            if (property.injected != null) {
+                parameterNames.push(builder.inject(property.injected));
+            }
+
             if (property.type === SchemaTypes.Computed) {
                 const fn = this._toNamedFunction(property.functionBody.toString());
-                const ifEnricher = this._createIfAssignment(fullSplit, `${fn.name}(destination, tableName)`, "destination");
+                const ifEnricher = this._createIfAssignment(fullSplit, `${fn.name}(${parameterNames.join(",")})`, "destination");
 
                 builder.append("functions", fn.body);
                 builder.append("post-ifs", ifEnricher);
@@ -382,7 +388,7 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
             const fn = this._toNamedFunction(property.functionBody.toString());
             const changedFunction = fn.build(`() => ${fn.returning}`)
 
-            const ifEnricher = this._createIfAssignment(fullSplit, `${fn.name}(destination, tableName)`, "destination");
+            const ifEnricher = this._createIfAssignment(fullSplit, `${fn.name}(${parameterNames.join(",")})`, "destination");
 
             builder.append("functions", changedFunction);
             builder.append("post-ifs", ifEnricher);
@@ -390,30 +396,47 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         }
 
         if (property.isNullable === true || property.isOptional === true) {
-
             const ifEnricher = this._createIfConditionalPropertyAssignment(fullSplit, "source");
-
             builder.append("assignments", ifEnricher);
-
             return;
         }
 
-        if (property.type === SchemaTypes.Object && property.hasIdentityChildren === true) {
-            // needs love
-            builder.append("assignments", `${["destination", ...split].join(".")} = {}`);
+        if (property.type === SchemaTypes.Object) {
+            // Create the object if it doesn't exist
+            const destPath = ["destination", ...split].join(".");
+            const sourcePath = ["source", ...split].join(".");
+
+            const objectAssignment = `
+        if (${sourcePath} != null) {
+            if (${destPath} == null) {
+                ${destPath} = {};
+            }
+            ${property.hasIdentityChildren ?
+                    // For objects with identity children, we need to merge
+                    `Object.assign(${destPath}, ${sourcePath});` :
+                    // For regular objects, we can do a direct assignment
+                    `${destPath} = ${sourcePath};`
+                }
+        }`
+            builder.append("assignments", objectAssignment);
             return;
         }
 
         if (property.isKey === true || property.isIdentity === true) {
             const conditionalAssignment = `
-    if (${["source", ...split].join("?.")} != null) {
-        ${["destination", ...split].join(".")} = ${["source", ...split].join("?.")}
-    }`
+        if (${["source", ...split].join("?.")} != null) {
+            ${["destination", ...split].join(".")} = ${["source", ...split].join("?.")}
+        }`
             builder.append("post-ifs", conditionalAssignment);
             return;
         }
 
-        // do not map everything, only what is needed
+        // For all other properties, do a direct assignment if source value exists
+        const directAssignment = `
+        if (${["source", ...split].join("?.")} != null) {
+            ${["destination", ...split].join(".")} = ${["source", ...split].join("?.")}
+        }`
+        builder.append("assignments", directAssignment);
     }
 
     private _appendEnricher(property: PropertyInfo<any>, builder: FunctionBuilder<"variables" | "enrichments" | "functions" | "entity" | "change-tracking">, value: string, selectorPath: string) {
@@ -422,9 +445,15 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
 
         if (property.functionBody != null) {
 
+            const parameterNames: string[] = ["enriched", "tableName"];
+
+            if (property.injected != null) {
+                parameterNames.push(builder.inject(property.injected));
+            }
+
             if (property.type === SchemaTypes.Computed) {
                 const fn = this._toNamedFunction(property.functionBody.toString());
-                const ifEnricher = this._createIfAssignment(split, `${fn.name}(enriched, tableName)`, "enriched");
+                const ifEnricher = this._createIfAssignment(split, `${fn.name}(${parameterNames.join(",")})`, "enriched");
 
                 builder.append("functions", fn.body);
                 builder.append("enrichments", ifEnricher);
@@ -434,7 +463,7 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
             // function
             const fn = this._toNamedFunction(property.functionBody.toString());
             const changedFunction = fn.build(`() => ${fn.returning}`)
-            const ifEnricher = this._createIfAssignment(split, `${fn.name}(enriched, tableName)`, "enriched");
+            const ifEnricher = this._createIfAssignment(split, `${fn.name}(${parameterNames.join(",")})`, "enriched");
 
             builder.append("functions", changedFunction);
             builder.append("enrichments", ifEnricher);
@@ -447,13 +476,18 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
                 const fn = this._toNamedFunction(property.defaultValue.toString());
                 builder.append("functions", fn.body);
 
+                const parameterNames: string[] = [];
+
+                if (property.injected != null) {
+                    parameterNames.push(builder.inject(property.injected));
+                }
+
                 if (property.parent == null) {
-                    builder.append("entity", `${property.name}: ${selectorPath.split(".").join("?.")} ?? ${fn.name}(),`);
+                    builder.append("entity", `${property.name}: ${selectorPath.split(".").join("?.")} ?? ${fn.name}(${parameterNames.join(",")}),`);
                     return;
                 }
 
-                // FIX ME
-                builder.append("entity", `${selectorPath.split(".").join("?.")} ?? ${fn.name}()`);
+                builder.append("entity", `${selectorPath.split(".").join("?.")} ?? ${fn.name}(${parameterNames.join(",")})`);
                 return;
             }
 
@@ -816,8 +850,7 @@ ${changedPath} = enableChangeTracking(${changedPath}, "${property.getAssignmentP
         return destination; 
     }`;
         const compareFunctionBody = `${compareFunction.declarations.join(";")}  return ${compareFunction.returnBody.join(" && ").replace(/,\s*$/, "")};`
-        const hashFunctionBody = `${
-    hashBuilder.join("functions", "")} 
+        const hashFunctionBody = `${hashBuilder.join("functions", "")} 
     
     if (type === "Ids") {
         return \`${hashBuilder.join("return-ids", "")}\`;
@@ -825,12 +858,12 @@ ${changedPath} = enableChangeTracking(${changedPath}, "${property.getAssignmentP
 
     return \`${hashBuilder.join("return-object", "")}\`;`
 
-        // enrich should enable change tracking!
+        enrichFunciton.inject(this.tableName, "tableName");
+        mergeFunciton.inject(this.tableName, "tableName");
 
-        // merge needs to run any deserializers too
-        const merge = Function("tableName", mergeFunctionBody)(this.tableName) as (destination: NonNullEntity<T>, source: NonNullEntity<T>) => NonNullEntity<T>;
+        const merge = Function(...mergeFunciton.getInjectionsKeys(), mergeFunctionBody)(...mergeFunciton.getInjectionsValues()) as (destination: NonNullEntity<T>, source: NonNullEntity<T>) => NonNullEntity<T>;
         const prepare = Function("entity", prepareFunctionBody) as (entity: NonNullCreateEntity<T>) => NonNullCreateEntity<T>;
-        const enrich = Function("tableName", enrichFunctionBody)(this.tableName) as (entity: NonNullEntity<T>) => NonNullEntity<T>;
+        const enrich = Function(...enrichFunciton.getInjectionsKeys(), enrichFunctionBody)(...enrichFunciton.getInjectionsValues()) as (entity: NonNullEntity<T>) => NonNullEntity<T>;
         const strip = Function("entity", stripFunctionBody) as (entity: NonNullEntity<T>) => NonNullEntity<T>;
         const clone = Function("entity", cloneFunctionBody) as (entity: NonNullEntity<T>) => NonNullEntity<T>;
         const compare = Function("a", "b", compareFunctionBody) as (a: NonNullEntity<T>, b: NonNullEntity<T>) => boolean;

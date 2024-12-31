@@ -1,6 +1,28 @@
 import { Expression, OperatorExpression, ComparatorExpression, Comparator, ValueExpression, PropertyPathExpression } from "./types";
 
-export const toExpression = <T extends any, P extends any>(fn: (value: T) => boolean, params: P) => {
+export const combineExpressions = (...expressions: Expression[]): Expression => {
+    
+    if (expressions.length < 2) {
+        throw new Error("combineExpressions requires at least 2 expressions");
+    }
+
+    // Start with the first expression
+    let result = expressions[0];
+
+    // Loop through remaining expressions and combine them
+    for (let i = 1; i < expressions.length; i++) {
+        result = {
+            type: "operator",
+            operator: "&&",
+            left: result,
+            right: expressions[i]
+        } as OperatorExpression;
+    }
+
+    return result;
+};
+
+export const toExpression = <T extends any, P extends any>(fn: (payload: [T, P]) => boolean, params: P) => {
     const stringifiedFunction = fn.toString();
 
     const [_, expression, ...rest] = stringifiedFunction.split("=>").map(w => w.trim());
@@ -10,10 +32,6 @@ export const toExpression = <T extends any, P extends any>(fn: (value: T) => boo
     }
 
     return parseExpressionToTree(expression, params);
-}
-
-const cleansedParameterName = (parameterName: string) => {
-    return parameterName.replace(/\(|\)/g, "");
 }
 
 const parseExpressionToTree = <P extends any>(expression: string, params: P) => {
@@ -111,7 +129,6 @@ const parseCondition = <P extends any>(expression: string, params: P): Comparato
     }
 
     if (equalityMatch) {
-
         const result: ComparatorExpression = {
             type: "comparator",
             comparator: "equals",
@@ -155,8 +172,20 @@ const getValueFromParams = <P extends any>(value: string, params: P) => {
     const split = value.split('.');
     let result = params as any;
 
+    if (split.length === 1) {
+        throw new Error(`Cannot find path in params for .where(). Make sure parameters are not used inline.\r\nPath: ${value}, Params: ${JSON.stringify(params)}`)
+    }
+
+    // For nested params
     for (let i = 1; i < split.length; i++) {
-        result = result[split[i]];
+        const name = split[i];
+
+        if (name in result) {
+            result = result[name];
+            continue;
+        }
+
+        throw new Error(`Cannot find path in params for .where(). Make sure parameters are not used inline.\r\nPath: ${value}, Params: ${JSON.stringify(params)}`)
     }
 
     return result;

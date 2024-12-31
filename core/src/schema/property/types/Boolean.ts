@@ -22,8 +22,8 @@ export class SchemaBoolean<T extends boolean, TModifiers extends SchemaModifiers
         return new SchemaNullable<T, TModifiers | "nullable">(this);
     }
 
-    default(value: DefaultValue<T>) {
-        return new SchemaDefault<T, TModifiers | "default">(value, this);
+    default<I = never>(value: DefaultValue<T, I>, injected?: I) {
+        return new SchemaDefault<T, I, TModifiers | "default">(value, injected, this);
     }
 
     readonly() {

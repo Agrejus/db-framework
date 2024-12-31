@@ -1,4 +1,5 @@
 import { PropertyDeserializer, PropertySerializer, SchemaModifiers } from "../..";
+import { DefaultValue } from "../../../types";
 import { SchemaBase } from "../base/Base";
 import { SchemaDefault } from "./Default";
 import { SchemaDeserialize } from "./Deserialize";
@@ -15,8 +16,8 @@ export class SchemaReadonly<T extends any, TModifiers extends SchemaModifiers> e
         this.isReadonly = true;
     }
 
-    default(value: T) {
-        return new SchemaDefault<T, TModifiers | "default">(value, this);
+    default<I = never>(value: DefaultValue<T, I>, injected?: I) {
+        return new SchemaDefault<T, I, TModifiers | "default">(value, injected, this);
     }
 
     deserializer(deserializer: PropertyDeserializer<T>) {

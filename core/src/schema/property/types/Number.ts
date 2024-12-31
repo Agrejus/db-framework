@@ -27,8 +27,8 @@ export class SchemaNumber<T extends number, TModifiers extends SchemaModifiers> 
         return new SchemaKey<T, TModifiers | "key">(this);
     }
 
-    default(value: DefaultValue<T>) {
-        return new SchemaDefault<T, TModifiers | "default">(value, this);
+    default<I = never>(value: DefaultValue<T, I>, injected?: I) {
+        return new SchemaDefault<T, I, TModifiers | "default">(value, injected, this);
     }
 
     readonly() {

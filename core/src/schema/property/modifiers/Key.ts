@@ -19,7 +19,7 @@ export class SchemaKey<T extends IdType, TModifiers extends SchemaModifiers> ext
         return new SchemaIdentity<T, TModifiers | "identity">(this);
     }
 
-    default(value: DefaultValue<T>) {
-        return new SchemaDefault<T, TModifiers | "default">(value, this);
+    default<I = never>(value: DefaultValue<T, I>, injected?: I) {
+        return new SchemaDefault<T, I, TModifiers | "default">(value, injected, this);
     }
 }

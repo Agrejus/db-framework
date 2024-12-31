@@ -6,4 +6,5 @@ export interface IChangeTracker<TEntity extends {}, TEnhancedPropertyNames exten
     remove(entities: NonNullEntity<TEntity>[], done: EntityCallbackMany<TEntity>): void;
     saveChanges(done: (result: number, error?: any) => void): void;
     resolve(entities: NonNullEntity<TEntity>[]): NonNullEntity<TEntity>[];
+    hasChanges(): boolean;
 }
