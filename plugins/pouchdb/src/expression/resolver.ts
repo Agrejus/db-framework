@@ -1,5 +1,52 @@
-import { ComparatorExpression, Expression, OperatorExpression, PropertyPathExpression, ValueExpression } from "@agrejus/db-framework-core";
+import { ComparatorExpression, Expression, OperatorExpression, PropertyPathExpression, QueryOptions, ValueExpression } from "@agrejus/db-framework-core";
 import PouchDB from 'pouchdb';
+
+export const setQueryOptions = (options: QueryOptions, query: PouchDB.Find.FindRequest<unknown>) => {
+
+    // Handle skip/limit
+    if (options.skip != null) {
+        query.skip = options.skip;
+    }
+    if (options.take != null) {
+        query.limit = options.take;
+    }
+
+    // Handle sorting
+    if (options.sort && options.sort.length > 0) {
+        query.sort = options.sort.map(order => ({
+            [order.key]: order.direction
+        }));
+    }
+
+    // Handle field selection and renaming
+    if (options.fields && options.fields.length > 0) {
+        query.fields = options.fields.map(field => field.sourceName);
+    }
+
+    // Handle aggregation functions
+    // if (options.min) {
+    //     query.reduce = true;
+    //     query.group = true;
+    //     query.group_level = 1;
+    // }
+    // if (options.max) {
+    //     query.reduce = true;
+    //     query.group = true;
+    //     query.group_level = 1;
+    // }
+    // if (options.sum) {
+    //     query.reduce = true;
+    //     query.group = true;
+    // }
+    // if (options.count) {
+    //     query.reduce = true;
+    //     query.group = true;
+    // }
+    // if (options.distinct) {
+    //     query.group = true;
+    //     query.group_level = 1;
+    // }
+}
 
 export const toMango = (expression: Expression): PouchDB.Find.Selector => {
 
@@ -13,8 +60,8 @@ export const toMango = (expression: Expression): PouchDB.Find.Selector => {
                     toMango(operatorExp.right!)
                 ]
             };
-        } 
-        
+        }
+
         if (operatorExp.operator === "||") {
             return {
                 $or: [
@@ -22,11 +69,11 @@ export const toMango = (expression: Expression): PouchDB.Find.Selector => {
                     toMango(operatorExp.right!)
                 ]
             };
-        }        
+        }
 
         throw new Error(`Unsupported operator: ${operatorExp.operator}`);
-    } 
-    
+    }
+
     if (expression.type === "comparator") {
         const comparatorExp = expression as ComparatorExpression;
         const property = (comparatorExp.left as PropertyPathExpression).property;
@@ -62,6 +109,6 @@ export const toMango = (expression: Expression): PouchDB.Find.Selector => {
                 throw new Error(`Unsupported comparator: ${comparatorExp.comparator}`);
         }
     }
-    
+
     throw new Error(`Unsupported expression type: ${expression.type}`);
 };

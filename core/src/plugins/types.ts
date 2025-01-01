@@ -1,8 +1,7 @@
 import { CompiledSchema, DeepPartial, Expression, IdType, NonNullCreateEntity, NonNullEntity } from "..";
 
 export interface IDbPlugin {
-    query<TEntity extends {}>(schema: CompiledSchema<TEntity>, expression: Expression, options: QueryOptions, done: (entities: NonNullEntity<TEntity>[], error?: any) => void): void;
-    all<TEntity extends {}>(schema: CompiledSchema<TEntity>, done: (entities: NonNullEntity<TEntity>[], error?: any) => void): void;
+    query<TEntity extends {}>(query: Query<TEntity>, done: (entities: NonNullEntity<TEntity>[], error?: any) => void): void;
     destroy(done: (error?: any) => void): void;
     bulkOperations<TEntity extends {}>(schema: CompiledSchema<TEntity>, operations: EntityChanges<TEntity>, done: (result: EntityModificationResult<TEntity>, error?: any) => void): void;
 }
@@ -22,7 +21,7 @@ export type EntityModificationResult<T extends {}> = {
 export type QueryOptions = {
     skip?: number;
     take?: number;
-    order?: { key: string, direction: "asc" | "desc" }[],
+    sort?: QuerySort[],
     min?: boolean;
     max?: boolean;
     count?: boolean;
@@ -31,4 +30,6 @@ export type QueryOptions = {
     fields?: QueryField[];
 }
 
+export type QuerySort = { key: string, direction: "asc" | "desc" };
+export type Query<TEntity extends {}> = { schema: CompiledSchema<TEntity>, expression?: Expression, options: QueryOptions }
 export type QueryField = { sourceName: string, destinationName: string };

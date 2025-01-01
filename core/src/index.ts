@@ -23,7 +23,9 @@ export {
     EntityChanges,
     EntityModificationResult,
     QueryOptions,
-    QueryField
+    QueryField,
+    Query,
+    QuerySort
 } from './plugins/types';
 
 export {

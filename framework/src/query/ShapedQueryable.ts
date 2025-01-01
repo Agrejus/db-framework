@@ -18,12 +18,12 @@ export class ShapedQueryable<T extends {}> extends SelectionQueryable<T> {
     }
 
     order(selector: EntityMap<T, T[keyof T]>) {
-        this.ordering.push({ selector, direction: QueryOrdering.Ascending });
+        this.sorting.push({ selector, direction: QueryOrdering.Ascending });
         return new OrderedQueryable<T>(this);
     }
 
     orderDescending(selector: EntityMap<T, T[keyof T]>) {
-        this.ordering.push({ selector, direction: QueryOrdering.Descending });
+        this.sorting.push({ selector, direction: QueryOrdering.Descending });
         return new OrderedQueryable<T>(this);
     }
 }

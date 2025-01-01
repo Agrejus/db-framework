@@ -9,13 +9,11 @@ const model = s.define("MY_TABLE", {
     name: s.string(),
     year: s.number(),
     date: s.date().default(new Date()).deserialize(w => new Date(w)).serialize(w => w.toISOString())
-}).
-modify(w => ({
+}).modify(w => ({
     test: w.computed(w => w._id),
     toString: w.function(w => w.date.toISOString()),
     documentType: w.computed((_, t) => t).tracked()
-})).
-compile();
+})).compile();
 
 const nested = s.define("MY_NESTED_TABLE", {
     _id: s.string().key().identity(),
@@ -53,19 +51,20 @@ const r = async () => {
 
         // console.log(nestedAdd);
 
-        const [added] =  await ctx.test.addAsync({
-            name: "James8",
-            year: 2024
-        });
-        await ctx.saveChangesAsync();
+        // const [added] =  await ctx.test.addAsync({
+        //     name: "James8",
+        //     year: 2024
+        // });
+        // await ctx.saveChangesAsync();
         // // let's not run prepare when getting changes. 
         // // after we call 'getChanges', we should call prepare on the adds and return a new object, then
         // // we can merge on the result and merge the resulting object.  We can forget about the object we send 
         // // over to save
         debugger;
         // we need to recognize this
-        const found = await ctx.test.where(([w, p]) => w.name === p.name, { name: "James8" }).toArrayAsync();
-
+        const foundOne = await ctx.nested.firstOrUndefinedAsync(w => w._id == "test");
+        const found = await ctx.nested.where(([w, p]) => w.name === p.name, { name: "James6" }).order(w => w._id).map(w => ({ name: w.name, _id: w._id })).toArrayAsync();
+        debugger;
         console.log(found)
         // ctx.test.find(w => w.name === added.name, async (r, e) => {  
         //     console.log("FOUND", r, added, e);
@@ -87,7 +86,7 @@ const r = async () => {
         //  await ctx.saveChangesAsync();
         // debugger;
         // console.log(added);
-    
+
         // console.log(added.toString())
     } catch (e) {
         debugger;
@@ -171,7 +170,7 @@ const profileExecution = async (iterations: number) => {
             resolve(r);
         });
     });
-    
+
 };
 
 // Run the profiler with the desired number of iterations

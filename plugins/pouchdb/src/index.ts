@@ -1,8 +1,8 @@
 // @ts-nocheck
 
 import PouchDB from 'pouchdb';
-import { CompiledSchema, EntityChanges, EntityModificationResult, Expression, IDbPlugin, IdType, NonNullEntity, toMap } from '@agrejus/db-framework-core';
-import { toMango } from './expression/resolver';
+import { CompiledSchema, EntityChanges, EntityModificationResult, Expression, IDbPlugin, IdType, NonNullEntity, Query, QueryOptions, toMap } from '@agrejus/db-framework-core';
+import { setQueryOptions, toMango } from './expression/resolver';
 import findAdapter from 'pouchdb-find';
 
 PouchDB.plugin(findAdapter);
@@ -50,7 +50,7 @@ export class PouchDbPlugin implements IDbPlugin {
                             if (reason) {
                                 errors.push(reason.toString())
                             }
-                            
+
                             continue;
                         }
 
@@ -60,7 +60,7 @@ export class PouchDbPlugin implements IDbPlugin {
                     db.bulkGet<T>({
                         docs: ids.map(w => ({ id: w as string }))
                     }, (error, bulkGetResponse) => {
- 
+
                         if (error) {
                             errors.push(error);
                         }
@@ -163,7 +163,7 @@ export class PouchDbPlugin implements IDbPlugin {
     }
 
     bulkOperations<TEntity extends {}>(
-        schema: CompiledSchema<TEntity>, 
+        schema: CompiledSchema<TEntity>,
         operations: EntityChanges<TEntity>,
         done: (result: EntityModificationResult<TEntity>, error?: any) => void) {
 
@@ -199,40 +199,33 @@ export class PouchDbPlugin implements IDbPlugin {
         }, done);
     }
 
-    query<TEntity extends {}>(schema: CompiledSchema<TEntity>, expression: Expression, options: QueryOptions, done: (entities: NonNullEntity<TEntity>[], error?: any) => void): void {
-        const selector = toMango(expression);
-        this._doWork((w, d) => {
-            w.find({
-                selector: selector
-            }, (error, result) => {
-                d(result.docs as NonNullEntity<TEntity>[], error)
-            });
-        }, done);
-    }
+    query<TEntity extends {}>(query: Query<TEntity>, done: (entities: NonNullEntity<TEntity>[], error?: any) => void): void {
 
-    all<TEntity extends {}>(schema: CompiledSchema<TEntity>, done: (entities: NonNullEntity<TEntity>[], error?: any) => void): void {
-        this._doWork((w, d) => {
-            w.find({
-                selector: {
-                    documentType: schema.tableName
-                },
-                limit: 0
-            }, (error, result) => {
-                d(result.docs as NonNullEntity<TEntity>[], error)
-            });
-        }, done);
-    }
+        const request: PouchDB.Find.FindRequest<unknown> = {
 
-    get<TEntity extends {}>(schema: CompiledSchema<TEntity>, ids: IdType[], done: (entities: NonNullEntity<TEntity>[], error?: any) => void): void {
+        }
+
+        if (query.expression == null) {
+
+            setQueryOptions(query.options, request);
+
+            this._doWork((w, d) => {
+                w.find(request, (error, result) => {
+                    d(result.docs as NonNullEntity<TEntity>[], error)
+                });
+            }, done);
+            return;
+        }
+
+        request.selector = toMango(query.expression);
+
+        setQueryOptions(query.options, request);
+
         this._doWork((w, d) => {
-            w.find({
-                selector: {
-                    documentType: schema.tableName
-                },
-                limit: 0
-            }, (error, result) => {
+            w.find(request, (error, result) => {
                 d(result.docs as NonNullEntity<TEntity>[], error)
             });
         }, done);
+
     }
 }

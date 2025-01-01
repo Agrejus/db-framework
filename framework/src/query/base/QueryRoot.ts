@@ -1,4 +1,4 @@
-import { CompiledSchema, IDbPlugin, QueryOptions, toExpression, Expression, combineExpressions, QueryField } from "@agrejus/db-framework-core";
+import { CompiledSchema, IDbPlugin, QueryOptions, toExpression, Expression, combineExpressions, QueryField, Query, QuerySort } from "@agrejus/db-framework-core";
 import { EntityMap, Filter, ParamsFilter } from "../../types";
 import { QueryOrdering } from "../types";
 
@@ -11,7 +11,7 @@ export abstract class QueryRoot<T extends {}> {
     protected mapValue: EntityMap<T, T[keyof T] | Partial<T>> | null = null;
     protected takeValue: number | null = null;
     protected skipValue: number | null = null;
-    protected ordering: { direction: QueryOrdering, selector: EntityMap<T, T[keyof T]> }[] = [];
+    protected sorting: { direction: QueryOrdering, selector: EntityMap<T, T[keyof T]> }[] = [];
     protected minValue: boolean = false
     protected maxValue: boolean = false
     protected countValue: boolean = false
@@ -36,7 +36,7 @@ export abstract class QueryRoot<T extends {}> {
             this.takeValue = queryable.takeValue;
             this.skipValue = queryable.skipValue;
             this.mapValue = queryable.mapValue;
-            this.ordering = queryable.ordering;
+            this.sorting = queryable.sorting;
             this.minValue = queryable.minValue;
             this.maxValue = queryable.maxValue;
             this.countValue = queryable.countValue;
@@ -48,13 +48,14 @@ export abstract class QueryRoot<T extends {}> {
     protected getQueryOptions(): QueryOptions {
 
         const fields = this._getFields(this.mapValue);
+        const sort = this._getSorting(this.sorting);
 
         return {
             count: this.countValue,
             distinct: this.distinctValue,
             max: this.maxValue,
             min: this.minValue,
-            order: null as any,
+            sort,
             skip: this.skipValue,
             sum: this.sumValue,
             take: this.takeValue,
@@ -62,7 +63,38 @@ export abstract class QueryRoot<T extends {}> {
         }
     }
 
-    private _getFields(map: EntityMap<T, T[keyof T] | Partial<T>>): QueryField[] {
+    private _getSorting(sorting: { direction: QueryOrdering, selector: EntityMap<T, T[keyof T]> }[]) {
+        const result: QuerySort[] = [];
+
+        for(let i = 0; i < sorting.length; i++) {
+            const sort = sorting[i];
+
+            const propertyName = this._getSortPropertyName(sort.selector);
+
+            result.push({ direction: sort.direction, key: propertyName })
+        }
+
+        return result;
+    }
+
+    private _getSortPropertyName(selector: EntityMap<T, T[keyof T]>) {
+        const stringified = selector.toString();
+
+        if (stringified.includes("=>") === false) {
+            throw new Error("Only arrow functions allowed in .map()")
+        }
+
+        const [, body] = stringified.split("=>").map(w => w.trim());
+
+        return this._extractPropertyName(body);
+    }
+
+    private _getFields(map: EntityMap<T, T[keyof T] | Partial<T>> | null): QueryField[] {
+
+        if (map == null) {
+            return [];
+        }
+
         const stringified = map.toString();
 
         if (stringified.includes("=>") === false) {
@@ -81,7 +113,7 @@ export abstract class QueryRoot<T extends {}> {
 
                 result.push({ sourceName, destinationName })
             }
-            return;
+            return result;
         }
 
         const field = this._extractPropertyName(body);
@@ -144,38 +176,38 @@ export abstract class QueryRoot<T extends {}> {
         return combineExpressions(...expressions);
     }
 
+    // this is how change tracking was working
+    // private _resolveMany(entities: NonNullEntity<TEntity>[], error: any, done: (entities: NonNullEntity<TEntity>[], error?: any) => void, selector?: EntitySelector<TEntity>) {
+
+    //     const enriched = entities.map(w => this.schema.enrich(w));
+    //     const resolved = this.changeTracker.resolve(enriched);
+
+    //     if (selector != null) {
+    //         done(resolved.filter(selector), error)
+    //         return
+    //     }
+
+    //     done(resolved, error);
+    // }
+
     protected getData(done: (result: T[], error?: any) => void) {
 
         const expression = this.getExpression();
         const options = this.getQueryOptions();
-
-        if (expression == null) {
-            this.dbPlugin.all<T>(this.schema, (r, e) => {
-
-                if (!e) {
-                    done(r as any);
-                    return;
-                }
-
-                done([], e);
-
-            })
-            return;
+        const query: Query<T> = {
+            schema: this.schema,
+            options,
+            expression
         }
 
-        if (this.paramsQueries.length > 0) {
-            this.dbPlugin.query<T>(this.schema, expression, options, (r, e) => {
+        this.dbPlugin.query<T>(query, (r, e) => {
 
-                if (!e) {
-                    done(r[0] as any);
-                    return;
-                }
+            if (!e) {
+                done(r as any);
+                return;
+            }
 
-                done(null, e);
-
-            });
-
-            return;
-        }
+            done(null, e);
+        });
     }
 }   
