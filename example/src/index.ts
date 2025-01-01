@@ -61,8 +61,17 @@ const r = async () => {
         // // we can merge on the result and merge the resulting object.  We can forget about the object we send 
         // // over to save
         debugger;
-        // we need to recognize this
+
+        // looks like PDB always returns 1 document when limit is 1... wtf?
+        
+        const xx = await ctx.nested.firstOrUndefinedAsync(w => w._id === "");// we are working on it.  Mango query is too loose
+        const xxx = await ctx.nested.firstOrUndefinedAsync(w => w._id === "01310612-ef4d-423d-b91f-a0f320324943");
+        debugger;
+                // we need to have a dbset return a new queryable object and not reuse
+        const s = await ctx.nested.someAsync(([w, p]) => w.name === p.name, { name: "James6" });
+        debugger;
         const foundOne = await ctx.nested.firstOrUndefinedAsync(w => w._id == "test");
+        debugger;
         const found = await ctx.nested.where(([w, p]) => w.name === p.name, { name: "James6" }).order(w => w._id).map(w => ({ name: w.name, _id: w._id })).toArrayAsync();
         debugger;
         console.log(found)

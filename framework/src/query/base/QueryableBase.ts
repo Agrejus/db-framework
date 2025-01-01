@@ -24,31 +24,6 @@ export class QueryableBase<T extends {}> extends SelectionQueryable<T> {
         return new LimitedQueryable<T>(this)
     }
 
-    min() {
-        this.minValue = true;
-        return new AggregateQueryable<T>(this);
-    }
-
-    max() {
-        this.maxValue = true;
-        return new AggregateQueryable<T>(this);
-    }
-
-    sum() {
-        this.sumValue = true;
-        return new AggregateQueryable<T>(this);
-    }
-
-    count() {
-        this.countValue = true;
-        return new AggregateQueryable<T>(this);
-    }
-
-    distinct() {
-        this.distinctValue = true;
-        return new AggregateQueryable<T>(this);
-    }
-
     order(expression: EntityMap<T, T[keyof T]>) {
         this.sorting.push({ selector: expression, direction: QueryOrdering.Ascending });
         return new OrderedQueryable<T>(this);

@@ -1,4 +1,5 @@
 import { EntityMap } from "../types";
+import { AggregateQueryable } from "./AggregateQueryable";
 import { LimitedQueryable } from "./LimitedQueryable";
 import { OrderedQueryable } from "./OrderedQueryable";
 import { SelectionQueryable } from "./SelectionQueryable";
@@ -15,6 +16,31 @@ export class ShapedQueryable<T extends {}> extends SelectionQueryable<T> {
     take(amount: number) {
         this.takeValue = amount;
         return new LimitedQueryable<T>(this)
+    }
+
+    min() {
+        this.minValue = true;
+        return new AggregateQueryable<T>(this);
+    }
+
+    max() {
+        this.maxValue = true;
+        return new AggregateQueryable<T>(this);
+    }
+
+    sum() {
+        this.sumValue = true;
+        return new AggregateQueryable<T>(this);
+    }
+
+    count() {
+        this.countValue = true;
+        return new AggregateQueryable<T>(this);
+    }
+
+    distinct() {
+        this.distinctValue = true;
+        return new AggregateQueryable<T>(this);
     }
 
     order(selector: EntityMap<T, T[keyof T]>) {

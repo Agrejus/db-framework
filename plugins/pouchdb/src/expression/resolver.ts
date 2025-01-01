@@ -47,7 +47,7 @@ export const setQueryOptions = (options: QueryOptions, query: PouchDB.Find.FindR
     //     query.group_level = 1;
     // }
 }
-
+// we are going to need property types in the xpression, can we pass in PropertyInfo?
 export const toMango = (expression: Expression): PouchDB.Find.Selector => {
 
     if (expression.type === "operator") {
