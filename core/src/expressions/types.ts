@@ -1,3 +1,5 @@
+import { PropertyInfo } from "../common/PropertyInfo";
+
 export interface ComparatorExpression extends Expression {
     type: "comparator";
     comparator: Comparator;
@@ -17,7 +19,7 @@ export interface Expression {
 
 export interface PropertyPathExpression extends Expression {
     type: "property";
-    property: string;
+    property: PropertyInfo<any>;
 }
 
 export interface ValueExpression extends Expression {

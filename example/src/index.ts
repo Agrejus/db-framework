@@ -18,6 +18,7 @@ const model = s.define("MY_TABLE", {
 const nested = s.define("MY_NESTED_TABLE", {
     _id: s.string().key().identity(),
     _rev: s.string().identity(),
+    order: s.number(),
     name: s.string(),
     child: s.object({
         name: s.string()
@@ -42,12 +43,21 @@ const r = async () => {
     try {
         const ctx = new Ctx();
 
-        // const [nestedAdd] =  await ctx.nested.addAsync({
-        //     name: "James6",
-        //     child: {
-        //         name: "test"
-        //     }
-        // });
+        const unsubscribe = ctx.nested.subscribe(w => w.name == "James 0", changes => {
+            console.log("CHANGE", changes.length)
+        })
+
+        for (let i = 0; i < 50; i++) {
+            await ctx.nested.addAsync({
+                order: i,
+                name: `James ${i}`,
+                child: {
+                    name: `other ${i}`
+                }
+            });
+        }
+
+        unsubscribe();
 
         // console.log(nestedAdd);
 
@@ -55,24 +65,38 @@ const r = async () => {
         //     name: "James8",
         //     year: 2024
         // });
-        // await ctx.saveChangesAsync();
+        await ctx.saveChangesAsync();
         // // let's not run prepare when getting changes. 
         // // after we call 'getChanges', we should call prepare on the adds and return a new object, then
         // // we can merge on the result and merge the resulting object.  We can forget about the object we send 
         // // over to save
-        debugger;
+        // debugger;
 
         // looks like PDB always returns 1 document when limit is 1... wtf?
-        
-        const xx = await ctx.nested.firstOrUndefinedAsync(w => w._id === "");// we are working on it.  Mango query is too loose
-        const xxx = await ctx.nested.firstOrUndefinedAsync(w => w._id === "01310612-ef4d-423d-b91f-a0f320324943");
-        debugger;
-                // we need to have a dbset return a new queryable object and not reuse
-        const s = await ctx.nested.someAsync(([w, p]) => w.name === p.name, { name: "James6" });
-        debugger;
-        const foundOne = await ctx.nested.firstOrUndefinedAsync(w => w._id == "test");
-        debugger;
-        const found = await ctx.nested.where(([w, p]) => w.name === p.name, { name: "James6" }).order(w => w._id).map(w => ({ name: w.name, _id: w._id })).toArrayAsync();
+        const x9 = await ctx.nested.toArrayAsync();
+        // const x = await ctx.nested.firstOrUndefinedAsync(w => w.child.name == "test");
+        // debugger;
+        // const x1 = await ctx.nested.where(w => w.child.name.startsWith("other")).toArrayAsync();
+        // debugger;
+        // // Weird stuff is happening here
+        // // we are trying to auto create indexes
+        // const x3 = await ctx.nested.order(w => w.order).toArrayAsync();
+        // const x2 = await ctx.nested.order(w => w.name).toArrayAsync();
+        // debugger;
+        // const xx = await ctx.nested.firstOrUndefinedAsync(w => w._id === "");// we are working on it.  Mango query is too loose
+        // const xx1 = await ctx.nested.firstOrUndefinedAsync(w => w.name === "");// we are working on it.  Mango query is too loose
+        // debugger;
+        // const xxx = await ctx.nested.firstOrUndefinedAsync(w => w._id === x9[0]._id);
+        // debugger;
+        //         // we need to have a dbset return a new queryable object and not reuse
+        // const s = await ctx.nested.someAsync(([w, p]) => w.name === p.name, { name: "James6" });
+        // debugger;
+        // const foundOne = await ctx.nested.firstOrUndefinedAsync(w => w._id == "test");
+        // debugger;
+        const found = await ctx.nested.where(([w, p]) => w.name.startsWith(p.name), { name: "James" })
+            .order(w => w._id)
+            .map(w => ({ name: w.name, _id: w._id }))
+            .toArrayAsync();
         debugger;
         console.log(found)
         // ctx.test.find(w => w.name === added.name, async (r, e) => {  

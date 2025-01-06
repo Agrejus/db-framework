@@ -99,25 +99,6 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         }
     }
 
-    private _resolvePropertyValue(pathSelector: string, property: PropertyInfo<any>) {
-
-        if (property.defaultValue != null) {
-
-            if (typeof property.defaultValue === "function") {
-                const value = property.defaultValue();
-                return `${pathSelector.split(".").join("?.")} ?? ${this._toJson(value)}`;
-            }
-
-            return `${pathSelector.split(".").join("?.")} ?? ${this._toJson(property.defaultValue)}`;
-        }
-
-        if (property.type === SchemaTypes.Computed || property.type === SchemaTypes.Function) {
-            return "null";  // we need to replace this later, the entire entity needs to be loaded first so we have all the values for the function
-        }
-
-        return pathSelector;
-    }
-
     private _toJson(value: string | number | Date) {
         if (typeof value === "string") {
             return `"${value}"`;
@@ -609,6 +590,7 @@ ${changedPath} = enableChangeTracking(${changedPath}, "${property.getAssignmentP
     compile(): CompiledSchema<T> {
 
         const schema = this;
+        const properties: PropertyInfo<T>[] = [];
 
         // Prepare should strip and serialize
         const prepareBuilder = new FunctionBuilder().use("return").use("functions").use("optionals");
@@ -658,6 +640,7 @@ ${changedPath} = enableChangeTracking(${changedPath}, "${property.getAssignmentP
 
         this._iterate(schema, (property) => {
 
+            properties.push(property);
             allPropertyNamesAndPaths.push(property.getSelectrorPath("entity"));
 
             // Check if the property or any parent is nullable/optional
@@ -697,6 +680,7 @@ ${changedPath} = enableChangeTracking(${changedPath}, "${property.getAssignmentP
 
                 property.children.forEach((nestedProperty, index) => {
 
+                    properties.push(nestedProperty);
                     const nestedSelectorPath = `${selectorPath}${isPropertyNullableOrOptional ? "?" : ""}.${nestedProperty.name}`;
                     const isNestedNullableOrOptional = nestedProperty.isNullable || nestedProperty.isOptional || isPropertyNullableOrOptional;
 
@@ -714,6 +698,7 @@ ${changedPath} = enableChangeTracking(${changedPath}, "${property.getAssignmentP
 
                         // Recursively add properties for deeply nested objects
                         nestedProperty.children.forEach((deepProperty, deepIndex) => {
+                            properties.push(deepProperty);
                             const deepSelectorPath = `${nestedSelectorPath}${isNestedNullableOrOptional ? "?" : ""}.${deepProperty.name}`;
 
                             const deeplyNestedAssignment = `
@@ -873,6 +858,7 @@ ${changedPath} = enableChangeTracking(${changedPath}, "${property.getAssignmentP
         const getHashType = Function("entity", hashTypeFunctionBody) as GetHashTypeFunction<T>;
 
         return {
+            properties,
             idPropertyNames,
             hasIdentities,
             hashType,

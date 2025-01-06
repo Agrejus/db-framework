@@ -6,6 +6,7 @@ import { setQueryOptions, toMango } from './expression/resolver';
 import findAdapter from 'pouchdb-find';
 
 PouchDB.plugin(findAdapter);
+const INDEX_NAME = "db_framework_order_index";
 
 export class PouchDbPlugin implements IDbPlugin {
 
@@ -91,7 +92,6 @@ export class PouchDbPlugin implements IDbPlugin {
                     });
                 });
             } catch (e) {
-                debugger;
                 d(result, [e, ...errors])
             }
         }, done);
@@ -202,7 +202,7 @@ export class PouchDbPlugin implements IDbPlugin {
     query<TEntity extends {}>(query: Query<TEntity>, done: (entities: NonNullEntity<TEntity>[], error?: any) => void): void {
 
         const request: PouchDB.Find.FindRequest<unknown> = {
-
+            selector: {}
         }
 
         if (query.expression == null) {
@@ -211,7 +211,94 @@ export class PouchDbPlugin implements IDbPlugin {
 
             this._doWork((w, d) => {
                 w.find(request, (error, result) => {
-                    d(result.docs as NonNullEntity<TEntity>[], error)
+
+                    if (error != null && "message" in error && typeof error.message === "string") {
+                        const match = error.message.match(/Cannot sort on field\(s\) "([^"]+)" when using the default index/);
+
+                        if (match && match[1]) {
+                            const propertyNames = match[1].split(',').map(field => field.trim());
+
+                            this._doWork((w, d) => {
+                                w.getIndexes((error, result) => {
+
+                                    if (error != null) {
+                                        d([], error);
+                                        return;
+                                    }
+    
+                                    if (result.indexes.length === 0) {
+                                        w.createIndex({
+                                            index: {
+                                                fields: propertyNames,
+                                                name: INDEX_NAME
+                                            }
+                                        }, (error) => {
+
+                                            if (error != null) {
+                                                d([], error);
+                                                return;
+                                            }
+    
+                                            w.find(request, (error, result) => {
+                                                d(result?.docs ?? [] as NonNullEntity<TEntity>[], error)
+                                            });
+                                        })
+                                        return;
+                                    }
+    
+                                    const found = result.indexes.find(w => w.name === INDEX_NAME);
+
+                                    if (found) {
+                                        w.deleteIndex(found, (error) => {
+/*  */
+                                            if (error != null) {
+                                                d([], error);
+                                                return;
+                                            }
+   
+                                            w.createIndex({
+                                                index: {
+                                                    fields: propertyNames,
+                                                    name: INDEX_NAME
+                                                }
+                                            }, (error) => {
+           
+                                                if (error != null) {
+                                                    d([], error);
+                                                    return;
+                                                }
+    
+                                                w.find(request, (error, result) => {
+                                                    d(result?.docs ?? [] as NonNullEntity<TEntity>[], error)
+                                                });
+                                            })
+                                        })
+                                        return;
+                                    }
+     
+                                    w.createIndex({
+                                        index: {
+                                            fields: propertyNames,
+                                            name: INDEX_NAME
+                                        }
+                                    }, (error) => {
+                                        if (error != null) {
+                                            d([], error);
+                                            return;
+                                        }
+    
+                                        w.find(request, (error, result) => {
+                                            d(result?.docs ?? [] as NonNullEntity<TEntity>[], error)
+                                        });
+                                    });
+                                })
+                            }, done);
+
+                            return;
+                        }
+                    }
+
+                    d(result?.docs ?? [] as NonNullEntity<TEntity>[], error)
                 });
             }, done);
             return;
@@ -223,7 +310,7 @@ export class PouchDbPlugin implements IDbPlugin {
 
         this._doWork((w, d) => {
             w.find(request, (error, result) => {
-                d(result.docs as NonNullEntity<TEntity>[], error)
+                d(result?.docs ?? [] as NonNullEntity<TEntity>[], error)
             });
         }, done);
 

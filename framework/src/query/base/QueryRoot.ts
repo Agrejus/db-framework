@@ -1,11 +1,13 @@
 import { CompiledSchema, IDbPlugin, QueryOptions, toExpression, Expression, combineExpressions, QueryField, Query, QuerySort } from "@agrejus/db-framework-core";
 import { EntityMap, Filter, ParamsFilter } from "../../types";
 import { QueryOrdering } from "../types";
+import { IChangeTracker } from "../../change-tracking/types";
 
 export abstract class QueryRoot<T extends {}> {
 
     protected readonly schema: CompiledSchema<T>;
     protected readonly dbPlugin: IDbPlugin;
+    protected readonly changeTracker: IChangeTracker<T>;
     protected queries: Filter<T>[] = [];
     protected paramsQueries: { expression: ParamsFilter<T, any>, params: any }[] = [];
     protected mapValue: EntityMap<T, T[keyof T] | Partial<T>> | null = null;
@@ -18,14 +20,12 @@ export abstract class QueryRoot<T extends {}> {
     protected sumValue: boolean = false;
     protected distinctValue: boolean = false;
 
-    constructor(queryable?: QueryRoot<T>, schema?: CompiledSchema<T>, dbPlugin?: IDbPlugin) {
+    constructor(queryable?: QueryRoot<T>, options?: { schema: CompiledSchema<T>, dbPlugin: IDbPlugin, changeTracker: IChangeTracker<T> }) {
 
-        if (schema != null) {
-            this.schema = schema;
-        }
-
-        if (dbPlugin != null) {
-            this.dbPlugin = dbPlugin;
+        if (options != null) {
+            this.schema = options.schema;
+            this.dbPlugin = options.dbPlugin;
+            this.changeTracker = options.changeTracker;
         }
 
         if (queryable != null) {
@@ -142,7 +142,7 @@ export abstract class QueryRoot<T extends {}> {
 
             if (this.queries.length === 1) {
                 try {
-                    return toExpression(this.queries[0] as any, {});
+                    return toExpression(this.schema, this.queries[0] as any, {});
                 } catch (e) {
                     return null; // fallback to memory filtering
                 }
@@ -153,7 +153,7 @@ export abstract class QueryRoot<T extends {}> {
 
                 for (let i = 0; i < this.queries.length; i++) {
                     const query = this.queries[i];
-                    expressions.push(toExpression(query as any, {}));
+                    expressions.push(toExpression(this.schema, query as any, {}));
                 }
 
                 return combineExpressions(...expressions);
@@ -163,32 +163,18 @@ export abstract class QueryRoot<T extends {}> {
         }
 
         if (this.paramsQueries.length === 1) {
-            return toExpression(this.paramsQueries[0].expression, this.paramsQueries[0].params)
+            return toExpression(this.schema, this.paramsQueries[0].expression, this.paramsQueries[0].params)
         }
 
         const expressions: Expression[] = [];
 
         for (let i = 0; i < this.paramsQueries.length; i++) {
             const query = this.paramsQueries[i];
-            expressions.push(toExpression(query.expression, query.params));
+            expressions.push(toExpression(this.schema, query.expression, query.params));
         }
 
         return combineExpressions(...expressions);
     }
-
-    // this is how change tracking was working
-    // private _resolveMany(entities: NonNullEntity<TEntity>[], error: any, done: (entities: NonNullEntity<TEntity>[], error?: any) => void, selector?: EntitySelector<TEntity>) {
-
-    //     const enriched = entities.map(w => this.schema.enrich(w));
-    //     const resolved = this.changeTracker.resolve(enriched);
-
-    //     if (selector != null) {
-    //         done(resolved.filter(selector), error)
-    //         return
-    //     }
-
-    //     done(resolved, error);
-    // }
 
     protected getData(done: (result: T[], error?: any) => void) {
 
@@ -199,11 +185,21 @@ export abstract class QueryRoot<T extends {}> {
             options,
             expression
         }
+        const shouldEnableChangeTracking = options.fields?.length == null || options.fields.length === 0;
 
         this.dbPlugin.query<T>(query, (r, e) => {
 
             if (!e) {
-                done(r as any);
+                const entities = r as T[];
+
+                if (shouldEnableChangeTracking === true) {
+                    const enriched = entities.map(w => this.schema.enrich(w as any));
+                    const resolved = this.changeTracker.resolve(enriched);
+                    done(resolved as T[]);
+                    return;
+                }
+
+                done(entities);
                 return;
             }
 

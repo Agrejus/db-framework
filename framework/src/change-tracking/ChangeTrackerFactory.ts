@@ -1,9 +1,5 @@
 import { CompiledSchema, IDbPlugin } from "@agrejus/db-framework-core";
 import { IChangeTracker } from "./types";
-import { SingleNonIdentityKeyChangeTracker } from './legacy/SingleNonIdentityKeyChangeTracker';
-import { MultiNonIdentityKeyChangeTracker } from './legacy/MultiNonIdentityKeyChangeTracker';
-import { MultiKeyIdentityChangeTracker } from './legacy/MultiKeyIdentityChangeTracker';
-import { SingleIdentityKeyChangeTracker } from './legacy/SingleKeyIdentityChangeTracker';
 import { IdentityKeyChangeTrackingBase } from './base/IdentityKeyChangeTrackingBase';
 import { NonIdentityKeyChangeTrackingBase } from './base/NonIdentityKeyChangeTrackingBase';
 

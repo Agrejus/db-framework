@@ -1,3 +1,4 @@
+import { CompiledSchema } from "../schema";
 import { Expression, OperatorExpression, ComparatorExpression, Comparator, ValueExpression, PropertyPathExpression } from "./types";
 
 export const combineExpressions = (...expressions: Expression[]): Expression => {
@@ -22,7 +23,7 @@ export const combineExpressions = (...expressions: Expression[]): Expression => 
     return result;
 };
 
-export const toExpression = <T extends any, P extends any>(fn: (payload: [T, P]) => boolean, params: P) => {
+export const toExpression = <T extends any, P extends any>(schema: CompiledSchema<any>, fn: (payload: [T, P]) => boolean, params: P) => {
     const stringifiedFunction = fn.toString();
 
     const [_, expression, ...rest] = stringifiedFunction.split("=>").map(w => w.trim());
@@ -31,10 +32,10 @@ export const toExpression = <T extends any, P extends any>(fn: (payload: [T, P])
         throw new Error("Invalid Function")
     }
 
-    return parseExpressionToTree(expression, params);
+    return parseExpressionToTree(schema, expression, params);
 }
 
-const parseExpressionToTree = <P extends any>(expression: string, params: P) => {
+const parseExpressionToTree = <P extends any>(schema: CompiledSchema<any>, expression: string, params: P) => {
 
     const parse = (exp: string): Expression => {
         // Remove any wrapping parentheses
@@ -87,13 +88,13 @@ const parseExpressionToTree = <P extends any>(expression: string, params: P) => 
         }
 
         // If no operator, it's a terminal condition (handles `==` or `startsWith`)
-        return parseCondition(exp, params);
+        return parseCondition(schema, exp, params);
     }
 
     return parse(expression);
 }
 
-const parseCondition = <P extends any>(expression: string, params: P): ComparatorExpression => {
+const parseCondition = <P extends any>(schema: CompiledSchema<any>, expression: string, params: P): ComparatorExpression => {
 
     // Remove any leading/trailing whitespace
     expression = expression.trim();
@@ -116,7 +117,7 @@ const parseCondition = <P extends any>(expression: string, params: P): Comparato
             type: "comparator",
             comparator: getComparatorName(methodMatch[2]),
             negated,
-            left: getPropertyName(methodMatch[1]),
+            left: getPropertyName(schema, methodMatch[1]),
             right: getValue(methodMatch[3], params)
         }
 
@@ -133,7 +134,7 @@ const parseCondition = <P extends any>(expression: string, params: P): Comparato
             type: "comparator",
             comparator: "equals",
             negated: equalityMatch[2] === "!=" || equalityMatch[2] === "!==",
-            left: getPropertyName(equalityMatch[1]),
+            left: getPropertyName(schema, equalityMatch[1]),
             right: getValue(equalityMatch[3], params)
         }
 
@@ -191,10 +192,19 @@ const getValueFromParams = <P extends any>(value: string, params: P) => {
     return result;
 }
 
-const getPropertyName = (value: string): PropertyPathExpression => {
+const getPropertyName = (schema: CompiledSchema<any>, value: string): PropertyPathExpression => {
+
+    const pathSplit = value.split(/\?\.|\!\.|\./g);
+    pathSplit.shift();
+    const found = schema.properties.find(w => w.getAssignmentPath() == pathSplit.join("."));
+
+    if (found == null) {
+        throw new Error(`Error parsing query, could not find PropertyInfo for path.  Path: ${value}`)
+    }
+
     return {
         type: "property",
-        property: value.split('.')[1]
+        property: found
     };
 }
 

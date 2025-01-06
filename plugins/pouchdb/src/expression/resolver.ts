@@ -1,4 +1,4 @@
-import { ComparatorExpression, Expression, OperatorExpression, PropertyPathExpression, QueryOptions, ValueExpression } from "@agrejus/db-framework-core";
+import { ComparatorExpression, Expression, OperatorExpression, PropertyPathExpression, QueryOptions, SchemaTypes, ValueExpression } from "@agrejus/db-framework-core";
 import PouchDB from 'pouchdb';
 
 export const setQueryOptions = (options: QueryOptions, query: PouchDB.Find.FindRequest<unknown>) => {
@@ -9,6 +9,9 @@ export const setQueryOptions = (options: QueryOptions, query: PouchDB.Find.FindR
     }
     if (options.take != null) {
         query.limit = options.take;
+    } 
+    else {
+        query.limit = undefined; // select all
     }
 
     // Handle sorting
@@ -73,37 +76,48 @@ export const toMango = (expression: Expression): PouchDB.Find.Selector => {
 
         throw new Error(`Unsupported operator: ${operatorExp.operator}`);
     }
-
+    
     if (expression.type === "comparator") {
         const comparatorExp = expression as ComparatorExpression;
-        const property = (comparatorExp.left as PropertyPathExpression).property;
+        const propertyInfo = (comparatorExp.left as PropertyPathExpression).property;
         const value = (comparatorExp.right as ValueExpression).value;
+        const propertyPath = propertyInfo.getAssignmentPath();
 
         switch (comparatorExp.comparator) {
-            case "equals":
+            case "equals": {
+                // Only add type check for _id property because PDB is funky
+                if (propertyPath === "_id") {
+                    return {
+                        $and: [
+                            { [propertyPath]: { $type: getMangoType(propertyInfo.type) } },
+                            { [propertyPath]: comparatorExp.negated ? { $ne: value } : { $eq: value } }
+                        ]
+                    };
+                }
                 return {
-                    [property]: comparatorExp.negated ? { $ne: value } : { $eq: value }
+                    [propertyPath]: comparatorExp.negated ? { $ne: value } : { $eq: value }
                 };
+            }
             case "starts-with":
                 if (comparatorExp.negated) {
                     throw new Error(`Mango queries do not support negated 'starts-with' directly.`);
                 }
                 return {
-                    [property]: { $regex: `^${value}` }
+                    [propertyPath]: { $regex: `^${escapeRegex(value)}` }
                 };
             case "ends-with":
                 if (comparatorExp.negated) {
                     throw new Error(`Mango queries do not support negated 'ends-with' directly.`);
                 }
                 return {
-                    [property]: { $regex: `${value}$` }
+                    [propertyPath]: { $regex: `${escapeRegex(value)}$` }
                 };
             case "includes":
                 if (comparatorExp.negated) {
                     throw new Error(`Mango queries do not support negated 'includes' directly.`);
                 }
                 return {
-                    [property]: { $regex: value }
+                    [propertyPath]: { $regex: escapeRegex(value) }
                 };
             default:
                 throw new Error(`Unsupported comparator: ${comparatorExp.comparator}`);
@@ -112,3 +126,26 @@ export const toMango = (expression: Expression): PouchDB.Find.Selector => {
 
     throw new Error(`Unsupported expression type: ${expression.type}`);
 };
+
+function getMangoType(schemaType: SchemaTypes): "string" | "number" | "boolean" | "object" | "null" | "array" {
+    switch (schemaType) {
+        case SchemaTypes.String:
+            return 'string';
+        case SchemaTypes.Number:
+            return 'number';
+        case SchemaTypes.Boolean:
+            return 'boolean';
+        case SchemaTypes.Date:
+            return 'string';  // dates are stored as strings
+        case SchemaTypes.Object:
+            return 'object';
+        case SchemaTypes.Array:
+            return 'array';
+        default:
+            return 'string';
+    }
+}
+
+function escapeRegex(string: string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}

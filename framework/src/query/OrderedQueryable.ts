@@ -1,4 +1,3 @@
-import { DeepPartial } from "@agrejus/db-framework-core";
 import { EntityMap } from "../types";
 import { SelectionQueryable } from "./SelectionQueryable";
 import { ShapedQueryable } from "./ShapedQueryable";
@@ -6,12 +5,12 @@ import { QueryOrdering } from "./types";
 
 export class OrderedQueryable<T extends {}> extends SelectionQueryable<T> {
 
-    order(selector: EntityMap<T, T[keyof T]>) {
+    sort(selector: EntityMap<T, T[keyof T]>) {
         this.sorting.push({ selector, direction: QueryOrdering.Ascending });
         return new OrderedQueryable<T>(this);
     }
 
-    orderDescending(selector: EntityMap<T, T[keyof T]>) {
+    sortDescending(selector: EntityMap<T, T[keyof T]>) {
         this.sorting.push({ selector, direction: QueryOrdering.Descending });
         return new OrderedQueryable<T>(this);
     }

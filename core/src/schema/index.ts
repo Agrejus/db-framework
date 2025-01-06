@@ -7,6 +7,7 @@ import { SchemaNumber } from "./property/types/Number";
 import { SchemaObject } from "./property/types/Object";
 import { SchemaString } from "./property/types/String";
 import { IdType } from "../types";
+import { PropertyInfo } from "../common/PropertyInfo";
 
 export type NonNullEntity<T extends {}> = NonNullable<InferType<SchemaDefinition<T>>>;
 export type NonNullCreateEntity<T extends {}, TOmit extends string = never> = NonNullable<Omit<InferCreateType<SchemaDefinition<T>>, TOmit>>;
@@ -77,6 +78,7 @@ export type CompiledSchema<TEntity extends {}> = {
     merge: (destination: NonNullEntity<TEntity>, source: NonNullEntity<TEntity>) => NonNullEntity<TEntity>;
     hasIdentities: boolean;
     idPropertyNames: string[];
+    properties: PropertyInfo<TEntity>[],
     hashType: HashType;
     hash: HashFunction<TEntity>;
     getHashType: GetHashTypeFunction<TEntity>;
