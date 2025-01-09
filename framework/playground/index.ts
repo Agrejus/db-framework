@@ -44,8 +44,21 @@ const r = async () => {
     // await ctx.test.map(w => w._id).firstOrUndefinedAsync();
     // await ctx.test.map(w => ({ _id: w._id, date: w.date })).firstOrUndefinedAsync();
     const name = "James"
+
+    // Subscribe must only return callback selectors, not Async ones
+    const unsubscribe = ctx.test.where(w => w.name == "James").subscribe().firstOrUndefined((r, e) => {
+
+    });
     const q = ctx.test.where(w => w.name === name).map(w => ({ documentType: w.documentType, _id: w._id })).toArrayAsync();
     //const q = ctx.test.where(([w, p]) => w.name === p.name, { name: "James" }).map(w => w.documentType).toArrayAsync();
+    let count = 0;
+    const id = setInterval(() => {
+        count++;
+
+        if (id != null && count >= 100) {
+            clearInterval(id);
+        }
+    }, 500)
 }
 
 r();

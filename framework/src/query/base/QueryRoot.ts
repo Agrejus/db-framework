@@ -2,12 +2,13 @@ import { CompiledSchema, IDbPlugin, QueryOptions, toExpression, Expression, comb
 import { EntityMap, Filter, ParamsFilter } from "../../types";
 import { QueryOrdering } from "../types";
 import { IChangeTracker } from "../../change-tracking/types";
+import { DataAccessManager } from '../../data-access/DataAccessManager';
 
 export abstract class QueryRoot<T extends {}> {
 
+
     protected readonly schema: CompiledSchema<T>;
-    protected readonly dbPlugin: IDbPlugin;
-    protected readonly changeTracker: IChangeTracker<T>;
+    protected readonly manager: DataAccessManager<T>;
     protected queries: Filter<T>[] = [];
     protected paramsQueries: { expression: ParamsFilter<T, any>, params: any }[] = [];
     protected mapValue: EntityMap<T, T[keyof T] | Partial<T>> | null = null;
@@ -19,17 +20,19 @@ export abstract class QueryRoot<T extends {}> {
     protected countValue: boolean = false
     protected sumValue: boolean = false;
     protected distinctValue: boolean = false;
+    protected subscribeValue: boolean = false;
+    private _compiledQuery: Query<T> | null = null;
 
     constructor(queryable?: QueryRoot<T>, options?: { schema: CompiledSchema<T>, dbPlugin: IDbPlugin, changeTracker: IChangeTracker<T> }) {
 
         if (options != null) {
             this.schema = options.schema;
-            this.dbPlugin = options.dbPlugin;
-            this.changeTracker = options.changeTracker;
+            this.manager = new DataAccessManager<T>(options.schema, options.dbPlugin, options.changeTracker);
         }
 
         if (queryable != null) {
-            this.dbPlugin = queryable.dbPlugin;
+            this.subscribeValue = queryable.subscribeValue;
+            this.manager = queryable.manager;
             this.schema = queryable.schema;
             this.queries = queryable.queries;
             this.paramsQueries = queryable.paramsQueries;
@@ -63,10 +66,21 @@ export abstract class QueryRoot<T extends {}> {
         }
     }
 
+    protected subscribeQuery<U>(shape: (data: T[]) => U, done: (result: U, error?: any) => void) {
+
+        if (this.subscribeValue === false) {
+            return;
+        }
+
+        const query = this.getOrCompileQuery();
+
+        return this.manager.subscribe(query, shape, done);
+    }
+
     private _getSorting(sorting: { direction: QueryOrdering, selector: EntityMap<T, T[keyof T]> }[]) {
         const result: QuerySort[] = [];
 
-        for(let i = 0; i < sorting.length; i++) {
+        for (let i = 0; i < sorting.length; i++) {
             const sort = sorting[i];
 
             const propertyName = this._getSortPropertyName(sort.selector);
@@ -132,7 +146,7 @@ export abstract class QueryRoot<T extends {}> {
         return split.join(".")
     }
 
-    protected getExpression() {
+    protected getExpression(): Expression | null {
         // I NEED SOME LOVE
         if (this.paramsQueries.length == 0) {
             // try and convert default queries
@@ -176,34 +190,31 @@ export abstract class QueryRoot<T extends {}> {
         return combineExpressions(...expressions);
     }
 
-    protected getData(done: (result: T[], error?: any) => void) {
+    protected getOrCompileQuery() {
+
+        if (this._compiledQuery != null) {
+            return this._compiledQuery;
+        }
 
         const expression = this.getExpression();
         const options = this.getQueryOptions();
-        const query: Query<T> = {
+
+        this._compiledQuery = {
             schema: this.schema,
-            options,
-            expression
+            options
         }
-        const shouldEnableChangeTracking = options.fields?.length == null || options.fields.length === 0;
 
-        this.dbPlugin.query<T>(query, (r, e) => {
+        if (expression != null) {
+            this._compiledQuery.expression = expression;
+        }
 
-            if (!e) {
-                const entities = r as T[];
+        return this._compiledQuery;
+    }
 
-                if (shouldEnableChangeTracking === true) {
-                    const enriched = entities.map(w => this.schema.enrich(w as any));
-                    const resolved = this.changeTracker.resolve(enriched);
-                    done(resolved as T[]);
-                    return;
-                }
+    protected getData(done: (result: T[], error?: any) => void) {
 
-                done(entities);
-                return;
-            }
+        const query = this.getOrCompileQuery();
 
-            done(null, e);
-        });
+        this.manager.fetch(query, done);
     }
 }   

@@ -15,16 +15,10 @@ DbSet
         Can we set a cache total and store in memory?  Only cache 10k records?
             Or we can do the top queries and cache those?
 
-subscribe()
-
-Need to figure out the permutations of Queryable
-
 Provide Custom DbSet to restore legacy functionality
+    pluck
+        where(w => w).map(w => ({ test:w.test })).firstOrUndefined();
 
-
-pluck
-    where(w => w).map(w => ({ test:w.test })).firstOrUndefined();
-
-filter
-    where(w => w).toArray()
+    filter
+        where(w => w).toArray()
 

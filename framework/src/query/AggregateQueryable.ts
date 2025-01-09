@@ -1,47 +1,30 @@
-import { NonNullEntity } from "@agrejus/db-framework-core";
 import { QueryResult } from "../types";
-import { createPromise } from "../utilities";
 import { QueryRoot } from './base/QueryRoot';
 
-export class AggregateQueryable<T extends {}> extends QueryRoot<T> {
+export class AggregateQueryable<T extends {}, U = void> extends QueryRoot<T> {
 
-    min(done: QueryResult<T>) {
+    min(done: QueryResult<T>): U {
         this.minValue = true;
+        return;
     }
 
-    minAsync(): Promise<T> {
-        return createPromise<T>(w => this.min(w));
-    }
-
-    max(done: QueryResult<T>) {
+    max(done: QueryResult<T>): U {
         this.maxValue = true;
+        return;
     }
 
-    maxAsync() {
-        return createPromise<T>(w => this.max(w));
-    }
-
-    sum(done: QueryResult<number>) {
+    sum(done: QueryResult<number>): U {
         this.sumValue = true;
+        return;
     }
 
-    sumAsync() {
-        return createPromise<number>(w => this.sum(w));
-    }
-
-    count(done: QueryResult<number>) {
+    count(done: QueryResult<number>): U {
         this.countValue = true;
+        return;
     }
 
-    countAsync() {
-        return createPromise<number>(w => this.count(w));
-    }
-
-    distinct(done: QueryResult<T>) {
+    distinct(done: QueryResult<T>): U {
         this.distinctValue = true;
-    }
-
-    distinctAsync() {
-        return createPromise<T>(w => this.distinct(w));
+        return;
     }
 }

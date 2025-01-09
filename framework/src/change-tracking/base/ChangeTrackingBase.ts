@@ -1,19 +1,20 @@
-import { CompiledSchema, createUUID, HashType, IDbPlugin, IdType, NonNullCreateEntity, NonNullEntity } from "@agrejus/db-framework-core";
-import { ChangeTrackedEntity, EntityCallbackMany, Filter } from "../../types";
-import { ChangeSubscription } from "../types";
+import { CompiledSchema, createUUID, HashType, IDbPlugin, IdType, NonNullCreateEntity, NonNullEntity, Query } from "@agrejus/db-framework-core";
+import { ChangeTrackedEntity, EntityCallbackMany } from "../../types";
+import { DataAccessManager } from "../../data-access/DataAccessManager";
+import { QuerySubscription } from "../types";
 
 export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never> {
 
     protected removals: NonNullEntity<TEntity>[] = [];
     protected attachments: Map<TKey, NonNullEntity<TEntity>> = new Map<TKey, NonNullEntity<TEntity>>();
-    protected subscriptions: ChangeSubscription<TEntity>[] = [];
+    protected subscriptions: QuerySubscription<TEntity, any>[] = [];
     protected schema: CompiledSchema<TEntity>;
-    private readonly _dbPlugin: IDbPlugin;
     protected abstract additionsCount: number;
+    protected manager: DataAccessManager<TEntity>;
 
     constructor(schema: CompiledSchema<TEntity>, dbPlugin: IDbPlugin) {
         this.schema = schema;
-        this._dbPlugin = dbPlugin;
+        this.manager = new DataAccessManager<TEntity>(schema, dbPlugin, this);
     }
 
     protected abstract setAddition(enriched: NonNullCreateEntity<TEntity>): void;
@@ -84,36 +85,6 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
         this.attachments.set(key, entity);
     }
 
-    subscribe(onChange: (entities: NonNullEntity<TEntity>[]) => void): () => void;
-    subscribe(selector: Filter<NonNullEntity<TEntity>>, onChange: (entities: NonNullEntity<TEntity>[]) => void): () => void;
-    subscribe(selectorOrOnChange: Filter<NonNullEntity<TEntity>> | ((entities: NonNullEntity<TEntity>[]) => void), onChange?: (entities: NonNullEntity<TEntity>[]) => void) {
-
-        const id = createUUID();
-
-        const unsubscribe = () => {
-            const index = this.subscriptions.findIndex(w => w.id === id);
-            this.subscriptions.splice(index, 1);
-        };
-
-        if (onChange == null) {
-            // no selector
-            this.subscriptions.push({
-                id,
-                onChange: selectorOrOnChange as (entities: NonNullEntity<TEntity>[]) => void
-            });
-
-            return unsubscribe;
-        }
-
-        this.subscriptions.push({
-            id,
-            onChange: onChange,
-            selector: selectorOrOnChange as Filter<NonNullEntity<TEntity>>
-        });
-
-        return unsubscribe;
-    }
-
     hasChanges() {
         return this.additionsCount > 0 || this.removals.length > 0 || this.hasAttachmentsChanges() === true;
     }
@@ -165,6 +136,22 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
         }
     }
 
+    subscribe<U>(query: Query<TEntity>, shape: (data: TEntity[]) => U, done: (result: U, error?: any) => void) {
+        const id = createUUID();
+
+        this.subscriptions.push({
+            id,
+            query,
+            done,
+            shape
+        });
+
+        return () => {
+            const index = this.subscriptions.findIndex(w => w.id === id);
+            this.subscriptions.splice(index, 1);
+        };
+    };
+
     protected bulkOperations(findAddition: (entity: NonNullEntity<TEntity>) => NonNullCreateEntity<TEntity> | undefined, done: (result: number, error?: any) => void) {
 
         if (this.hasChanges() === false) {
@@ -172,11 +159,11 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
             return;
         }
 
-        this._dbPlugin.bulkOperations<any>(this.schema, {
+        this.manager.bulkOperations(this.schema, {
             // prepare is responsible for creating a new clean object 
             // with only properties that should be saved and run any serializers
             adds: this.getPreparedAdditions(),
-            removes: this.removals.map(w => this.schema.prepare(w as any)),
+            removes: this.removals.map(w => this.schema.prepare(w as any) as any),
             updates: this.getAttachmentsChanges()
         }, ({ adds, removedCount, updates }, error) => {
 
@@ -195,20 +182,13 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
                 this.setAttachment(id, found as any)
             }
 
+            // run subscriptions
             for (let i = 0; i < this.subscriptions.length; i++) {
                 const subscription = this.subscriptions[i];
-                const changes = [...(adds as any), ...updates];
-
-                if (subscription.selector == null) {
-                    subscription.onChange(changes);
-                    continue;
-                }
-
-                const filteredChanges = changes.filter(w => subscription.selector(w));
-
-                if (filteredChanges.length > 0) {
-                    subscription.onChange(filteredChanges);
-                }
+                this.manager.fetch(subscription.query, (r, e) => {
+                    const shapedData = subscription.shape(r);
+                    subscription.done(shapedData, e);
+                })
             }
 
             this.clearAdditions();

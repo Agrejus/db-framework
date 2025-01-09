@@ -1,10 +1,9 @@
-import { QueryRoot } from "./base/QueryRoot";
 import { SelectionQueryable } from "./SelectionQueryable";
 
-export class LimitedQueryable<T extends {}> extends SelectionQueryable<T> {
+export class LimitedQueryable<T extends {}, U = void> extends SelectionQueryable<T> {
 
     skip(amount: number) {
         this.skipValue = amount;
-        return new SelectionQueryable<T>(this);
+        return new SelectionQueryable<T, U>(this);
     }
 }

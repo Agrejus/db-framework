@@ -1,63 +1,68 @@
 import { QueryResult, Filter, ParamsFilter } from "../types";
-import { createPromise } from "../utilities";
 import { AggregateQueryable } from "./AggregateQueryable";
 
-export class SelectionQueryable<T extends {}> extends AggregateQueryable<T> {
+export class SelectionQueryable<T extends {}, U = void> extends AggregateQueryable<T> {
 
-    toArray(done: QueryResult<T[]>) {
-        this.getData(done)
+    toArray(done: QueryResult<T[]>): U {
+        this.getData(done);
+        return this.subscribeQuery<T[]>(w => w, done) as U;
     }
 
-    toArrayAsync(): Promise<T[]> {
-        return createPromise<T[]>(w => this.toArray(w));
-    }
-
-    first(expression: Filter<T>, done: QueryResult<T>): void;
-    first<P extends {}>(expression: ParamsFilter<T, P>, params: P, done: QueryResult<T>): void;
-    first(done: QueryResult<T>): void;
-    first<P extends {} = never>(doneOrExpression: Filter<T> | ParamsFilter<T, P> | QueryResult<T>, paramsOrDone?: P | QueryResult<T>, done?: QueryResult<T>) {
+    first(expression: Filter<T>, done: QueryResult<T>): U;
+    first<P extends {}>(expression: ParamsFilter<T, P>, params: P, done: QueryResult<T>): U;
+    first(done: QueryResult<T>): U;
+    first<P extends {} = never>(doneOrExpression: Filter<T> | ParamsFilter<T, P> | QueryResult<T>, paramsOrDone?: P | QueryResult<T>, done?: QueryResult<T>): U {
 
         this.takeValue = 1; // ensure we only select 1 record
+
+        const shaper = (r: T[]) => {
+            if (r.length === 0) {
+                return undefined
+            }
+
+            return r[0];
+        }
 
         this._query({
             doneOrExpression,
             done,
             paramsOrDone
         }, (d, r, e) => {
-            if (r.length === 0) {
+            const result = shaper(r);
+
+            if (result == null) {
                 d(undefined, new Error("Could not find entity in query"))
                 return;
             }
 
-            d(r[0], e)
+            d(result, e)
         });
-    }
 
-    firstAsync(expression: Filter<T>): Promise<T>;
-    firstAsync<P extends {}>(expression: ParamsFilter<T, P>, params: P): Promise<T>;
-    firstAsync(): Promise<T>;
-    firstAsync<P extends {} = never>(expression?: Filter<T> | ParamsFilter<T, P>, params?: P): Promise<T> {
-        return createPromise<T>(w => {
-
-            if (params == null && expression == null) {
-                this.first(w);
+        const d = done != null ? done : paramsOrDone != null ? paramsOrDone as QueryResult<T> : doneOrExpression as QueryResult<T>;
+        return this.subscribeQuery<T>(shaper, (r, e) => {
+            if (r == null) {
+                d(undefined, new Error("Could not find entity in query"))
                 return;
             }
 
-            if (params != null) {
-                this.first(expression as ParamsFilter<T, P>, params, w);
-                return
-            }
-
-            this.first(expression as Filter<T>, w);
-        });
+            d(r, e);
+        }) as U;
     }
 
-    firstOrUndefined(expression: Filter<T>, done: QueryResult<T | undefined>): void;
-    firstOrUndefined<P extends {}>(expression: ParamsFilter<T, P>, params: P, done: QueryResult<T | undefined>): void;
-    firstOrUndefined(done: QueryResult<T | undefined>): void;
-    firstOrUndefined<P extends {} = never>(doneOrExpression: Filter<T> | ParamsFilter<T, P> | QueryResult<T | undefined>, paramsOrDone?: P | QueryResult<T | undefined>, done?: QueryResult<T | undefined>) {
+    firstOrUndefined(expression: Filter<T>, done: QueryResult<T | undefined>): U;
+    firstOrUndefined<P extends {}>(expression: ParamsFilter<T, P>, params: P, done: QueryResult<T | undefined>): U;
+    firstOrUndefined(done: QueryResult<T | undefined>): U;
+    firstOrUndefined<P extends {} = never>(doneOrExpression: Filter<T> | ParamsFilter<T, P> | QueryResult<T | undefined>, paramsOrDone?: P | QueryResult<T | undefined>, done?: QueryResult<T | undefined>): U {
+        
         this.takeValue = 1; // ensure we only select 1 record
+
+        const shaper = (r: T[]) => {
+            if (r.length === 0) {
+                return undefined
+            }
+
+            return r[0];
+        }
 
         this._query({
             doneOrExpression,
@@ -71,65 +76,40 @@ export class SelectionQueryable<T extends {}> extends AggregateQueryable<T> {
 
             d(r[0], e)
         });
-    }
 
-    firstOrUndefinedAsync(expression: Filter<T>): Promise<T | undefined>;
-    firstOrUndefinedAsync<P extends {}>(expression: ParamsFilter<T, P>, params: P): Promise<T | undefined>;
-    firstOrUndefinedAsync(): Promise<T | undefined>;
-    firstOrUndefinedAsync<P extends {} = never>(expression?: Filter<T> | ParamsFilter<T, P>, params?: P): Promise<T | undefined> {
-        return createPromise<T>(w => {
-
-            if (params == null && expression == null) {
-                this.firstOrUndefined(w);
+        const d = done != null ? done : paramsOrDone != null ? paramsOrDone as QueryResult<T> : doneOrExpression as QueryResult<T>;
+        return this.subscribeQuery<T>(shaper, (r, e) => {
+            if (r == null) {
+                d(undefined, e)
                 return;
             }
 
-            if (params != null) {
-                this.firstOrUndefined(expression as ParamsFilter<T, P>, params, w);
-                return
-            }
-
-            this.firstOrUndefined(expression as Filter<T>, w);
-        });
+            d(r, e);
+        }) as U;
     }
 
-    some(expression: Filter<T>, done: QueryResult<boolean>): void;
-    some<P extends {}>(expression: ParamsFilter<T, P>, params: P, done: QueryResult<boolean>): void;
-    some(done: QueryResult<boolean>): void;
-    some<P extends {} = never>(doneOrExpression: Filter<T> | ParamsFilter<T, P> | QueryResult<boolean>, paramsOrDone?: P | QueryResult<boolean>, done?: QueryResult<boolean>) {
+    some(expression: Filter<T>, done: QueryResult<boolean>): U;
+    some<P extends {}>(expression: ParamsFilter<T, P>, params: P, done: QueryResult<boolean>): U;
+    some(done: QueryResult<boolean>): U;
+    some<P extends {} = never>(doneOrExpression: Filter<T> | ParamsFilter<T, P> | QueryResult<boolean>, paramsOrDone?: P | QueryResult<boolean>, done?: QueryResult<boolean>) : U {
         this.takeValue = 1; // ensure we only select 1 record
+
+        const shaper = (r: T[]) => r.length > 0;
 
         this._query({
             doneOrExpression,
             done,
             paramsOrDone
-        }, (d, r, e) => d(r.length > 0, e));
+        }, (d, r, e) => d(shaper(r), e));
+
+        const d = done != null ? done : paramsOrDone != null ? paramsOrDone as QueryResult<boolean> : doneOrExpression as QueryResult<boolean>;
+        return this.subscribeQuery<boolean>(shaper, d) as U;
     }
 
-    someAsync(expression: Filter<T>): Promise<boolean>;
-    someAsync<P extends {}>(expression: ParamsFilter<T, P>, params: P): Promise<boolean>;
-    someAsync(): Promise<boolean>;
-    someAsync<P extends {} = never>(expression?: Filter<T> | ParamsFilter<T, P>, params?: P): Promise<boolean> {
-        return createPromise<boolean>(w => {
+    every(expression: Filter<T>, done: QueryResult<boolean>): U;
+    every<P extends {}>(expression: ParamsFilter<T, P>, params: P, done: QueryResult<boolean>): U;
+    every<P extends {} = never>(expression: Filter<T> | ParamsFilter<T, P> | QueryResult<boolean>, paramsOrDone?: P | QueryResult<boolean>, done?: QueryResult<boolean>) : U {
 
-            if (params == null && expression == null) {
-                this.some(w);
-                return;
-            }
-
-            if (params != null) {
-                this.some(expression as ParamsFilter<T, P>, params, w);
-                return
-            }
-
-            this.some(expression as Filter<T>, w);
-        });
-    }
-
-    every(expression: Filter<T>, done: QueryResult<boolean>): void;
-    every<P extends {}>(expression: ParamsFilter<T, P>, params: P, done: QueryResult<boolean>): void;
-    every<P extends {} = never>(expression: Filter<T> | ParamsFilter<T, P> | QueryResult<boolean>, paramsOrDone?: P | QueryResult<boolean>, done?: QueryResult<boolean>) {
-        
         // Need to select everything
         const coalescedDone = done != null ? done : (paramsOrDone as QueryResult<boolean>);
         this._query({
@@ -150,23 +130,10 @@ export class SelectionQueryable<T extends {}> extends AggregateQueryable<T> {
             const regularExpression = expression as Filter<T>;
             const result = r.filter(regularExpression);
 
-                d(result.length === r.length, e);
-            d(r.length > 0, e)
+            d(result.length === r.length, e);
         });
-    }
 
-    everyAsync(expression: Filter<T>): Promise<boolean>;
-    everyAsync<P extends {}>(expression: ParamsFilter<T, P>, params: P): Promise<boolean>;
-    everyAsync<P extends {} = never>(expression?: Filter<T> | ParamsFilter<T, P>, params?: P): Promise<boolean> {
-        return createPromise<boolean>(w => {
-
-            if (params != null) {
-                this.every(expression as ParamsFilter<T, P>, params, w);
-                return
-            }
-
-            this.every(expression as Filter<T>, w);
-        });
+        return;
     }
 
     private _query<P extends {}, R extends {}>(options: {

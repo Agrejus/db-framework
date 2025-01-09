@@ -12,21 +12,5 @@ export class ChangeTrackerFactory {
         }
 
         return new NonIdentityKeyChangeTrackingBase(schema, dbPlugin);
-
-        // if (schema.hasIdentityKeys === false) {
-
-        //     if (schema.idPropertyNames.length === 1) {
-        //         // will work with and without identies because we return the full object back and merge it
-        //         return new SingleNonIdentityKeyChangeTracker<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>(schema, dbPlugin);
-        //     }
-
-        //     return new MultiNonIdentityKeyChangeTracker<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>(schema, dbPlugin);
-        // }
-
-        // if (schema.idPropertyNames.length === 1) {
-        //     return new SingleIdentityKeyChangeTracker<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>(schema, dbPlugin);
-        // }
-
-        // return new MultiKeyIdentityChangeTracker<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>(schema, dbPlugin);
     }
 }

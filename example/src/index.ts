@@ -42,22 +42,22 @@ class Ctx extends DataContext {
 const r = async () => {
     try {
         const ctx = new Ctx();
+        debugger;
 
-        const unsubscribe = ctx.nested.subscribe(w => w.name == "James 0", changes => {
-            console.log("CHANGE", changes.length)
-        })
+        // we need to stop returning a new Data Access manager, can we put this in the plugin instead?
+        const unsubscribe = ctx.nested.where(w => w.name == "James").subscribe().toArray((r, e) => {
+            console.log('DONE', r, e)
+        });
 
         for (let i = 0; i < 50; i++) {
             await ctx.nested.addAsync({
                 order: i,
-                name: `James ${i}`,
+                name: `James`,
                 child: {
                     name: `other ${i}`
                 }
             });
         }
-
-        unsubscribe();
 
         // console.log(nestedAdd);
 
@@ -65,6 +65,7 @@ const r = async () => {
         //     name: "James8",
         //     year: 2024
         // });
+        unsubscribe();
         await ctx.saveChangesAsync();
         // // let's not run prepare when getting changes. 
         // // after we call 'getChanges', we should call prepare on the adds and return a new object, then
@@ -73,7 +74,11 @@ const r = async () => {
         // debugger;
 
         // looks like PDB always returns 1 document when limit is 1... wtf?
-        const x9 = await ctx.nested.toArrayAsync();
+        
+        
+        // const x9 = await ctx.nested.toArrayAsync();
+        
+        
         // const x = await ctx.nested.firstOrUndefinedAsync(w => w.child.name == "test");
         // debugger;
         // const x1 = await ctx.nested.where(w => w.child.name.startsWith("other")).toArrayAsync();
@@ -93,12 +98,20 @@ const r = async () => {
         // debugger;
         // const foundOne = await ctx.nested.firstOrUndefinedAsync(w => w._id == "test");
         // debugger;
-        const found = await ctx.nested.where(([w, p]) => w.name.startsWith(p.name), { name: "James" })
-            .order(w => w._id)
-            .map(w => ({ name: w.name, _id: w._id }))
-            .toArrayAsync();
-        debugger;
-        console.log(found)
+
+
+
+
+        // const found = await ctx.nested.where(([w, p]) => w.name.startsWith(p.name), { name: "James" })
+        //     .order(w => w._id)
+        //     .map(w => ({ name: w.name, _id: w._id }))
+        //     .toArrayAsync();
+        // debugger;
+        // console.log(found)
+
+
+
+
         // ctx.test.find(w => w.name === added.name, async (r, e) => {  
         //     console.log("FOUND", r, added, e);
 
@@ -121,6 +134,16 @@ const r = async () => {
         // console.log(added);
 
         // console.log(added.toString())
+
+        let count = 0;
+        const id = setInterval(() => {
+            count++;
+            console.log(count);
+            if (count >= 50 && id != null) {
+                clearInterval(id);
+            } 
+
+        }, 500)
     } catch (e) {
         debugger;
         console.log(e)

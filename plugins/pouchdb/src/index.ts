@@ -4,9 +4,14 @@ import PouchDB from 'pouchdb';
 import { CompiledSchema, EntityChanges, EntityModificationResult, Expression, IDbPlugin, IdType, NonNullEntity, Query, QueryOptions, toMap } from '@agrejus/db-framework-core';
 import { setQueryOptions, toMango } from './expression/resolver';
 import findAdapter from 'pouchdb-find';
+import { DbOperation, ReadOperation, UpsertOperation } from './types';
 
 PouchDB.plugin(findAdapter);
 const INDEX_NAME = "db_framework_order_index";
+
+// PouchDB cannot process operations asyncronously, we need a queue so we don't lock things up
+const queue: DbOperation<any>[] = [];
+let current: DbOperation<any> | null = null;
 
 export class PouchDbPlugin implements IDbPlugin {
 
@@ -16,6 +21,36 @@ export class PouchDbPlugin implements IDbPlugin {
     constructor(name: string, options?: PouchDB.Configuration.DatabaseConfiguration) {
         this._name = name;
         this._options = options;
+    }
+
+    private _processNextOperation() {
+
+        if (current != null || queue.length === 0) {
+            return;
+        }
+
+        current = queue.shift();
+
+        if ("operations" in current) {
+            const upsertOperation = current;
+            this._bulkOperations(upsertOperation.schema, upsertOperation.operations, (r, e) => {
+                current = null;
+                this._processNextOperation();
+                upsertOperation.done(r, e);
+            });
+            return;
+        }
+
+        const queryOperation = current;
+        this._query({
+            options: queryOperation.options,
+            schema: queryOperation.schema,
+            expression: queryOperation.expression
+        }, (r, e) => {
+            current = null;
+            this._processNextOperation();
+            queryOperation.done(r as any, e);
+        });
     }
 
     private _identityBulkOperations<T extends {}>(operations: EntityChanges<T>, done: (result: EntityModificationResult<T>, error?: any) => void): void {
@@ -162,7 +197,7 @@ export class PouchDbPlugin implements IDbPlugin {
         }, done);
     }
 
-    bulkOperations<TEntity extends {}>(
+    private _bulkOperations<TEntity extends {}>(
         schema: CompiledSchema<TEntity>,
         operations: EntityChanges<TEntity>,
         done: (result: EntityModificationResult<TEntity>, error?: any) => void) {
@@ -194,12 +229,37 @@ export class PouchDbPlugin implements IDbPlugin {
     }
 
     destroy(done: (error?: any) => void): void {
+        // this needs to be queued too
         this._doWork((w, d) => {
             w.destroy(null, d);
         }, done);
     }
 
-    query<TEntity extends {}>(query: Query<TEntity>, done: (entities: NonNullEntity<TEntity>[], error?: any) => void): void {
+    bulkOperations<TEntity extends {}>(
+        schema: CompiledSchema<TEntity>,
+        operations: EntityChanges<TEntity>,
+        done: (result: EntityModificationResult<TEntity>, error?: any) => void) {
+        const upsertOperation: UpsertOperation<TEntity> = {
+            done,
+            operations,
+            schema
+        };
+
+        queue.push(upsertOperation);
+        this._processNextOperation();
+    }
+
+    query<TEntity extends {}>(query: Query<TEntity>, done: (entities: NonNullEntity<TEntity>[], error?: any) => void): void  {
+
+        const readOperation: ReadOperation<any> = {
+            done,
+            ...query
+        };
+        queue.push(readOperation);
+        this._processNextOperation();
+    }
+
+    private _query<TEntity extends {}>(query: Query<TEntity>, done: (entities: NonNullEntity<TEntity>[], error?: any) => void): void {
 
         const request: PouchDB.Find.FindRequest<unknown> = {
             selector: {}
@@ -225,7 +285,7 @@ export class PouchDbPlugin implements IDbPlugin {
                                         d([], error);
                                         return;
                                     }
-    
+
                                     if (result.indexes.length === 0) {
                                         w.createIndex({
                                             index: {
@@ -238,36 +298,36 @@ export class PouchDbPlugin implements IDbPlugin {
                                                 d([], error);
                                                 return;
                                             }
-    
+
                                             w.find(request, (error, result) => {
                                                 d(result?.docs ?? [] as NonNullEntity<TEntity>[], error)
                                             });
                                         })
                                         return;
                                     }
-    
+
                                     const found = result.indexes.find(w => w.name === INDEX_NAME);
 
                                     if (found) {
                                         w.deleteIndex(found, (error) => {
-/*  */
+                                            /*  */
                                             if (error != null) {
                                                 d([], error);
                                                 return;
                                             }
-   
+
                                             w.createIndex({
                                                 index: {
                                                     fields: propertyNames,
                                                     name: INDEX_NAME
                                                 }
                                             }, (error) => {
-           
+
                                                 if (error != null) {
                                                     d([], error);
                                                     return;
                                                 }
-    
+
                                                 w.find(request, (error, result) => {
                                                     d(result?.docs ?? [] as NonNullEntity<TEntity>[], error)
                                                 });
@@ -275,7 +335,7 @@ export class PouchDbPlugin implements IDbPlugin {
                                         })
                                         return;
                                     }
-     
+
                                     w.createIndex({
                                         index: {
                                             fields: propertyNames,
@@ -286,7 +346,7 @@ export class PouchDbPlugin implements IDbPlugin {
                                             d([], error);
                                             return;
                                         }
-    
+
                                         w.find(request, (error, result) => {
                                             d(result?.docs ?? [] as NonNullEntity<TEntity>[], error)
                                         });
