@@ -1,10 +1,15 @@
 import { CompiledSchema } from "../schema";
-import { Expression, OperatorExpression, ComparatorExpression, Comparator, ValueExpression, PropertyPathExpression } from "./types";
+import { Expression, OperatorExpression, ComparatorExpression, Comparator, ValueExpression, PropertyPathExpression, Filter, ParamsFilter } from "./types";
 
 export const combineExpressions = (...expressions: Expression[]): Expression => {
     
-    if (expressions.length < 2) {
-        throw new Error("combineExpressions requires at least 2 expressions");
+    if (expressions.length === 0) {
+        throw new Error("combineExpressions requires at least 1 expression");
+    }
+
+
+    if (expressions.length === 1) {
+        return expressions[0];
     }
 
     // Start with the first expression
@@ -23,7 +28,7 @@ export const combineExpressions = (...expressions: Expression[]): Expression => 
     return result;
 };
 
-export const toExpression = <T extends any, P extends any>(schema: CompiledSchema<any>, fn: (payload: [T, P]) => boolean, params: P) => {
+export const toExpression = <T extends any, P extends any>(schema: CompiledSchema<any>, fn: Filter<T> | ParamsFilter<T, P>, params: P) => {
     const stringifiedFunction = fn.toString();
 
     const [_, expression, ...rest] = stringifiedFunction.split("=>").map(w => w.trim());

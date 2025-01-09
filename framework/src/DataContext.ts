@@ -13,7 +13,7 @@ export class DataContext {
     }
 
     protected dbset<TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never>(model: CompiledSchema<TEntity>) {
-        const dbset = new DbSet<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>(this._dbPlugin, model);
+        const dbset = new DbSet<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>(this._dbPlugin, model, { stateful: true });
 
         this._dbsets.set(model.key, dbset);
 

@@ -32,7 +32,7 @@ class Ctx extends DataContext {
         super(null as any);
     }
 
-    test = this.dbset(model);
+    test = this.dbset(model).stateful();
     nested = this.dbset(nested);
 }
 

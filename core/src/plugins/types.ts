@@ -1,4 +1,5 @@
 import { CompiledSchema, DeepPartial, Expression, IdType, NonNullCreateEntity, NonNullEntity } from "..";
+import { Filterable } from "../expressions/types";
 
 export interface IDbPlugin {
     query<TEntity extends {}>(query: Query<TEntity>, done: (entities: NonNullEntity<TEntity>[], error?: any) => void): void;
@@ -9,7 +10,7 @@ export interface IDbPlugin {
 export type EntityChanges<T extends {}> = {
     adds: NonNullCreateEntity<T>[];
     removes: NonNullEntity<T>[];
-    updates: Map<IdType, { doc: NonNullEntity<T>, delta: { [key:string]: string | number | Date } }>;
+    updates: Map<IdType, { doc: NonNullEntity<T>, delta: { [key: string]: string | number | Date } }>;
 }
 
 export type EntityModificationResult<T extends {}> = {
@@ -31,5 +32,22 @@ export type QueryOptions = {
 }
 
 export type QuerySort = { key: string, direction: "asc" | "desc" };
-export type Query<TEntity extends {}> = { schema: CompiledSchema<TEntity>, expression?: Expression, options: QueryOptions }
+export type Query<TEntity extends {}> = {
+    schema: CompiledSchema<TEntity>,
+    expression?: Expression,
+    options: QueryOptions,
+    filters: Filterable<TEntity, any>[];
+}
 export type QueryField = { sourceName: string, destinationName: string };
+
+export type ReadOperation<TEntity extends {}> = Query<TEntity> & {
+    done: (result: TEntity[], error?: any) => void
+}
+
+export type UpsertOperation<TEntity extends {}> = {
+    schema: CompiledSchema<TEntity>;
+    operations: EntityChanges<TEntity>;
+    done: (result: EntityModificationResult<TEntity>, error?: any) => void;
+}
+
+export type DbOperation<TEntity extends {}> = UpsertOperation<TEntity> | ReadOperation<TEntity>

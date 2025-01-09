@@ -1,10 +1,9 @@
 // @ts-nocheck
 
 import PouchDB from 'pouchdb';
-import { CompiledSchema, EntityChanges, EntityModificationResult, Expression, IDbPlugin, IdType, NonNullEntity, Query, QueryOptions, toMap } from '@agrejus/db-framework-core';
+import { CompiledSchema, DbOperation, EntityChanges, EntityModificationResult, IDbPlugin, IdType, NonNullEntity, Query, ReadOperation, toMap, UpsertOperation } from '@agrejus/db-framework-core';
 import { setQueryOptions, toMango } from './expression/resolver';
 import findAdapter from 'pouchdb-find';
-import { DbOperation, ReadOperation, UpsertOperation } from './types';
 
 PouchDB.plugin(findAdapter);
 const INDEX_NAME = "db_framework_order_index";
@@ -23,7 +22,7 @@ export class PouchDbPlugin implements IDbPlugin {
         this._options = options;
     }
 
-    private _processNextOperation() {
+    private _next() {
 
         if (current != null || queue.length === 0) {
             return;
@@ -35,21 +34,17 @@ export class PouchDbPlugin implements IDbPlugin {
             const upsertOperation = current;
             this._bulkOperations(upsertOperation.schema, upsertOperation.operations, (r, e) => {
                 current = null;
-                this._processNextOperation();
                 upsertOperation.done(r, e);
+                this._next();
             });
             return;
         }
 
         const queryOperation = current;
-        this._query({
-            options: queryOperation.options,
-            schema: queryOperation.schema,
-            expression: queryOperation.expression
-        }, (r, e) => {
+        this._query(queryOperation, (r, e) => {
             current = null;
-            this._processNextOperation();
             queryOperation.done(r as any, e);
+            this._next();
         });
     }
 
@@ -246,7 +241,7 @@ export class PouchDbPlugin implements IDbPlugin {
         };
 
         queue.push(upsertOperation);
-        this._processNextOperation();
+        this._next();
     }
 
     query<TEntity extends {}>(query: Query<TEntity>, done: (entities: NonNullEntity<TEntity>[], error?: any) => void): void  {
@@ -256,7 +251,7 @@ export class PouchDbPlugin implements IDbPlugin {
             ...query
         };
         queue.push(readOperation);
-        this._processNextOperation();
+        this._next();
     }
 
     private _query<TEntity extends {}>(query: Query<TEntity>, done: (entities: NonNullEntity<TEntity>[], error?: any) => void): void {

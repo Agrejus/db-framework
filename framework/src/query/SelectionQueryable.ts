@@ -1,4 +1,5 @@
-import { QueryResult, Filter, ParamsFilter } from "../types";
+import { Filter, ParamsFilter } from "@agrejus/db-framework-core";
+import { QueryResult } from "../types";
 import { AggregateQueryable } from "./AggregateQueryable";
 
 export class SelectionQueryable<T extends {}, U = void> extends AggregateQueryable<T> {
@@ -53,7 +54,7 @@ export class SelectionQueryable<T extends {}, U = void> extends AggregateQueryab
     firstOrUndefined<P extends {}>(expression: ParamsFilter<T, P>, params: P, done: QueryResult<T | undefined>): U;
     firstOrUndefined(done: QueryResult<T | undefined>): U;
     firstOrUndefined<P extends {} = never>(doneOrExpression: Filter<T> | ParamsFilter<T, P> | QueryResult<T | undefined>, paramsOrDone?: P | QueryResult<T | undefined>, done?: QueryResult<T | undefined>): U {
-        
+
         this.takeValue = 1; // ensure we only select 1 record
 
         const shaper = (r: T[]) => {
@@ -91,7 +92,7 @@ export class SelectionQueryable<T extends {}, U = void> extends AggregateQueryab
     some(expression: Filter<T>, done: QueryResult<boolean>): U;
     some<P extends {}>(expression: ParamsFilter<T, P>, params: P, done: QueryResult<boolean>): U;
     some(done: QueryResult<boolean>): U;
-    some<P extends {} = never>(doneOrExpression: Filter<T> | ParamsFilter<T, P> | QueryResult<boolean>, paramsOrDone?: P | QueryResult<boolean>, done?: QueryResult<boolean>) : U {
+    some<P extends {} = never>(doneOrExpression: Filter<T> | ParamsFilter<T, P> | QueryResult<boolean>, paramsOrDone?: P | QueryResult<boolean>, done?: QueryResult<boolean>): U {
         this.takeValue = 1; // ensure we only select 1 record
 
         const shaper = (r: T[]) => r.length > 0;
@@ -108,7 +109,7 @@ export class SelectionQueryable<T extends {}, U = void> extends AggregateQueryab
 
     every(expression: Filter<T>, done: QueryResult<boolean>): U;
     every<P extends {}>(expression: ParamsFilter<T, P>, params: P, done: QueryResult<boolean>): U;
-    every<P extends {} = never>(expression: Filter<T> | ParamsFilter<T, P> | QueryResult<boolean>, paramsOrDone?: P | QueryResult<boolean>, done?: QueryResult<boolean>) : U {
+    every<P extends {} = never>(expression: Filter<T> | ParamsFilter<T, P> | QueryResult<boolean>, paramsOrDone?: P | QueryResult<boolean>, done?: QueryResult<boolean>): U {
 
         // Need to select everything
         const coalescedDone = done != null ? done : (paramsOrDone as QueryResult<boolean>);
@@ -159,7 +160,7 @@ export class SelectionQueryable<T extends {}, U = void> extends AggregateQueryab
 
         if (done != null) {
             // params query
-            this.paramsQueries.push({ expression: doneOrExpression as ParamsFilter<T, P>, params: paramsOrDone as P });
+            this.filters.push({ filter: doneOrExpression as ParamsFilter<T, P>, params: paramsOrDone as P });
             this.getData((r, e) => {
                 if (!e) {
                     resolve(done, r, e);
@@ -172,7 +173,7 @@ export class SelectionQueryable<T extends {}, U = void> extends AggregateQueryab
 
         // regular query
         const d = paramsOrDone as QueryResult<R>;
-        this.queries.push(doneOrExpression as Filter<T>)
+        this.filters.push({ filter: doneOrExpression as Filter<T> })
         this.getData((r, e) => {
             if (!e) {
                 resolve(d, r, e);

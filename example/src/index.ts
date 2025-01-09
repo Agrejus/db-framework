@@ -44,20 +44,44 @@ const r = async () => {
         const ctx = new Ctx();
         debugger;
 
-        // we need to stop returning a new Data Access manager, can we put this in the plugin instead?
-        const unsubscribe = ctx.nested.where(w => w.name == "James").subscribe().toArray((r, e) => {
-            console.log('DONE', r, e)
+        // const s1 = performance.now();
+        // const r = await ctx.nested.where(w => w.name == "James").firstOrUndefinedAsync();
+        // console.log('DONE 5', performance.now() - s1, r);
+
+        // const s2 = performance.now();
+        // const r2 = await ctx.nested.where(w => w.name == "James").firstOrUndefinedAsync();
+        // console.log('DONE 6', performance.now() - s2, r2)
+
+        const s1 = performance.now();
+        ctx.nested.where(w => w.name == "James").firstOrUndefined((r, e) => {
+            console.log('DONE 1', performance.now() - s1, r, e)
         });
 
-        for (let i = 0; i < 50; i++) {
-            await ctx.nested.addAsync({
-                order: i,
-                name: `James`,
-                child: {
-                    name: `other ${i}`
-                }
-            });
-        }
+        const s2 = performance.now();
+        ctx.nested.where(w => w.name == "James").firstOrUndefined((r, e) => {
+            console.log('DONE 2', performance.now() - s2, r, e)
+        });
+
+        const s3 = performance.now();
+        ctx.nested.where(w => w.name == "James").toArray((r, e) => {
+            console.log('DONE 3', performance.now() - s3, r, e)
+        });
+
+
+        // // we need to stop returning a new Data Access manager, can we put this in the plugin instead?
+        // const unsubscribe = ctx.nested.where(w => w.name == "James").subscribe().toArray((r, e) => {
+        //     console.log('DONE', r, e)
+        // });
+
+        // for (let i = 0; i < 50; i++) {
+        //     await ctx.nested.addAsync({
+        //         order: i,
+        //         name: `James`,
+        //         child: {
+        //             name: `other ${i}`
+        //         }
+        //     });
+        // }
 
         // console.log(nestedAdd);
 
@@ -65,8 +89,8 @@ const r = async () => {
         //     name: "James8",
         //     year: 2024
         // });
-        unsubscribe();
-        await ctx.saveChangesAsync();
+        //unsubscribe();
+        // await ctx.saveChangesAsync();
         // // let's not run prepare when getting changes. 
         // // after we call 'getChanges', we should call prepare on the adds and return a new object, then
         // // we can merge on the result and merge the resulting object.  We can forget about the object we send 
@@ -139,7 +163,7 @@ const r = async () => {
         const id = setInterval(() => {
             count++;
             console.log(count);
-            if (count >= 50 && id != null) {
+            if (count >= 5 && id != null) {
                 clearInterval(id);
             } 
 

@@ -5,7 +5,12 @@ export {
     ExpressionType,
     OperatorExpression,
     PropertyPathExpression,
-    ValueExpression
+    ValueExpression,
+    Filter,
+    Operator,
+    ParamsFilter,
+    CompositeFilter,
+    Filterable
 } from './expressions/types';
 
 export {
@@ -15,7 +20,8 @@ export {
 
 export {
     DeepPartial,
-    IdType
+    IdType,
+    GenericFunction
 } from './types';
 
 export {
@@ -25,7 +31,10 @@ export {
     QueryOptions,
     QueryField,
     Query,
-    QuerySort
+    QuerySort,
+    DbOperation,
+    ReadOperation,
+    UpsertOperation
 } from './plugins/types';
 
 export {

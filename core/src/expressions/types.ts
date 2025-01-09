@@ -1,4 +1,5 @@
 import { PropertyInfo } from "../common/PropertyInfo";
+import { GenericFunction } from "../types";
 
 export interface ComparatorExpression extends Expression {
     type: "comparator";
@@ -30,3 +31,11 @@ export interface ValueExpression extends Expression {
 export type ExpressionType = "operator" | "comparator" | "property" | "value";
 export type Comparator = "equals" | "starts-with" | "includes" | "ends-with";
 export type Operator = "&&" | "||";
+
+export type Filter<T extends {}> = GenericFunction<T, boolean>;
+export type ParamsFilter<T extends {}, P> = (payload: [T, P]) => boolean;
+export type CompositeFilter<T extends {}, P = never> = Filter<T> | ParamsFilter<T, P>;
+export type Filterable<T extends {}, P = any> = {
+    filter: CompositeFilter<T, P>;
+    params?: P;
+}

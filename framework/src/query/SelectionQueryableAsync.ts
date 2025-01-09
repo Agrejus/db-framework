@@ -1,4 +1,4 @@
-import { Filter, ParamsFilter } from "../types";
+import { Filter, ParamsFilter } from "@agrejus/db-framework-core";
 import { createPromise } from "../utilities";
 import { SelectionQueryable } from "./SelectionQueryable";
 

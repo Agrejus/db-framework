@@ -1,4 +1,3 @@
-
 const store = new Map<string, any>();
 
 export const cache = {

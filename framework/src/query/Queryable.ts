@@ -1,4 +1,4 @@
-import { Filter, ParamsFilter } from "../types";
+import { Filter, ParamsFilter } from "@agrejus/db-framework-core";
 import { QueryableBase } from "./base/QueryableBase";
 import { ParamsQueryable } from "./ParamsQueryable";
 
@@ -8,11 +8,11 @@ export class Queryable<T extends {}, U = void> extends QueryableBase<T, U> {
     where<P extends {}>(selector: ParamsFilter<T, P>, params: P): ParamsQueryable<T>;
     where<P extends {} = never>(selector: ParamsFilter<T, P> | Filter<T>, params?: P) {
         if (params == null) {
-            this.queries.push(selector as Filter<T>);
+            this.filters.push({ filter: selector as Filter<T> });
             return new Queryable<T, U>(this);
         }
 
-        this.paramsQueries.push({ expression: selector as ParamsFilter<T, P>, params });
+        this.filters.push({ params, filter: selector as ParamsFilter<T, P> });
 
         return new ParamsQueryable<T, U>(this);
     }

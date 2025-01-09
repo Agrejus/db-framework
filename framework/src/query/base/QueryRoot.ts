@@ -1,16 +1,12 @@
-import { CompiledSchema, IDbPlugin, QueryOptions, toExpression, Expression, combineExpressions, QueryField, Query, QuerySort } from "@agrejus/db-framework-core";
-import { EntityMap, Filter, ParamsFilter } from "../../types";
+import { QueryOptions, toExpression, Expression, combineExpressions, QueryField, Query, QuerySort, Filterable } from "@agrejus/db-framework-core";
+import { EntityMap } from "../../types";
 import { QueryOrdering } from "../types";
-import { IChangeTracker } from "../../change-tracking/types";
-import { DataAccessManager } from '../../data-access/DataAccessManager';
+import { IDataAccessManager } from '../../data-access/types';
 
 export abstract class QueryRoot<T extends {}> {
 
-
-    protected readonly schema: CompiledSchema<T>;
-    protected readonly manager: DataAccessManager<T>;
-    protected queries: Filter<T>[] = [];
-    protected paramsQueries: { expression: ParamsFilter<T, any>, params: any }[] = [];
+    protected readonly manager: IDataAccessManager<T>;
+    protected filters: Filterable<T, any>[] = [];
     protected mapValue: EntityMap<T, T[keyof T] | Partial<T>> | null = null;
     protected takeValue: number | null = null;
     protected skipValue: number | null = null;
@@ -23,19 +19,17 @@ export abstract class QueryRoot<T extends {}> {
     protected subscribeValue: boolean = false;
     private _compiledQuery: Query<T> | null = null;
 
-    constructor(queryable?: QueryRoot<T>, options?: { schema: CompiledSchema<T>, dbPlugin: IDbPlugin, changeTracker: IChangeTracker<T> }) {
+    constructor(queryable?: QueryRoot<T>, manager?: IDataAccessManager<T>) {
 
-        if (options != null) {
-            this.schema = options.schema;
-            this.manager = new DataAccessManager<T>(options.schema, options.dbPlugin, options.changeTracker);
+        if (manager != null) {
+            this.manager = manager;
         }
 
         if (queryable != null) {
             this.subscribeValue = queryable.subscribeValue;
             this.manager = queryable.manager;
-            this.schema = queryable.schema;
-            this.queries = queryable.queries;
-            this.paramsQueries = queryable.paramsQueries;
+            this.manager = queryable.manager;
+            this.filters = queryable.filters;
             this.takeValue = queryable.takeValue;
             this.skipValue = queryable.skipValue;
             this.mapValue = queryable.mapValue;
@@ -146,45 +140,37 @@ export abstract class QueryRoot<T extends {}> {
         return split.join(".")
     }
 
-    protected getExpression(): Expression | null {
-        // I NEED SOME LOVE
-        if (this.paramsQueries.length == 0) {
-            // try and convert default queries
-            if (this.queries.length === 0) {
-                return null;
-            }
+    private _convertToExpression(filter: Filterable<T>) {
 
-            if (this.queries.length === 1) {
-                try {
-                    return toExpression(this.schema, this.queries[0] as any, {});
-                } catch (e) {
-                    return null; // fallback to memory filtering
-                }
-            }
-
-            try {
-                const expressions: Expression[] = [];
-
-                for (let i = 0; i < this.queries.length; i++) {
-                    const query = this.queries[i];
-                    expressions.push(toExpression(this.schema, query as any, {}));
-                }
-
-                return combineExpressions(...expressions);
-            } catch (e) {
-                return null;
-            }
+        if (filter.params != null) {
+            return toExpression(this.manager.schema, filter.filter, filter.params);
         }
 
-        if (this.paramsQueries.length === 1) {
-            return toExpression(this.schema, this.paramsQueries[0].expression, this.paramsQueries[0].params)
+        try {
+            return toExpression(this.manager.schema, filter.filter, {});
+        } catch (e) {
+            console.warn(`[WARNING] - Failed to parse selector to expression, falling back to memory filtering.  Selector: ${filter.filter.toString()}, Params: ${JSON.stringify(filter.params ?? {})}`)
+            return null; // fallback to memory filtering
+        }
+    }
+
+    protected getExpression(): Expression | null {
+
+        if (this.filters.length === 0) {
+            return null;
         }
 
         const expressions: Expression[] = [];
 
-        for (let i = 0; i < this.paramsQueries.length; i++) {
-            const query = this.paramsQueries[i];
-            expressions.push(toExpression(this.schema, query.expression, query.params));
+        for (let i = 0; i < this.filters.length; i++) {
+            const filter = this.filters[i];
+            const expression = this._convertToExpression(filter);
+
+            if (expression == null) {
+                return null; // fall back to memory filtering for everything
+            }
+
+            expressions.push(expression);
         }
 
         return combineExpressions(...expressions);
@@ -200,8 +186,9 @@ export abstract class QueryRoot<T extends {}> {
         const options = this.getQueryOptions();
 
         this._compiledQuery = {
-            schema: this.schema,
-            options
+            schema: this.manager.schema,
+            options,
+            filters: this.filters
         }
 
         if (expression != null) {

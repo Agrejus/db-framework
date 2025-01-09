@@ -1,13 +1,9 @@
-import { IdType, NonNullEntity } from "@agrejus/db-framework-core";
+import { GenericFunction, IdType, NonNullEntity } from "@agrejus/db-framework-core";
 
 export type QueryResult<T> = (value: T, error?: any) => void;
 export type EntityMap<T extends {}, R> = GenericFunction<T, R>;
 export type EntitySelector<T extends {}> = GenericFunction<NonNullEntity<T>, boolean>;
 export type EntityParamsSelector<T extends {}, P> = (payload: [NonNullEntity<T>, P]) => boolean;
-
-export type GenericFunction<T, R> = (value: T) => R;
-export type Filter<T extends {}> = GenericFunction<T, boolean>;
-export type ParamsFilter<T extends {}, P> = (payload: [T, P]) => boolean;
 
 export type EntityCallbackMany<T extends {}> = (entities: NonNullEntity<T>[], error?: any) => void;
 export type ChangeTrackedEntity<T extends {}> = T & {
