@@ -34,8 +34,8 @@ class Ctx extends DataContext {
         super(plugin);
     }
 
-    test = this.dbset(model);
-    nested = this.dbset(nested);
+    test = this.dbset(model).create();
+    nested = this.dbset(nested).stateful().create();
 }
 
 

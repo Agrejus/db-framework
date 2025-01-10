@@ -58,3 +58,7 @@ export type DeepOptional<T> = {
             : DeepOptional<T[K]> // Recursively make object properties optional
         : T[K]; // Keep non-object types as they are
 };
+
+export type DbSetOptions = {
+    stateful: boolean;
+}

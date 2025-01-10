@@ -1,6 +1,7 @@
 import { CompiledSchema, IDbPlugin } from '@agrejus/db-framework-core';
 import { DbSet } from './DbSet';
 import { forEach } from './utilities';
+import { DbSetBuilder } from './dbset-builder/DbSetBuilder';
 
 export class DataContext {
 
@@ -12,12 +13,11 @@ export class DataContext {
         this._dbsets = new Map<number, DbSet<any>>();
     }
 
-    protected dbset<TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never>(model: CompiledSchema<TEntity>) {
-        const dbset = new DbSet<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>(this._dbPlugin, model, { stateful: true });
+    protected dbset<TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never>(schema: CompiledSchema<TEntity>) {
 
-        this._dbsets.set(model.key, dbset);
+        const onDbSetCreated = (dbset: DbSet<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>) => this._dbsets.set(schema.key, dbset);
 
-        return dbset;
+        return new DbSetBuilder<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>(this._dbPlugin, schema, onDbSetCreated.bind(this));
     }
 
     saveChanges(done: (result: number, error?: any) => void) {

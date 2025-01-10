@@ -1,5 +1,7 @@
-import { s } from "@agrejus/db-framework-core";
+import { CompiledSchema, EntityChanges, EntityModificationResult, s } from "@agrejus/db-framework-core";
 import { DataContext } from "../src/DataContext";
+import { SchemaIdentity, SchemaString, SchemaObject } from "@agrejus/db-framework-core/dist/schema";
+import { SchemaTracked } from "@agrejus/db-framework-core/dist/schema/property/modifiers/Tracked";
 
 const model = s.define("MY_TABLE", {
     _id: s.string().key(),
@@ -7,13 +9,11 @@ const model = s.define("MY_TABLE", {
     name: s.string(),
     year: s.number(),
     date: s.date().default(new Date()).deserialize(w => new Date(w)).serialize(w => w.toISOString())
-}).
-    modify(w => ({
-        test: w.computed(w => w._id),
-        toString: w.function(w => w.date.toISOString()),
-        documentType: w.computed((_, t) => t).tracked()
-    })).
-    compile();
+}).modify(w => ({
+    test: w.computed(w => w._id),
+    toString: w.function(w => w.date.toISOString()),
+    documentType: w.computed((_, t) => t).tracked()
+})).compile();
 
 const nested = s.define("MY_NESTED_TABLE", {
     _id: s.string().key().identity(),
@@ -32,8 +32,16 @@ class Ctx extends DataContext {
         super(null as any);
     }
 
-    test = this.dbset(model).stateful();
-    nested = this.dbset(nested);
+    test = this.dbset(model).stateful().create();
+    nested = this.dbset(nested).create((Instance, schema, dbPlugin, changeTracker) => new class extends Instance {
+        constructor() {
+            super(schema, dbPlugin, changeTracker);
+        }
+
+        test() {
+
+        }
+    });
 }
 
 const ctx = new Ctx();
