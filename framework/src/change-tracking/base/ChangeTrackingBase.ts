@@ -182,6 +182,18 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
                 this.setAttachment(id, found as any)
             }
 
+            // need to merge updates in case we have identity properties
+            for (let i = 0; i < updates.length; i++) {
+
+                const update = updates[i];
+
+                const id = this.getId(update as any) as TKey;
+                const found = this.attachments.get(id);
+
+                // Let's only map Ids and identities
+                this.schema.merge(found as any, update as any); // merge needs to map children appropriately
+            }
+
             // run subscriptions
             for (let i = 0; i < this.subscriptions.length; i++) {
                 const subscription = this.subscriptions[i];

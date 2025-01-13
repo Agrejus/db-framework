@@ -6,7 +6,7 @@
         "lib": [
             "ES2016"
         ],
-        "target": "es6",
+        "target": "ESNext",
         "declaration": true,
         "noImplicitAny": true,
         "sourceMap": true,

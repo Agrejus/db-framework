@@ -5,9 +5,12 @@
   "types": "./dist/index.d.ts",
   "source": "./src/index.ts",
   "scripts": {
-    "build": "tsc",
-    "test": "vitest"
+    "build:types": "tsc --emitDeclarationOnly",
+    "build:bundle": "rspack build",
+    "build": "npm run build:bundle && npm run build:types",
+    "tsc": "tsc"
   },
+  "sideEffects": false,
   "author": "James DeMeuse <james.demeuse@gmail.com>",
   "license": "MIT",
   "repository": "Agrejus/db-framework",
@@ -28,6 +31,9 @@
   },
   "devDependencies": {
     "@agrejus/db-framework-core": "file://../core",
+    "@rspack/cli": "^1.1.8",
+    "@rspack/core": "^1.1.8",
+    "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.3",
     "vitest": "^2.1.8"

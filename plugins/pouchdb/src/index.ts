@@ -28,11 +28,14 @@ export class PouchDbPlugin implements IDbPlugin {
             return;
         }
 
+        console.log('_next', { queue, current });
         current = queue.shift();
 
         if ("operations" in current) {
             const upsertOperation = current;
             this._bulkOperations(upsertOperation.schema, upsertOperation.operations, (r, e) => {
+
+                console.log('_bulkOperations done', { queue, current });
                 current = null;
                 upsertOperation.done(r, e);
                 this._next();
@@ -42,6 +45,8 @@ export class PouchDbPlugin implements IDbPlugin {
 
         const queryOperation = current;
         this._query(queryOperation, (r, e) => {
+
+            console.log('_query done', { queue, current });
             current = null;
             queryOperation.done(r as any, e);
             this._next();
@@ -64,6 +69,7 @@ export class PouchDbPlugin implements IDbPlugin {
                 const removesMap = toMap(removes, w => (w as any)._id);
                 const updatesMap = toMap(updatedDocuments, w => (w as any)._id);
 
+                console.log('_identityBulkOperations', { queue, current });
                 db.bulkDocs([...adds, ...removes.map(w => ({ _id: (w as any)._id, _rev: (w as any)._rev, _deleted: true })), ...updatedDocuments], null, (error, response) => {
 
                     if (error) {
@@ -88,6 +94,7 @@ export class PouchDbPlugin implements IDbPlugin {
                         ids.push(item.id);
                     }
 
+                    // this needs to be sent outside of bulk docs
                     db.bulkGet<T>({
                         docs: ids.map(w => ({ id: w as string }))
                     }, (error, bulkGetResponse) => {
@@ -187,6 +194,7 @@ export class PouchDbPlugin implements IDbPlugin {
 
                 });
             } catch (e) {
+                console.error(e);
                 d(result, [e, ...errors])
             }
         }, done);
@@ -234,6 +242,8 @@ export class PouchDbPlugin implements IDbPlugin {
         schema: CompiledSchema<TEntity>,
         operations: EntityChanges<TEntity>,
         done: (result: EntityModificationResult<TEntity>, error?: any) => void) {
+
+        console.log('bulkOperations', { queue, current });
         const upsertOperation: UpsertOperation<TEntity> = {
             done,
             operations,
@@ -244,8 +254,8 @@ export class PouchDbPlugin implements IDbPlugin {
         this._next();
     }
 
-    query<TEntity extends {}>(query: Query<TEntity>, done: (entities: NonNullEntity<TEntity>[], error?: any) => void): void  {
-
+    query<TEntity extends {}>(query: Query<TEntity>, done: (entities: NonNullEntity<TEntity>[], error?: any) => void): void {
+        console.log('query', { queue, current });
         const readOperation: ReadOperation<any> = {
             done,
             ...query
