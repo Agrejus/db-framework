@@ -1,7 +1,6 @@
 import { CompiledSchema, EntityChanges, EntityModificationResult, Filter, Filterable, IDbPlugin, ParamsFilter, Query } from '@agrejus/db-framework-core';
 import { IChangeTracker } from '../change-tracking/types';
 import { IDataAccessManager } from './types';
-import { performance } from 'perf_hooks'
 
 export class DataAccessManager<T extends {}> implements IDataAccessManager<T> {
 
@@ -21,10 +20,8 @@ export class DataAccessManager<T extends {}> implements IDataAccessManager<T> {
 
     fetch(query: Query<T>, done: (result: T[], error?: any) => void) {
 
-        const shouldEnableChangeTracking = query.options.fields?.length == null || query.options.fields.length === 0;
-        //const s = performance.now()
         this.dbPlugin.query<T>(query, (r, e) => {
-            //console.log("fetch", performance.now() - s);
+
             if (!e) {
                 const entities = this.applyQueryExpressionAndFiltering(r as T[], query);
                 const resolved = this.postProcessResult(entities, query);

@@ -3,11 +3,13 @@ import { ChangeTrackedEntity, EntityCallbackMany } from "../../types";
 import { DataAccessManager } from "../../data-access/DataAccessManager";
 import { QuerySubscription } from "../types";
 
+// MOVE TO BROADCAST CHANNELS
+const subscriptions: QuerySubscription<any, any>[] = [];
+
 export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never> {
 
     protected removals: NonNullEntity<TEntity>[] = [];
     protected attachments: Map<TKey, NonNullEntity<TEntity>> = new Map<TKey, NonNullEntity<TEntity>>();
-    protected subscriptions: QuerySubscription<TEntity, any>[] = [];
     protected schema: CompiledSchema<TEntity>;
     protected abstract additionsCount: number;
     protected manager: DataAccessManager<TEntity>;
@@ -90,6 +92,7 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
     }
 
     resolve(entities: NonNullEntity<TEntity>[]) {
+
         const result: NonNullEntity<TEntity>[] = [];
         for (let i = 0; i < entities.length; i++) {
 
@@ -139,7 +142,7 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
     subscribe<U>(query: Query<TEntity>, shape: (data: TEntity[]) => U, done: (result: U, error?: any) => void) {
         const id = createUUID();
 
-        this.subscriptions.push({
+        subscriptions.push({
             id,
             query,
             done,
@@ -147,8 +150,8 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
         });
 
         return () => {
-            const index = this.subscriptions.findIndex(w => w.id === id);
-            this.subscriptions.splice(index, 1);
+            const index = subscriptions.findIndex(w => w.id === id);
+            subscriptions.splice(index, 1);
         };
     };
 
@@ -195,8 +198,8 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
             }
 
             // run subscriptions
-            for (let i = 0; i < this.subscriptions.length; i++) {
-                const subscription = this.subscriptions[i];
+            for (let i = 0; i < subscriptions.length; i++) {
+                const subscription = subscriptions[i];
                 this.manager.fetch(subscription.query, (r, e) => {
                     const shapedData = subscription.shape(r);
                     subscription.done(shapedData, e);

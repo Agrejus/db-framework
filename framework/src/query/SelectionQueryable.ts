@@ -70,6 +70,7 @@ export class SelectionQueryable<T extends {}, U = void> extends AggregateQueryab
             done,
             paramsOrDone
         }, (d, r, e) => {
+
             if (r.length === 0) {
                 d(undefined, e)
                 return;

@@ -28,7 +28,6 @@ export abstract class QueryRoot<T extends {}> {
         if (queryable != null) {
             this.subscribeValue = queryable.subscribeValue;
             this.manager = queryable.manager;
-            this.manager = queryable.manager;
             this.filters = queryable.filters;
             this.takeValue = queryable.takeValue;
             this.skipValue = queryable.skipValue;

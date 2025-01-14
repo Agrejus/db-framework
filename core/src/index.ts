@@ -54,3 +54,8 @@ export {
     s,
     HashType
 } from './schema';
+
+export {
+    SyncronousQueue,
+    SyncronousUnitOfWork
+} from './common/SyncronousQueue';

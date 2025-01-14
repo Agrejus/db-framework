@@ -1,7 +1,7 @@
 // @ts-nocheck
 
 import PouchDB from 'pouchdb';
-import { CompiledSchema, DbOperation, EntityChanges, EntityModificationResult, IDbPlugin, IdType, NonNullEntity, Query, ReadOperation, toMap, UpsertOperation } from '@agrejus/db-framework-core';
+import { CompiledSchema, DbOperation, EntityChanges, EntityModificationResult, IDbPlugin, IdType, NonNullEntity, Query, ReadOperation, SyncronousQueue, SyncronousUnitOfWork, toMap, UpsertOperation } from '@agrejus/db-framework-core';
 import { setQueryOptions, toMango } from './expression/resolver';
 import findAdapter from 'pouchdb-find';
 
@@ -9,8 +9,7 @@ PouchDB.plugin(findAdapter);
 const INDEX_NAME = "db_framework_order_index";
 
 // PouchDB cannot process operations asyncronously, we need a queue so we don't lock things up
-const queue: DbOperation<any>[] = [];
-let current: DbOperation<any> | null = null;
+const queue = new SyncronousQueue();
 
 export class PouchDbPlugin implements IDbPlugin {
 
@@ -22,43 +21,7 @@ export class PouchDbPlugin implements IDbPlugin {
         this._options = options;
     }
 
-    private _next() {
-
-        if (current != null || queue.length === 0) {
-            return;
-        }
-
-        console.log('_next', { queue, current });
-        current = queue.shift();
-
-        if ("operations" in current) {
-            const upsertOperation = current;
-            this._bulkOperations(upsertOperation.schema, upsertOperation.operations, (r, e) => {
-
-                console.log('_bulkOperations done', { queue, current });
-                current = null;
-                upsertOperation.done(r, e);
-                this._next();
-            });
-            return;
-        }
-
-        const queryOperation = current;
-        this._query(queryOperation, (r, e) => {
-
-            console.log('_query done', { queue, current });
-            current = null;
-            queryOperation.done(r as any, e);
-            this._next();
-        });
-    }
-
-    private _identityBulkOperations<T extends {}>(operations: EntityChanges<T>, done: (result: EntityModificationResult<T>, error?: any) => void): void {
-        const result: EntityModificationResult<T> = {
-            adds: [],
-            removedCount: 0,
-            updates: []
-        }
+    private _identityBulkOperations<T extends {}>(operations: EntityChanges<T>, done: (result: { docs: T[], removesMap: Map<string, T>, updatesMap: Map<string, T> }, error?: any) => void): void {
         const errors: any[] = [];
 
         this._doWork((db, d) => {
@@ -69,67 +32,16 @@ export class PouchDbPlugin implements IDbPlugin {
                 const removesMap = toMap(removes, w => (w as any)._id);
                 const updatesMap = toMap(updatedDocuments, w => (w as any)._id);
 
-                console.log('_identityBulkOperations', { queue, current });
                 db.bulkDocs([...adds, ...removes.map(w => ({ _id: (w as any)._id, _rev: (w as any)._rev, _deleted: true })), ...updatedDocuments], null, (error, response) => {
 
                     if (error) {
                         errors.push(error);
                     }
 
-                    const ids: IdType[] = [];
-                    for (let i = 0; i < response.length; i++) {
-                        const item = response[i];
-
-                        if ("error" in item) {
-
-                            const reason = item.reason ?? item.error;
-
-                            if (reason) {
-                                errors.push(reason.toString())
-                            }
-
-                            continue;
-                        }
-
-                        ids.push(item.id);
-                    }
-
-                    // this needs to be sent outside of bulk docs
-                    db.bulkGet<T>({
-                        docs: ids.map(w => ({ id: w as string }))
-                    }, (error, bulkGetResponse) => {
-
-                        if (error) {
-                            errors.push(error);
-                        }
-
-                        for (let i = 0; i < bulkGetResponse.results.length; i++) {
-                            const item = bulkGetResponse.results[i];
-                            if ("docs" in item && "id" in item && item.docs.length > 0) {
-                                const doc = item.docs[0];
-                                if ("ok" in doc) {
-                                    if (removesMap.has(item.id)) {
-                                        result.removedCount += 1;
-                                        continue;
-                                    }
-
-                                    if (updatesMap.has(item.id)) {
-                                        result.updates.push(doc.ok as any);
-                                        continue;
-                                    }
-
-                                    result.adds.push(doc.ok as any);
-                                }
-                                continue;
-                            }
-
-                        }
-
-                        d(result, errors.length > 0 ? errors : null)
-                    });
+                    d({ docs: response.map(w => w as T), updatesMap: updatesMap as any, removesMap: removesMap as any }, errors.length > 0 ? errors : null);
                 });
             } catch (e) {
-                d(result, [e, ...errors])
+                d({ docs: [], updatesMap: new Map(), removesMap: new Map() }, [e, ...errors])
             }
         }, done);
     }
@@ -210,7 +122,54 @@ export class PouchDbPlugin implements IDbPlugin {
         }
 
         if (schema.hasIdentityKeys === true) {
-            this._identityBulkOperations<TEntity>(operations, done);
+            this._identityBulkOperations<TEntity>(operations, (r, e) => {
+                const ids = [...r.docs.map(w => (w as any).id)];
+                const result: EntityModificationResult<TEntity> = {
+                    adds: [],
+                    removedCount: 0,
+                    updates: []
+                }
+                const errors: any[] = [];
+
+                this._doWork((db, d) => {
+                    db.bulkGet<TEntity>({
+                        docs: ids.map(w => ({ id: w as string }))
+                    }, (error, bulkGetResponse) => {
+
+                        if (error) {
+                            errors.push(error);
+                        }
+
+                        if (e) {
+                            errors.push(error);
+                        }
+
+                        for (let i = 0; i < bulkGetResponse.results.length; i++) {
+                            const item = bulkGetResponse.results[i];
+                            if ("docs" in item && "id" in item && item.docs.length > 0) {
+                                const doc = item.docs[0];
+                                if ("ok" in doc) {
+                                    if (r.removesMap.has(item.id)) {
+                                        result.removedCount += 1;
+                                        continue;
+                                    }
+
+                                    if (r.updatesMap.has(item.id)) {
+                                        result.updates.push(doc.ok as any);
+                                        continue;
+                                    }
+
+                                    result.adds.push(doc.ok as any);
+                                }
+                                continue;
+                            }
+
+                        }
+
+                        d(result, errors.length > 0 ? errors : null)
+                    });
+                }, done)
+            });
             return;
         }
 
@@ -238,30 +197,27 @@ export class PouchDbPlugin implements IDbPlugin {
         }, done);
     }
 
+
     bulkOperations<TEntity extends {}>(
         schema: CompiledSchema<TEntity>,
         operations: EntityChanges<TEntity>,
         done: (result: EntityModificationResult<TEntity>, error?: any) => void) {
 
-        console.log('bulkOperations', { queue, current });
-        const upsertOperation: UpsertOperation<TEntity> = {
-            done,
-            operations,
-            schema
-        };
+        const unitOfWork: SyncronousUnitOfWork = (d) => this._bulkOperations(schema, operations, (r, e) => {
+            d();
+            done(r, e)
+        })
 
-        queue.push(upsertOperation);
-        this._next();
+        queue.enqueue(unitOfWork.bind(this));
     }
 
     query<TEntity extends {}>(query: Query<TEntity>, done: (entities: NonNullEntity<TEntity>[], error?: any) => void): void {
-        console.log('query', { queue, current });
-        const readOperation: ReadOperation<any> = {
-            done,
-            ...query
-        };
-        queue.push(readOperation);
-        this._next();
+        const unitOfWork: SyncronousUnitOfWork = (d) => this._query(query, (r, e) => {
+            d();
+            done(r, e)
+        })
+
+        queue.enqueue(unitOfWork.bind(this));
     }
 
     private _query<TEntity extends {}>(query: Query<TEntity>, done: (entities: NonNullEntity<TEntity>[], error?: any) => void): void {
@@ -305,7 +261,7 @@ export class PouchDbPlugin implements IDbPlugin {
                                             }
 
                                             w.find(request, (error, result) => {
-                                                d(result?.docs ?? [] as NonNullEntity<TEntity>[], error)
+                                                d(result?.docs ?? [] as any[], error)
                                             });
                                         })
                                         return;
@@ -334,7 +290,7 @@ export class PouchDbPlugin implements IDbPlugin {
                                                 }
 
                                                 w.find(request, (error, result) => {
-                                                    d(result?.docs ?? [] as NonNullEntity<TEntity>[], error)
+                                                    d(result?.docs ?? [] as any[], error)
                                                 });
                                             })
                                         })
@@ -353,7 +309,7 @@ export class PouchDbPlugin implements IDbPlugin {
                                         }
 
                                         w.find(request, (error, result) => {
-                                            d(result?.docs ?? [] as NonNullEntity<TEntity>[], error)
+                                            d(result?.docs ?? [] as any[], error)
                                         });
                                     });
                                 })
@@ -363,7 +319,7 @@ export class PouchDbPlugin implements IDbPlugin {
                         }
                     }
 
-                    d(result?.docs ?? [] as NonNullEntity<TEntity>[], error)
+                    d(result?.docs ?? [] as any[], error)
                 });
             }, done);
             return;
@@ -375,7 +331,7 @@ export class PouchDbPlugin implements IDbPlugin {
 
         this._doWork((w, d) => {
             w.find(request, (error, result) => {
-                d(result?.docs ?? [] as NonNullEntity<TEntity>[], error)
+                d(result?.docs ?? [] as any[], error)
             });
         }, done);
 
