@@ -1,10 +1,9 @@
-import { CompiledSchema, createUUID, HashType, IDbPlugin, IdType, NonNullCreateEntity, NonNullEntity, Query } from "@agrejus/db-framework-core";
+import { CompiledSchema, EntityModificationResult, HashType, IDbPlugin, IdType, NonNullCreateEntity, NonNullEntity, Query } from "@agrejus/db-framework-core";
 import { ChangeTrackedEntity, EntityCallbackMany } from "../../types";
 import { DataAccessManager } from "../../data-access/DataAccessManager";
-import { QuerySubscription } from "../types";
-
-// MOVE TO BROADCAST CHANNELS
-const subscriptions: QuerySubscription<any, any>[] = [];
+import { UniDirectionalSubscription } from '../../subscriptions/UniDirectionalSubscription';
+import { PreRequestSubscription } from '../../subscriptions/PreRequestSubscription';
+import { FetchOptions } from "../../data-access/types";
 
 export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never> {
 
@@ -13,10 +12,12 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
     protected schema: CompiledSchema<TEntity>;
     protected abstract additionsCount: number;
     protected manager: DataAccessManager<TEntity>;
+    protected unidirecitonalSubscription: UniDirectionalSubscription;
 
     constructor(schema: CompiledSchema<TEntity>, dbPlugin: IDbPlugin) {
         this.schema = schema;
         this.manager = new DataAccessManager<TEntity>(schema, dbPlugin, this);
+        this.unidirecitonalSubscription = new UniDirectionalSubscription(schema.key);
     }
 
     protected abstract setAddition(enriched: NonNullCreateEntity<TEntity>): void;
@@ -91,7 +92,7 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
         return this.additionsCount > 0 || this.removals.length > 0 || this.hasAttachmentsChanges() === true;
     }
 
-    resolve(entities: NonNullEntity<TEntity>[]) {
+    resolve(entities: NonNullEntity<TEntity>[], options?: FetchOptions) {
 
         const result: NonNullEntity<TEntity>[] = [];
         for (let i = 0; i < entities.length; i++) {
@@ -101,6 +102,11 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
             const existing = this.getAttachment(key);
 
             if (existing != null) {
+
+                if (options?.mergeResponse === true) {
+                    this.schema.merge(existing, entity); // merge needs to map children appropriately
+                }
+
                 result.push(existing);
                 continue;
             }
@@ -140,20 +146,50 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
     }
 
     subscribe<U>(query: Query<TEntity>, shape: (data: TEntity[]) => U, done: (result: U, error?: any) => void) {
-        const id = createUUID();
-
-        subscriptions.push({
-            id,
-            query,
-            done,
-            shape
+        const subscription = new UniDirectionalSubscription(this.schema.key);
+        subscription.onMessage(() => {
+            this.manager.fetch(query, (r, e) => {
+                const shapedData = shape(r);
+                done(shapedData, e);
+            }, { mergeResponse: true } )
         });
 
-        return () => {
-            const index = subscriptions.findIndex(w => w.id === id);
-            subscriptions.splice(index, 1);
-        };
+        return () => subscription[Symbol.dispose]();
     };
+
+    private _resolveBulkOperationsResult(result: EntityModificationResult<TEntity>, findAddition: (entity: NonNullEntity<TEntity>) => NonNullCreateEntity<TEntity> | undefined) : number {
+        const { adds, removedCount, updates } = result;
+        const response = removedCount + adds.length + updates.length;
+
+        // need to merge adds with data sent in
+        for (let i = 0; i < adds.length; i++) {
+
+            const add = adds[i];
+            const found = findAddition(add as any);
+
+            // Let's only map Ids and identities
+            this.schema.merge(found as any, add as any); // merge needs to map children appropriately
+
+            const id = this.getId(add as any) as TKey;
+
+            // Set here, if we never save we should never attach
+            this.setAttachment(id, found as any)
+        }
+
+        // need to merge updates in case we have identity properties
+        for (let i = 0; i < updates.length; i++) {
+
+            const update = updates[i];
+
+            const id = this.getId(update as any) as TKey;
+            const found = this.attachments.get(id);
+
+            // Let's only map Ids and identities
+            this.schema.merge(found as any, update as any); // merge needs to map children appropriately
+        }
+
+        return response;
+    }
 
     protected bulkOperations(findAddition: (entity: NonNullEntity<TEntity>) => NonNullCreateEntity<TEntity> | undefined, done: (result: number, error?: any) => void) {
 
@@ -168,47 +204,16 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
             adds: this.getPreparedAdditions(),
             removes: this.removals.map(w => this.schema.prepare(w as any) as any),
             updates: this.getAttachmentsChanges()
-        }, ({ adds, removedCount, updates }, error) => {
+        }, (result, error) => {
 
-            // need to merge adds with data sent in
-            for (let i = 0; i < adds.length; i++) {
-
-                const add = adds[i];
-                const found = findAddition(add as any);
-
-                // Let's only map Ids and identities
-                this.schema.merge(found as any, add as any); // merge needs to map children appropriately
-
-                const id = this.getId(add as any) as TKey;
-
-                // Set here, if we never save we should never attach
-                this.setAttachment(id, found as any)
-            }
-
-            // need to merge updates in case we have identity properties
-            for (let i = 0; i < updates.length; i++) {
-
-                const update = updates[i];
-
-                const id = this.getId(update as any) as TKey;
-                const found = this.attachments.get(id);
-
-                // Let's only map Ids and identities
-                this.schema.merge(found as any, update as any); // merge needs to map children appropriately
-            }
+            const response = this._resolveBulkOperationsResult(result, findAddition);
 
             // run subscriptions
-            for (let i = 0; i < subscriptions.length; i++) {
-                const subscription = subscriptions[i];
-                this.manager.fetch(subscription.query, (r, e) => {
-                    const shapedData = subscription.shape(r);
-                    subscription.done(shapedData, e);
-                })
-            }
+            this.unidirecitonalSubscription.send();
 
             this.clearAdditions();
 
-            done(adds.length + removedCount + updates.length, error);
+            done(response, error);
         });
     }
 }   

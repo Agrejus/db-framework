@@ -19,12 +19,12 @@
         "name": "Run Example",
         "type": "node",
         "request": "launch",
-        "runtimeExecutable": "/var/home/jdemeuse/.nvm/versions/node/v14.19.1/bin/node",
+        "runtimeExecutable": "/var/home/jdemeuse/.nvm/versions/node/v20.12.2/bin/node",
         "runtimeArgs": ["--nolazy", "-r", "ts-node/register/transpile-only"],
 
-        "args": ["example/src/index.ts"],
+        "args": ["src/index.ts"],
 
-        "cwd": "${workspaceRoot}",
+        "cwd": "${workspaceRoot}/example",
         "internalConsoleOptions": "openOnSessionStart",
         "skipFiles": ["<node_internals>/**", "node_modules/**"]
       }

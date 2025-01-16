@@ -1,7 +1,6 @@
 import { CompiledSchema, EntityChanges, EntityModificationResult, Query, SyncronousQueue, SyncronousUnitOfWork } from '@agrejus/db-framework-core';
 import { DataAccessManager } from './DataAccessManager';
 
-
 const queue = new SyncronousQueue();
 const state: any[] = [];
 

@@ -212,6 +212,7 @@ export class PouchDbPlugin implements IDbPlugin {
     }
 
     query<TEntity extends {}>(query: Query<TEntity>, done: (entities: NonNullEntity<TEntity>[], error?: any) => void): void {
+
         const unitOfWork: SyncronousUnitOfWork = (d) => this._query(query, (r, e) => {
             d();
             done(r, e)

@@ -1,6 +1,6 @@
 import { CompiledSchema, EntityChanges, EntityModificationResult, Filter, Filterable, IDbPlugin, ParamsFilter, Query } from '@agrejus/db-framework-core';
 import { IChangeTracker } from '../change-tracking/types';
-import { IDataAccessManager } from './types';
+import { FetchOptions, IDataAccessManager } from './types';
 
 export class DataAccessManager<T extends {}> implements IDataAccessManager<T> {
 
@@ -18,13 +18,14 @@ export class DataAccessManager<T extends {}> implements IDataAccessManager<T> {
         this.dbPlugin.bulkOperations(schema, operations, done);
     }
 
-    fetch(query: Query<T>, done: (result: T[], error?: any) => void) {
+    fetch(query: Query<T>, done: (result: T[], error?: any) => void, options?: FetchOptions) {
 
         this.dbPlugin.query<T>(query, (r, e) => {
 
             if (!e) {
                 const entities = this.applyQueryExpressionAndFiltering(r as T[], query);
-                const resolved = this.postProcessResult(entities, query);
+                const resolved = this.postProcessResult(entities, query, options);
+
                 done(resolved);
                 return;
             }
@@ -68,13 +69,13 @@ export class DataAccessManager<T extends {}> implements IDataAccessManager<T> {
         return data;
     }
 
-    protected postProcessResult(entities: T[], query: Query<T>) {
+    protected postProcessResult(entities: T[], query: Query<T>, options?: FetchOptions) {
 
         const shouldEnableChangeTracking = query.options.fields?.length == null || query.options.fields.length === 0;
 
         if (shouldEnableChangeTracking === true) {
             const enriched = entities.map(w => this.schema.enrich(w as any));
-            const resolved = this.changeTracker.resolve(enriched);
+            const resolved = this.changeTracker.resolve(enriched, options);
             return resolved as T[]
         }
 
