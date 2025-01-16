@@ -2,7 +2,6 @@ import { CompiledSchema, EntityModificationResult, HashType, IDbPlugin, IdType, 
 import { ChangeTrackedEntity, EntityCallbackMany } from "../../types";
 import { DataAccessManager } from "../../data-access/DataAccessManager";
 import { UniDirectionalSubscription } from '../../subscriptions/UniDirectionalSubscription';
-import { PreRequestSubscription } from '../../subscriptions/PreRequestSubscription';
 import { FetchOptions } from "../../data-access/types";
 
 export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never> {
@@ -94,10 +93,8 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
 
     resolve(entities: NonNullEntity<TEntity>[], options?: FetchOptions) {
 
-        const result: NonNullEntity<TEntity>[] = [];
-        for (let i = 0; i < entities.length; i++) {
+        const result = entities.map(entity => {
 
-            const entity = entities[i];
             const key = this.getId(entity) as TKey;
             const existing = this.getAttachment(key);
 
@@ -107,13 +104,12 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
                     this.schema.merge(existing, entity); // merge needs to map children appropriately
                 }
 
-                result.push(existing);
-                continue;
+                return existing
             }
 
             this.setAttachment(key, entity);
-            result.push(entity);
-        }
+            return entity
+        });
 
         return result;
     }
@@ -125,19 +121,17 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
 
     add(entities: NonNullCreateEntity<TEntity, TEnhancedPropertyNames | TComputedPropertyNames>[], done: EntityCallbackMany<TEntity>) {
 
-        const result: NonNullEntity<TEntity>[] = [];
-
         try {
 
-            for (let i = 0; i < entities.length; i++) {
-                const entity = entities[i];
-
+            const result = entities.map(entity => {
                 const enriched: NonNullCreateEntity<TEntity> = this.schema.enrich(entity as any) as any;
 
                 this.setAddition(enriched);
 
                 result.push(enriched as any);
-            }
+
+                return enriched as NonNullEntity<TEntity>;;
+            });
 
             done(result);
         } catch (e: any) {
@@ -151,20 +145,18 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
             this.manager.fetch(query, (r, e) => {
                 const shapedData = shape(r);
                 done(shapedData, e);
-            }, { mergeResponse: true } )
+            }, { mergeResponse: true })
         });
 
         return () => subscription[Symbol.dispose]();
     };
 
-    private _resolveBulkOperationsResult(result: EntityModificationResult<TEntity>, findAddition: (entity: NonNullEntity<TEntity>) => NonNullCreateEntity<TEntity> | undefined) : number {
+    private _resolveBulkOperationsResult(result: EntityModificationResult<TEntity>, findAddition: (entity: NonNullEntity<TEntity>) => NonNullCreateEntity<TEntity> | undefined): number {
         const { adds, removedCount, updates } = result;
         const response = removedCount + adds.length + updates.length;
 
         // need to merge adds with data sent in
-        for (let i = 0; i < adds.length; i++) {
-
-            const add = adds[i];
+        adds.forEach(add => {
             const found = findAddition(add as any);
 
             // Let's only map Ids and identities
@@ -174,19 +166,16 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
 
             // Set here, if we never save we should never attach
             this.setAttachment(id, found as any)
-        }
+        });
 
         // need to merge updates in case we have identity properties
-        for (let i = 0; i < updates.length; i++) {
-
-            const update = updates[i];
-
+        updates.forEach(update => {
             const id = this.getId(update as any) as TKey;
             const found = this.attachments.get(id);
 
             // Let's only map Ids and identities
             this.schema.merge(found as any, update as any); // merge needs to map children appropriately
-        }
+        })
 
         return response;
     }

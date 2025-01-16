@@ -4,8 +4,8 @@ import { ParamsQueryable } from "./ParamsQueryable";
 
 export class Queryable<T extends {}, U = void> extends QueryableBase<T, U> {
 
-    where(expression: Filter<T>): Queryable<T>;
-    where<P extends {}>(selector: ParamsFilter<T, P>, params: P): ParamsQueryable<T>;
+    where(expression: Filter<T>): Queryable<T, U>;
+    where<P extends {}>(selector: ParamsFilter<T, P>, params: P): ParamsQueryable<T, U>;
     where<P extends {} = never>(selector: ParamsFilter<T, P> | Filter<T>, params?: P) {
         if (params == null) {
             this.filters.push({ filter: selector as Filter<T> });

@@ -71,17 +71,11 @@ export abstract class QueryRoot<T extends {}> {
     }
 
     private _getSorting(sorting: { direction: QueryOrdering, selector: EntityMap<T, T[keyof T]> }[]) {
-        const result: QuerySort[] = [];
-
-        for (let i = 0; i < sorting.length; i++) {
-            const sort = sorting[i];
-
+        return sorting.map(sort => {
             const propertyName = this._getSortPropertyName(sort.selector);
 
-            result.push({ direction: sort.direction, key: propertyName })
-        }
-
-        return result;
+            return { direction: sort.direction, key: propertyName }
+        });
     }
 
     private _getSortPropertyName(selector: EntityMap<T, T[keyof T]>) {
@@ -112,15 +106,12 @@ export abstract class QueryRoot<T extends {}> {
 
         if (body.includes("{")) {
             const properties = body.replace(/{|}|\(|\)/g, "").split(",").map(w => w.trim());
-            const result: QueryField[] = [];
-            for (let i = 0; i < properties.length; i++) {
-                const property = properties[i];
+            return properties.map(property => {
                 const [destinationName, sourcePathAndName] = property.split(":").map(w => w.trim());
                 const sourceName = this._extractPropertyName(sourcePathAndName);
 
-                result.push({ sourceName, destinationName })
-            }
-            return result;
+                return { sourceName, destinationName };
+            })
         }
 
         const field = this._extractPropertyName(body);

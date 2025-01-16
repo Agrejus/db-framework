@@ -70,9 +70,7 @@ export class PouchDbPlugin implements IDbPlugin {
                         errors.push(error)
                     }
 
-                    for (let i = 0; i < response.length; i++) {
-                        const item = response[i];
-
+                    response.forEach(item => {
                         if ("error" in item) {
 
                             const reason = item.reason ?? item.error;
@@ -80,12 +78,12 @@ export class PouchDbPlugin implements IDbPlugin {
                             if (reason) {
                                 errors.push(reason.toString())
                             }
-                            continue;
+                            return;
                         }
 
                         if (removesMap.has(item.id)) {
                             result.removedCount += 1;
-                            continue;
+                            return;
                         }
 
                         if (updatesMap.has(item.id)) {
@@ -93,14 +91,14 @@ export class PouchDbPlugin implements IDbPlugin {
                                 _id: item.id,
                                 _rev: item.rev
                             } as any);
-                            continue;
+                            return;
                         }
 
                         result.adds.push({
                             _id: item.id,
                             _rev: item.rev
                         } as any);
-                    }
+                    })
 
                     d(result, errors.length > 0 ? errors : null)
 
@@ -144,27 +142,25 @@ export class PouchDbPlugin implements IDbPlugin {
                             errors.push(error);
                         }
 
-                        for (let i = 0; i < bulkGetResponse.results.length; i++) {
-                            const item = bulkGetResponse.results[i];
+                        bulkGetResponse.results.forEach(item => {
                             if ("docs" in item && "id" in item && item.docs.length > 0) {
                                 const doc = item.docs[0];
                                 if ("ok" in doc) {
                                     if (r.removesMap.has(item.id)) {
                                         result.removedCount += 1;
-                                        continue;
+                                        return;
                                     }
 
                                     if (r.updatesMap.has(item.id)) {
                                         result.updates.push(doc.ok as any);
-                                        continue;
+                                        return;
                                     }
 
                                     result.adds.push(doc.ok as any);
                                 }
-                                continue;
+                                return;
                             }
-
-                        }
+                        });
 
                         d(result, errors.length > 0 ? errors : null)
                     });

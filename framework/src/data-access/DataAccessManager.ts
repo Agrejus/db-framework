@@ -41,20 +41,18 @@ export class DataAccessManager<T extends {}> implements IDataAccessManager<T> {
     protected applyFiltering(data: T[], filters: Filterable<T, any>[]) {
         let result = data;
 
-        for (let i = 0; i < filters.length; i++) {
-            const filter = filters[i];
-
+        filters.forEach(filter => {
             if (filter.params == null) {
                 // standard filtering
                 const selector = filter.filter as Filter<T>
                 result = data.filter(selector);
-                continue;
+                return;
             }
 
             // params filtering
             const selector = filter.filter as ParamsFilter<T, any>
             result = data.filter(w => selector([w, filter.params]));
-        }
+        })
 
         return result;
     }

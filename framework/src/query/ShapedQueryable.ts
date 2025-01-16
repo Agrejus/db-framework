@@ -30,7 +30,7 @@ export class ShapedQueryable<T extends {}, U = void> extends SelectionQueryable<
 
     sum() {
         this.sumValue = true;
-        return new AggregateQueryable<T>(this);
+        return new AggregateQueryable<T, U>(this);
     }
 
     count() {
