@@ -22,3 +22,7 @@ Provide Custom DbSet to restore legacy functionality
     filter
         where(w => w).toArray()
 
+Can we do CDC so we can create history tables?
+    Can we apply a TTL to documents?
+
+Can we provide optimistic updates to provide faster subscription calls?

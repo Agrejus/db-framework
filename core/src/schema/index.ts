@@ -72,6 +72,7 @@ export type GetHashTypeFunction<TEntity extends {}> = {
 }
 
 export type CompiledSchema<TEntity extends {}> = {
+    getId: (entity: NonNullEntity<TEntity>) => IdType;
     clone: (entity: NonNullEntity<TEntity>) => NonNullEntity<TEntity>;
     strip: (entity: NonNullEntity<TEntity>) => NonNullEntity<TEntity>;
     prepare: (entity: NonNullCreateEntity<TEntity>) => NonNullCreateEntity<TEntity>;

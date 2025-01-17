@@ -32,14 +32,6 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
         }
     }
 
-    protected getId(entity: NonNullEntity<TEntity>) {
-        if (this.schema.idPropertyNames.length > 1) {
-            return this.schema.hash(entity, HashType.Ids) as TKey;
-        }
-
-        return this.schema.getIds(entity as any)[0] as TKey;
-    }
-
     protected hasAttachmentsChanges() {
 
         let hasChanges = false;
@@ -70,7 +62,7 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
                 return true; // continue
             }
 
-            const id = this.getId(doc);
+            const id = this.schema.getId(doc);
             result.set(id, { doc: this.schema.prepare(doc as any) as any, delta: changeTrackedDoc.__tracking__.changes });
 
             return true; // continue
@@ -95,7 +87,7 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
 
         const result = entities.map(entity => {
 
-            const key = this.getId(entity) as TKey;
+            const key = this.schema.getId(entity) as TKey;
             const existing = this.getAttachment(key);
 
             if (existing != null) {
@@ -130,7 +122,7 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
 
                 result.push(enriched as any);
 
-                return enriched as NonNullEntity<TEntity>;;
+                return enriched as NonNullEntity<TEntity>;
             });
 
             done(result);
@@ -162,7 +154,7 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
             // Let's only map Ids and identities
             this.schema.merge(found as any, add as any); // merge needs to map children appropriately
 
-            const id = this.getId(add as any) as TKey;
+            const id = this.schema.getId(add as any) as TKey;
 
             // Set here, if we never save we should never attach
             this.setAttachment(id, found as any)
@@ -170,7 +162,7 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
 
         // need to merge updates in case we have identity properties
         updates.forEach(update => {
-            const id = this.getId(update as any) as TKey;
+            const id = this.schema.getId(update as any) as TKey;
             const found = this.attachments.get(id);
 
             // Let's only map Ids and identities

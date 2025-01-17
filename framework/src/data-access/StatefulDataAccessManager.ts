@@ -1,8 +1,8 @@
-import { CompiledSchema, EntityChanges, EntityModificationResult, Query, SyncronousQueue, SyncronousUnitOfWork } from '@agrejus/db-framework-core';
+import { CompiledSchema, EntityChanges, EntityModificationResult, IdType, Query, SyncronousQueue, SyncronousUnitOfWork } from '@agrejus/db-framework-core';
 import { DataAccessManager } from './DataAccessManager';
 
 const queue = new SyncronousQueue();
-const state: any[] = [];
+const state: Map<IdType, any> = new Map<IdType, any>();
 
 export class StatefulDataAccessManager<T extends {}> extends DataAccessManager<T> {
 
@@ -29,14 +29,53 @@ export class StatefulDataAccessManager<T extends {}> extends DataAccessManager<T
 
     private _bulkOperations(schema: CompiledSchema<T>, operations: EntityChanges<T>, done: (result: EntityModificationResult<T>, error?: any) => void) {
 
-        // we need to update state!!!!!!!!!!!
-        this.dbPlugin.bulkOperations(schema, operations, done);
+        this.dbPlugin.bulkOperations(schema, operations, (r, e) => {
+
+            const { adds, updates, removedCount } = r;
+            // need to merge adds with data sent in
+            adds.forEach(add => {
+                const id = this.schema.getId(add as any);
+                const found = state.get(id);
+
+                if (found == null) {
+                    state.set(id, found);
+                    return;
+                }
+
+                // Let's only map Ids and identities
+                this.schema.merge(found as any, add as any); // merge needs to map children appropriately
+            });
+
+            // need to merge updates in case we have identity properties
+            updates.forEach(update => {
+                const id = this.schema.getId(update as any);
+                const found = state.get(id);
+
+                if (found == null) {
+                    state.set(id, found);
+                    return;
+                }
+
+                // Let's only map Ids and identities
+                this.schema.merge(found as any, update as any); // merge needs to map children appropriately
+            });
+
+            operations.removes.forEach(removal => {
+                const id = this.schema.getId(removal as any);
+
+                if (state.has(id)) {
+                    state.delete(id);
+                    return;
+                }
+            });
+
+        });
     }
 
     private _fetch(query: Query<T>, done: (result: T[], error?: any) => void) {
 
         // if we have no data in memory, then no matter the first query we need to automatically select all, then run memory queries
-        if (state.length === 0) {
+        if (state.size === 0) {
             // hydrate by selecting everything
             this.dbPlugin.query<T>({
                 filters: [],
@@ -45,9 +84,13 @@ export class StatefulDataAccessManager<T extends {}> extends DataAccessManager<T
             }, (r, e) => {
 
                 if (!e) {
-                    state.push(...r); // push raw
-                    
-                    const entities = this.applyQueryExpressionAndFiltering(state, query);
+                    // need to get the id for each and add to the map
+                    for (const item of r) {
+                        const id = this.schema.getId(item);
+                        state.set(id, item); // push raw
+                    }
+
+                    const entities = this.applyQueryExpressionAndFiltering([...state.values()], query);
                     const resolved = this.postProcessResult(entities, query);
                     done(resolved);
                     return;
@@ -57,9 +100,10 @@ export class StatefulDataAccessManager<T extends {}> extends DataAccessManager<T
             });
             return;
         }
-
+        
+        console.log('Queried State')
         // need to run this after filtering, otherwise we attach and run too much
-        const entities = this.applyQueryExpressionAndFiltering(state, query);
+        const entities = this.applyQueryExpressionAndFiltering([...state.values()], query);
         const resolved = this.postProcessResult(entities, query);
 
         done(resolved);

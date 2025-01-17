@@ -16,14 +16,7 @@ export class NonIdentityKeyChangeTrackingBase<TKey extends IdType, TEntity exten
     }
 
     protected override setAddition(enriched: NonNullCreateEntity<TEntity>) {
-
-        if (this.schema.idPropertyNames.length === 1) {
-            const id = this.schema.getIds(enriched as any)[0] as TKey;
-            this.additions.set(id, enriched as any);
-            return;
-        }
-
-        const id = this.schema.hash(enriched as any, HashType.Ids) as TKey;
+        const id = this.schema.getId(enriched as any) as TKey;
         this.additions.set(id, enriched as any);
     }
 
@@ -37,7 +30,7 @@ export class NonIdentityKeyChangeTrackingBase<TKey extends IdType, TEntity exten
 
     override saveChanges(done: (result: number, error?: any) => void) {
         this.bulkOperations(entity => {
-            const id = this.getId(entity);
+            const id = this.schema.getId(entity) as TKey;
             return  this.additions.get(id)
         }, done);
     }

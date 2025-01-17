@@ -857,7 +857,16 @@ ${changedPath} = enableChangeTracking(${changedPath}, "${property.getAssignmentP
         const toHash = Function("entity", "type", hashFunctionBody) as HashFunction<T>;
         const getHashType = Function("entity", hashTypeFunctionBody) as GetHashTypeFunction<T>;
 
+        const getId = (entity: NonNullEntity<T>) => {
+            if (idPropertyNames.length > 1) {
+                return toHash(entity, HashType.Ids) as IdType;
+            }
+    
+            return idSelectorFunction(entity as any)[0] as IdType;
+        }
+
         return {
+            getId,
             properties,
             idPropertyNames,
             hasIdentities,
