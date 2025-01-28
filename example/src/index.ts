@@ -3,17 +3,17 @@ import { s, createUUID } from "@agrejus/db-framework-core";
 import { PouchDbPlugin } from "@agrejus/db-framework-plugin-pouchdb";
 import { performance } from 'perf_hooks'
 
-const model = s.define("MY_TABLE", {
-    _id: s.string().key().default((i) => i.createUUID(64), { createUUID }),
-    _rev: s.string().identity(),
-    name: s.string(),
-    year: s.number(),
-    date: s.date().default(new Date()).deserialize(w => new Date(w)).serialize(w => w.toISOString())
-}).modify(w => ({
-    test: w.computed(w => w._id),
-    toString: w.function(w => w.date.toISOString()),
-    documentType: w.computed((_, t) => t).tracked()
-})).compile();
+// const model = s.define("MY_TABLE", {
+//     _id: s.string().key().default((i) => i.createUUID(64), { createUUID }),
+//     _rev: s.string().identity(),
+//     name: s.string(),
+//     year: s.number(),
+//     date: s.date().default(new Date()).deserialize(w => new Date(w)).serialize(w => w.toISOString())
+// }).modify(w => ({
+//     test: w.computed(w => w._id),
+//     toString: w.function(w => w.date.toISOString()),
+//     documentType: w.computed((_, t) => t).tracked()
+// })).compile();
 
 const nested = s.define("MY_NESTED_TABLE", {
     _id: s.string().key().identity(),
@@ -34,7 +34,7 @@ class Ctx extends DataContext {
         super(plugin);
     }
 
-    test = this.dbset(model).create();
+    // test = this.dbset(model).create();
     nested = this.dbset(nested).stateful().create();
 }
 

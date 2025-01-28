@@ -376,7 +376,7 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
             return
         }
 
-        if (property.isNullable === true || property.isOptional === true) {
+        if ((property.isNullable === true || property.isOptional === true) && property.type !== SchemaTypes.Object) {
             const ifEnricher = this._createIfConditionalPropertyAssignment(fullSplit, "source");
             builder.append("assignments", ifEnricher);
             return;
@@ -464,15 +464,18 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
                 }
 
                 if (property.parent == null) {
+                    debugger;
                     builder.append("entity", `${property.name}: ${selectorPath.split(".").join("?.")} ?? ${fn.name}(${parameterNames.join(",")}),`);
                     return;
                 }
 
+                debugger;
                 builder.append("entity", `${selectorPath.split(".").join("?.")} ?? ${fn.name}(${parameterNames.join(",")})`);
                 return;
             }
 
             if (property.parent == null) {
+                debugger;
                 builder.append("entity", `${property.name}: ${selectorPath.split(".").join("?.")} ?? ${this._toJson(property.defaultValue)}`);
                 return;
             }
@@ -481,20 +484,45 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         }
 
         if (property.isIdentity === true) {
+            
+            if (property.type === SchemaTypes.Object) {
+                debugger;
+                // For object identity properties, we need to create the object if it doesn't exist
+                const destPath = ["enriched", ...split.slice(1, split.length)].join(".");
+                const sourcePath = split.join("?.");
+                
+                const objectAssignment = `
+    if (${sourcePath} != null) {
+        if (${destPath} == null) {
+            ${destPath} = {};
+        }
+        Object.assign(${destPath}, ${sourcePath});
+    }`;
+                
+                builder.append("enrichments", objectAssignment);
+                return;
+            }
 
+            // For primitive identity properties
             const ifEnricher = this._createIfConditionalPropertyAssignment(split, "enriched");
-
             builder.append("enrichments", ifEnricher);
             return;
         }
 
         if (property.type === SchemaTypes.Object) {
+            debugger;
             const changedPath = ["enriched", ...split.slice(1, split.length)].join(".");
             const enableChangeTracking = `
 ${changedPath} = enableChangeTracking(${changedPath}, "${property.getAssignmentPath()}", enriched);`
             builder.unshift("change-tracking", enableChangeTracking);
+            return;
         }
 
+        if (property.parent != null && property.parent.isIdentity === true) {
+            debugger;
+            return;
+        }
+        debugger;
         builder.append("entity", value);
     }
 
@@ -845,6 +873,8 @@ ${changedPath} = enableChangeTracking(${changedPath}, "${property.getAssignmentP
 
         enrichFunciton.inject(this.tableName, "tableName");
         mergeFunciton.inject(this.tableName, "tableName");
+
+        console.log(enrichFunctionBody);
 
         const merge = Function(...mergeFunciton.getInjectionsKeys(), mergeFunctionBody)(...mergeFunciton.getInjectionsValues()) as (destination: NonNullEntity<T>, source: NonNullEntity<T>) => NonNullEntity<T>;
         const prepare = Function("entity", prepareFunctionBody) as (entity: NonNullCreateEntity<T>) => NonNullCreateEntity<T>;

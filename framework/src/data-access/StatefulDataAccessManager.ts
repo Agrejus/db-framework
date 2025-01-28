@@ -69,6 +69,7 @@ export class StatefulDataAccessManager<T extends {}> extends DataAccessManager<T
                 }
             });
 
+            done(r, e);
         });
     }
 

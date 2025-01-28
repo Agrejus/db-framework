@@ -86,12 +86,12 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
     resolve(entities: NonNullEntity<TEntity>[], options?: FetchOptions) {
 
         const result = entities.map(entity => {
-
+            
             const key = this.schema.getId(entity) as TKey;
             const existing = this.getAttachment(key);
 
             if (existing != null) {
-
+                console.log({ existing, entity });
                 if (options?.mergeResponse === true) {
                     this.schema.merge(existing, entity); // merge needs to map children appropriately
                 }

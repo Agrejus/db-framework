@@ -1,4 +1,4 @@
-import { SchemaModifiers, SchemaTypes } from "../..";
+import { SchemaIdentity, SchemaModifiers, SchemaTypes } from "../..";
 import { DefaultValue } from "../../../types";
 import { SchemaBase } from "../base/Base";
 import { SchemaDefault } from "../modifiers/Default";
@@ -26,5 +26,9 @@ export class SchemaObject<T extends {}, TModifiers extends SchemaModifiers> exte
 
     default<I = never>(value: DefaultValue<T, I>, injected?: I) {
         return new SchemaDefault<T, I, TModifiers | "default">(value, injected, this);
+    }
+
+    identity() {
+        return new SchemaIdentity<T, TModifiers | "identity">(this);
     }
 }
