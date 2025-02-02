@@ -3,9 +3,9 @@ import { SchemaFunction } from './table/Function';
 import { SchemaComputed } from './table/Computed';
 import { SchemaBase } from "./property/base/Base";
 import { createUUID, hash } from "../utilities";
-import { FunctionBuilder } from '../common/FunctionBuilder';
 import { IdType } from "../types";
 import { PropertyInfo } from '../common/PropertyInfo';
+import { Block, CodeBlock, ContainerBlock, ObjectBuilder, FunctionBuilder, Code } from '../common/CodeBlock';
 
 export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
 
@@ -127,168 +127,128 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         builder.push(value);
     }
 
-    private _toNamedFunction(stringifiedFunction: string) {
+    private _toNamedFunction(stringifiedFunction: string, parent: ContainerBlock) {
         const name = createUUID()
+
+        const functionBody = parent.function(name);
 
         if (stringifiedFunction.includes("=>")) {
 
             const split = stringifiedFunction.split("=>").map(w => w.trim());
+            const parameters = split[0].replace(/\(|\)/g, "").split(",");
             const body = split[1];
+
+            functionBody.parameters(...parameters);
 
             if (body.startsWith("{") === true) {
 
-                // arrow function has a return keyword
-                const fn = `
-    const ${name} = ${stringifiedFunction}`
-                const parameters = split[0].replace(/\(|\)/g, "").split(",");
-                const build = (returningStatement: string) => fn.toString();
-
-                return {
-                    parameterNames: parameters,
-                    name,
-                    body: fn,
-                    build,
-                    returning: fn,
-                }
+                functionBody.raw(stringifiedFunction);
+                
+                return;
             }
 
-            const parameters = split[0].replace(/\(|\)/g, "").split(",");
-            const build = (returningStatement: string) => {
-                return `
-    function ${name}(${parameters.join(",")}) {
-        return ${returningStatement};
-    }`
-            }
-
-            return {
-                parameterNames: parameters,
-                name,
-                body: build(body),
-                build,
-                returning: body,
-            }
-        }
-
-        if (stringifiedFunction.startsWith("function")) {
-            const split = stringifiedFunction.split(/\(|\)/g);
-            const functionBodyWithBraces = stringifiedFunction.replace(/function.{0,}\(.{1,}?\)/, "");
-            const parameters = split[1].split(",");
-            const build = (returningStatement: string) => {
-                return `
-    function ${name}(${parameters.join(",")}) {
-        return ${returningStatement}
-    }`
-            }
-            const returning = functionBodyWithBraces.trim().slice(1, functionBodyWithBraces.length - 2).trim();
-            const correctedReturn = returning.replace("return", "").trim();
-
-            return {
-                parameterNames: parameters,
-                name,
-                body: build(correctedReturn),
-                returning: correctedReturn,
-                build
-            }
-        }
-
-        throw new Error("Not a valid funciton");
-    }
-
-    private _appendCompare(property: PropertyInfo<any>, builder: { returnBody: string[], declarations: string[] }, path: string) {
-
-        if (property.isUnmapped == true) {
-            return;
-        }
-
-        if (property.isIdentity === true) {
-            return;
-        }
-
-        if (property.valueSerializer != null) {
-            const fn = this._toNamedFunction(property.valueSerializer.toString());
-
-            builder.declarations.push(fn.body)
-            builder.returnBody.push(`${path.replace("entity.", "a.")} == ${fn.name}(${path.replace("entity.", "b.")})`);
-            return;
-        }
-
-        builder.returnBody.push(`${path.replace("entity.", "a.")} == ${path.replace("entity.", "b.")}`);
-    }
-
-    private _appendPrepare(property: PropertyInfo<any>, builder: FunctionBuilder<"return" | "functions" | "optionals">, value: string, selectorPath?: string) {
-
-        if (property.isUnmapped === true) {
-            return;
-        }
-
-        if (property.isIdentity === true && selectorPath != null) {
-            // Optionally map for updates.  Identities need to be sent in for updates, but not for additions
-            const path = property.getSelectrorPath("entity");
-            const assignmentPath = property.getAssignmentPath("result");
-            const optionalAssignment = `
-    if (${path} != null) {
-        ${assignmentPath} = ${path};
-    }
-            `;
-
-            builder.append("optionals", optionalAssignment)
-            return;
-        }
-
-        if (property.valueSerializer != null) {
-            const fn = this._toNamedFunction(property.valueSerializer.toString());
-
-            builder.append("functions", fn.body);
-            builder.append("return", value.replace(selectorPath, `${fn.name}(${selectorPath})`));
-            return;
-        }
-
-        builder.append("return", value);
-    }
-
-    private _appendDeserializer(property: PropertyInfo<any>, builder: FunctionBuilder<"return" | "variables">, value: string, selectorPath?: string) {
-
-        if (property.isUnmapped == true) {
-            return;
-        }
-
-        if (selectorPath == null) {
-            builder.append("return", value);
-            return;
-        }
-
-        if (property.valueDeserializer != null) {
-            const fn = this._toNamedFunction(property.valueDeserializer.toString());
-
-            builder.append("variables", fn.body);
-            builder.append("return", value.replace(selectorPath, `${fn.name}(${selectorPath})`));
-            return;
-        }
-
-        builder.append("return", value);
-    }
-
-    private _appendHashMapper(property: PropertyInfo<any>, builder: FunctionBuilder<"return-object" | "return-ids" | "functions">, selectorPath: string) {
-
-        if (property.isKey) {
-            builder.append("return-ids", `$\{${property.getSelectrorPath("entity")}\}`);
+            functionBody.appendBody(`return ${body};`);
             return
         }
 
-        if (property.isIdentity == true || property.type === SchemaTypes.Computed || property.type === SchemaTypes.Function) {
-            return;
-        }
-
-        let optionalPath = selectorPath.split(/\.|\?\./g);
-
-        if (property.type === SchemaTypes.Date) {
-            const path = optionalPath.join("?.");
-
-            optionalPath = [`stringifyDate(${path})`];
-        }
-
-        builder.append("return-object", `$\{${optionalPath.join("?.")}\}`);
+        throw new Error("Only arrow functions are allowed in the schema definition:  function () {}  --->  () => {}");
     }
+
+    // private _appendCompare(property: PropertyInfo<any>, builder: { returnBody: string[], declarations: string[] }, path: string) {
+
+    //     if (property.isUnmapped == true) {
+    //         return;
+    //     }
+
+    //     if (property.isIdentity === true) {
+    //         return;
+    //     }
+
+    //     if (property.valueSerializer != null) {
+    //         const fn = this._toNamedFunction(property.valueSerializer.toString());
+
+    //         builder.declarations.push(fn.body)
+    //         builder.returnBody.push(`${path.replace("entity.", "a.")} == ${fn.name}(${path.replace("entity.", "b.")})`);
+    //         return;
+    //     }
+
+    //     builder.returnBody.push(`${path.replace("entity.", "a.")} == ${path.replace("entity.", "b.")}`);
+    // }
+
+    // private _appendPrepare(property: PropertyInfo<any>, builder: FunctionBuilder<"return" | "functions" | "optionals">, value: string, selectorPath?: string) {
+
+    //     if (property.isUnmapped === true) {
+    //         return;
+    //     }
+
+    //     if (property.isIdentity === true && selectorPath != null) {
+    //         // Optionally map for updates.  Identities need to be sent in for updates, but not for additions
+    //         const path = property.getSelectrorPath("entity");
+    //         const assignmentPath = property.getAssignmentPath("result");
+    //         const optionalAssignment = `
+    // if (${path} != null) {
+    //     ${assignmentPath} = ${path};
+    // }
+    //         `;
+
+    //         builder.append("optionals", optionalAssignment)
+    //         return;
+    //     }
+
+    //     if (property.valueSerializer != null) {
+    //         const fn = this._toNamedFunction(property.valueSerializer.toString());
+
+    //         builder.append("functions", fn.body);
+    //         builder.append("return", value.replace(selectorPath, `${fn.name}(${selectorPath})`));
+    //         return;
+    //     }
+
+    //     builder.append("return", value);
+    // }
+
+    // private _appendDeserializer(property: PropertyInfo<any>, builder: FunctionBuilder<"return" | "variables">, value: string, selectorPath?: string) {
+
+    //     if (property.isUnmapped == true) {
+    //         return;
+    //     }
+
+    //     if (selectorPath == null) {
+    //         builder.append("return", value);
+    //         return;
+    //     }
+
+    //     if (property.valueDeserializer != null) {
+    //         const fn = this._toNamedFunction(property.valueDeserializer.toString());
+
+    //         builder.append("variables", fn.body);
+    //         builder.append("return", value.replace(selectorPath, `${fn.name}(${selectorPath})`));
+    //         return;
+    //     }
+
+    //     builder.append("return", value);
+    // }
+
+    // private _appendHashMapper(property: PropertyInfo<any>, builder: FunctionBuilder<"return-object" | "return-ids" | "functions">, selectorPath: string) {
+
+    //     if (property.isKey) {
+    //         builder.append("return-ids", `$\{${property.getSelectrorPath("entity")}\}`);
+    //         return
+    //     }
+
+    //     if (property.isIdentity == true || property.type === SchemaTypes.Computed || property.type === SchemaTypes.Function) {
+    //         return;
+    //     }
+
+    //     let optionalPath = selectorPath.split(/\.|\?\./g);
+
+    //     if (property.type === SchemaTypes.Date) {
+    //         const path = optionalPath.join("?.");
+
+    //         optionalPath = [`stringifyDate(${path})`];
+    //     }
+
+    //     builder.append("return-object", `$\{${optionalPath.join("?.")}\}`);
+    // }
 
     private _createIfAssignment(splitSelectorPath: string[], functionBody: string, parentName: string) {
 
@@ -329,202 +289,200 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
 
     }
 
-    private _appendMerge(property: PropertyInfo<any>, builder: FunctionBuilder<"assignments" | "functions" | "deserializers" | "post-ifs">, value: string, selectorPath: string) {
+    // private _appendMerge(property: PropertyInfo<any>, builder: FunctionBuilder<"assignments" | "functions" | "deserializers" | "post-ifs">, value: string, selectorPath: string) {
 
-        const fullSplit = selectorPath.split(/\.|\?\./g)
-        const split = [...fullSplit];
+    //     const fullSplit = selectorPath.split(/\.|\?\./g)
+    //     const split = [...fullSplit];
 
-        split.splice(0, 1);
+    //     split.splice(0, 1);
 
-        if (property.valueDeserializer != null) {
-            const fn = this._toNamedFunction(property.valueDeserializer.toString());
-            const assignment = `
-        if (${fullSplit.join("?.")} != null) {
-            ${fullSplit.join(".")} = ${fn.name}(${fullSplit.join(".")});
-        }
-        `
-            builder.append("functions", fn.body);
-            builder.append("deserializers", assignment);
-            return;
-        }
+    //     if (property.valueDeserializer != null) {
+    //         const fn = this._toNamedFunction(property.valueDeserializer.toString());
+    //         const assignment = `
+    //     if (${fullSplit.join("?.")} != null) {
+    //         ${fullSplit.join(".")} = ${fn.name}(${fullSplit.join(".")});
+    //     }
+    //     `
+    //         builder.append("functions", fn.body);
+    //         builder.append("deserializers", assignment);
+    //         return;
+    //     }
 
-        if (property.functionBody != null) {
+    //     if (property.functionBody != null) {
 
-            const parameterNames: string[] = ["destination", "tableName"];
+    //         const parameterNames: string[] = ["destination", "tableName"];
 
-            if (property.injected != null) {
-                parameterNames.push(builder.inject(property.injected));
-            }
+    //         if (property.injected != null) {
+    //             parameterNames.push(builder.inject(property.injected));
+    //         }
 
-            if (property.type === SchemaTypes.Computed) {
-                const fn = this._toNamedFunction(property.functionBody.toString());
-                const ifEnricher = this._createIfAssignment(fullSplit, `${fn.name}(${parameterNames.join(",")})`, "destination");
+    //         if (property.type === SchemaTypes.Computed) {
+    //             const fn = this._toNamedFunction(property.functionBody.toString());
+    //             const ifEnricher = this._createIfAssignment(fullSplit, `${fn.name}(${parameterNames.join(",")})`, "destination");
 
-                builder.append("functions", fn.body);
-                builder.append("post-ifs", ifEnricher);
-                return;
-            }
+    //             builder.append("functions", fn.body);
+    //             builder.append("post-ifs", ifEnricher);
+    //             return;
+    //         }
 
-            // function
-            const fn = this._toNamedFunction(property.functionBody.toString());
-            const changedFunction = fn.build(`() => ${fn.returning}`)
+    //         // function
+    //         const fn = this._toNamedFunction(property.functionBody.toString());
+    //         const changedFunction = fn.build(`() => ${fn.returning}`)
 
-            const ifEnricher = this._createIfAssignment(fullSplit, `${fn.name}(${parameterNames.join(",")})`, "destination");
+    //         const ifEnricher = this._createIfAssignment(fullSplit, `${fn.name}(${parameterNames.join(",")})`, "destination");
 
-            builder.append("functions", changedFunction);
-            builder.append("post-ifs", ifEnricher);
-            return
-        }
+    //         builder.append("functions", changedFunction);
+    //         builder.append("post-ifs", ifEnricher);
+    //         return
+    //     }
 
-        if ((property.isNullable === true || property.isOptional === true) && property.type !== SchemaTypes.Object) {
-            const ifEnricher = this._createIfConditionalPropertyAssignment(fullSplit, "source");
-            builder.append("assignments", ifEnricher);
-            return;
-        }
+    //     if ((property.isNullable === true || property.isOptional === true) && property.type !== SchemaTypes.Object) {
+    //         const ifEnricher = this._createIfConditionalPropertyAssignment(fullSplit, "source");
+    //         builder.append("assignments", ifEnricher);
+    //         return;
+    //     }
 
-        if (property.type === SchemaTypes.Object) {
-            // Create the object if it doesn't exist
-            const destPath = ["destination", ...split].join(".");
-            const sourcePath = ["source", ...split].join(".");
+    //     if (property.type === SchemaTypes.Object) {
+    //         // Create the object if it doesn't exist
+    //         const destPath = ["destination", ...split].join(".");
+    //         const sourcePath = ["source", ...split].join(".");
 
-            const objectAssignment = `
-        if (${sourcePath} != null) {
-            if (${destPath} == null) {
-                ${destPath} = {};
-            }
-            ${property.hasIdentityChildren ?
-                    // For objects with identity children, we need to merge
-                    `Object.assign(${destPath}, ${sourcePath});` :
-                    // For regular objects, we can do a direct assignment
-                    `${destPath} = ${sourcePath};`
-                }
-        }`
-            builder.append("assignments", objectAssignment);
-            return;
-        }
+    //         const objectAssignment = `
+    //     if (${sourcePath} != null) {
+    //         if (${destPath} == null) {
+    //             ${destPath} = {};
+    //         }
+    //         ${property.hasIdentityChildren ?
+    //                 // For objects with identity children, we need to merge
+    //                 `Object.assign(${destPath}, ${sourcePath});` :
+    //                 // For regular objects, we can do a direct assignment
+    //                 `${destPath} = ${sourcePath};`
+    //             }
+    //     }`
+    //         builder.append("assignments", objectAssignment);
+    //         return;
+    //     }
 
-        if (property.isKey === true || property.isIdentity === true) {
-            const conditionalAssignment = `
-        if (${["source", ...split].join("?.")} != null) {
-            ${["destination", ...split].join(".")} = ${["source", ...split].join("?.")}
-        }`
-            builder.append("post-ifs", conditionalAssignment);
-            return;
-        }
+    //     if (property.isKey === true || property.isIdentity === true) {
+    //         const conditionalAssignment = `
+    //     if (${["source", ...split].join("?.")} != null) {
+    //         ${["destination", ...split].join(".")} = ${["source", ...split].join("?.")}
+    //     }`
+    //         builder.append("post-ifs", conditionalAssignment);
+    //         return;
+    //     }
 
-        // For all other properties, do a direct assignment if source value exists
-        const directAssignment = `
-        if (${["source", ...split].join("?.")} != null) {
-            ${["destination", ...split].join(".")} = ${["source", ...split].join("?.")}
-        }`
-        builder.append("assignments", directAssignment);
-    }
+    //     // For all other properties, do a direct assignment if source value exists
+    //     const directAssignment = `
+    //     if (${["source", ...split].join("?.")} != null) {
+    //         ${["destination", ...split].join(".")} = ${["source", ...split].join("?.")}
+    //     }`
+    //     builder.append("assignments", directAssignment);
+    // }
 
-    private _appendEnricher(property: PropertyInfo<any>, builder: FunctionBuilder<"variables" | "enrichments" | "functions" | "entity" | "change-tracking">, value: string, selectorPath: string) {
+//     private _appendEnricher(property: PropertyInfo<any>, builder: FunctionBuilder<"variables" | "enrichments" | "functions" | "entity" | "change-tracking">, value: string, selectorPath: string) {
 
-        const split = selectorPath.split(/\.|\?\./g);
+//         const split = selectorPath.split(/\.|\?\./g);
 
-        if (property.functionBody != null) {
+//         if (property.functionBody != null) {
 
-            const parameterNames: string[] = ["enriched", "tableName"];
+//             const parameterNames: string[] = ["enriched", "tableName"];
 
-            if (property.injected != null) {
-                parameterNames.push(builder.inject(property.injected));
-            }
+//             if (property.injected != null) {
+//                 parameterNames.push(builder.inject(property.injected));
+//             }
 
-            if (property.type === SchemaTypes.Computed) {
-                const fn = this._toNamedFunction(property.functionBody.toString());
-                const ifEnricher = this._createIfAssignment(split, `${fn.name}(${parameterNames.join(",")})`, "enriched");
+//             if (property.type === SchemaTypes.Computed) {
+//                 const fn = this._toNamedFunction(property.functionBody.toString());
+//                 const ifEnricher = this._createIfAssignment(split, `${fn.name}(${parameterNames.join(",")})`, "enriched");
 
-                builder.append("functions", fn.body);
-                builder.append("enrichments", ifEnricher);
-                return;
-            }
+//                 builder.append("functions", fn.body);
+//                 builder.append("enrichments", ifEnricher);
+//                 return;
+//             }
 
-            // function
-            const fn = this._toNamedFunction(property.functionBody.toString());
-            const changedFunction = fn.build(`() => ${fn.returning}`)
-            const ifEnricher = this._createIfAssignment(split, `${fn.name}(${parameterNames.join(",")})`, "enriched");
+//             // function
+//             const fn = this._toNamedFunction(property.functionBody.toString());
+//             const changedFunction = fn.build(`() => ${fn.returning}`)
+//             const ifEnricher = this._createIfAssignment(split, `${fn.name}(${parameterNames.join(",")})`, "enriched");
 
-            builder.append("functions", changedFunction);
-            builder.append("enrichments", ifEnricher);
-            return
-        }
+//             builder.append("functions", changedFunction);
+//             builder.append("enrichments", ifEnricher);
+//             return
+//         }
 
-        if (property.defaultValue != null) {
+//         if (property.defaultValue != null) {
 
-            if (typeof property.defaultValue === "function") {
-                const fn = this._toNamedFunction(property.defaultValue.toString());
-                builder.append("functions", fn.body);
+//             if (typeof property.defaultValue === "function") {
+//                 const fn = this._toNamedFunction(property.defaultValue.toString());
+//                 builder.append("functions", fn.body);
 
-                const parameterNames: string[] = [];
+//                 const parameterNames: string[] = [];
 
-                if (property.injected != null) {
-                    parameterNames.push(builder.inject(property.injected));
-                }
+//                 if (property.injected != null) {
+//                     parameterNames.push(builder.inject(property.injected));
+//                 }
 
-                if (property.parent == null) {
-                    debugger;
-                    builder.append("entity", `${property.name}: ${selectorPath.split(".").join("?.")} ?? ${fn.name}(${parameterNames.join(",")}),`);
-                    return;
-                }
+//                 if (property.parent == null) {
+//                     debugger;
+//                     builder.append("entity", `${property.name}: ${selectorPath.split(".").join("?.")} ?? ${fn.name}(${parameterNames.join(",")}),`);
+//                     return;
+//                 }
 
-                debugger;
-                builder.append("entity", `${selectorPath.split(".").join("?.")} ?? ${fn.name}(${parameterNames.join(",")})`);
-                return;
-            }
+//                 debugger;
+//                 builder.append("entity", `${selectorPath.split(".").join("?.")} ?? ${fn.name}(${parameterNames.join(",")})`);
+//                 return;
+//             }
 
-            if (property.parent == null) {
-                debugger;
-                builder.append("entity", `${property.name}: ${selectorPath.split(".").join("?.")} ?? ${this._toJson(property.defaultValue)}`);
-                return;
-            }
-            // DO THIS
-            return;
-        }
+//             if (property.parent == null) {
+//                 debugger;
+//                 builder.append("entity", `${property.name}: ${selectorPath.split(".").join("?.")} ?? ${this._toJson(property.defaultValue)}`);
+//                 return;
+//             }
+//             // DO THIS
+//             return;
+//         }
 
-        if (property.isIdentity === true) {
-            
-            if (property.type === SchemaTypes.Object) {
-                debugger;
-                // For object identity properties, we need to create the object if it doesn't exist
-                const destPath = ["enriched", ...split.slice(1, split.length)].join(".");
-                const sourcePath = split.join("?.");
-                
-                const objectAssignment = `
-    if (${sourcePath} != null) {
-        if (${destPath} == null) {
-            ${destPath} = {};
-        }
-        Object.assign(${destPath}, ${sourcePath});
-    }`;
-                
-                builder.append("enrichments", objectAssignment);
-                return;
-            }
+//         if (property.isIdentity === true) {
 
-            // For primitive identity properties
-            const ifEnricher = this._createIfConditionalPropertyAssignment(split, "enriched");
-            builder.append("enrichments", ifEnricher);
-            return;
-        }
+//             if (property.type === SchemaTypes.Object) {
+//                 debugger;
+//                 // For object identity properties, we need to create the object if it doesn't exist
+//                 const destPath = ["enriched", ...split.slice(1, split.length)].join(".");
+//                 const sourcePath = split.join("?.");
 
-        if (property.type === SchemaTypes.Object) {
-            debugger;
-            const changedPath = ["enriched", ...split.slice(1, split.length)].join(".");
-            const enableChangeTracking = `
-${changedPath} = enableChangeTracking(${changedPath}, "${property.getAssignmentPath()}", enriched);`
-            builder.unshift("change-tracking", enableChangeTracking);
-            return;
-        }
+//                 const objectAssignment = `
+//     if (${sourcePath} != null) {
+//         if (${destPath} == null) {
+//             ${destPath} = {};
+//         }
+//         Object.assign(${destPath}, ${sourcePath});
+//     }`;
 
-        if (property.parent != null && property.parent.isIdentity === true) {
-            debugger;
-            return;
-        }
-        debugger;
-        builder.append("entity", value);
-    }
+//                 builder.append("enrichments", objectAssignment);
+//                 return;
+//             }
+
+//             // For primitive identity properties
+//             const ifEnricher = this._createIfConditionalPropertyAssignment(split, "enriched");
+//             builder.append("enrichments", ifEnricher);
+//             return;
+//         }
+
+//         if (property.type === SchemaTypes.Object) {
+//             const changedPath = ["enriched", ...split.slice(1, split.length)].join(".");
+//             const enableChangeTracking = `
+// ${changedPath} = enableChangeTracking(${changedPath}, "${property.getAssignmentPath()}", enriched);`
+//             builder.unshift("change-tracking", enableChangeTracking);
+//             return;
+//         }
+
+//         if (property.parent != null && property.parent.isIdentity === true) {
+//             return;
+//         }
+
+//         builder.append("entity", value);
+//     }
 
     private createChangeTracker() {
 
@@ -609,10 +567,92 @@ ${changedPath} = enableChangeTracking(${changedPath}, "${property.getAssignmentP
         }
     }
 
-    private _appendHashType(property: PropertyInfo<any>, builder: FunctionBuilder<"return">) {
-        if (property.isKey === true) {
-            builder.append("return", `${property.getSelectrorPath("entity")} == null`);
+    private _buildEnricher(property: PropertyInfo<any>, builder: Code) {
+        debugger;
+        const selectorPath = property.getSelectrorPath("entity", { forceNullableOrOptional: true });
+
+        if (property.isIdentity === true) {
+
+            if (property.type === SchemaTypes.Object) {
+
+                return;
+            }
+            const section = builder.getOrCreateBlock(2);
+            const entitySelectorPath = property.getAssignmentPath("entity");
+            const enrichedAssignmentPath = property.getAssignmentPath("enriched");
+            section.if(`${selectorPath} != null`).appendBody(`${enrichedAssignmentPath} = ${entitySelectorPath}`);
+
+            return;
         }
+
+        if (property.defaultValue != null) {
+
+            if (typeof property.defaultValue === "function") {
+                debugger;
+                const section = builder.getBlock(1);
+                this._toNamedFunction(property.defaultValue.toString(), section);
+
+                // example: () => 1
+                // should be: const someName = () => 1;
+            }
+        }
+
+    }
+
+    private _processStringifier(property: PropertyInfo<any>, objectBuilder: ObjectBuilder) {
+        const selectorPath = property.getSelectrorPath("entity");
+
+        // Handle arrays
+        if (property.type === SchemaTypes.Array) {
+            debugger;
+            const arrayItemSchema = (property as any).itemSchema;
+
+            // if (arrayItemSchema.type === SchemaTypes.Object) {
+            //     const nestedBuilder = objectBuilder.nested(property.name);
+            //     nestedBuilder.property(
+            //         `${selectorPath}?.map(item => ({${
+            //             arrayItemSchema.children.map(child => 
+            //                 `${child.name}: item.${child.name}`
+            //             ).join(",")
+            //         }))`
+            //     );
+            //     return;
+            // }
+
+            if (arrayItemSchema.type === SchemaTypes.Date) {
+                objectBuilder.property(
+                    `${property.name}: ${selectorPath}?.map(item => item.toISOString())`
+                );
+                return;
+            }
+
+            objectBuilder.property(
+                `${property.name}: ${selectorPath}`
+            );
+            return;
+        }
+
+        // Handle objects
+        if (property.type === SchemaTypes.Object) {
+            const nestedBuilder = objectBuilder.nested(property.name);
+
+            // Process each child property
+            property.children.forEach(child => {
+                this._processStringifier(child, nestedBuilder);
+            });
+            return;
+        }
+
+        // Handle dates
+        if (property.type === SchemaTypes.Date) {
+            objectBuilder.property(
+                `${property.name}: ${selectorPath}?.toISOString()`
+            );
+            return;
+        }
+
+        // Handle primitives
+        objectBuilder.property(`${property.name}: ${selectorPath}`);
     }
 
     compile(): CompiledSchema<T> {
@@ -620,44 +660,45 @@ ${changedPath} = enableChangeTracking(${changedPath}, "${property.getAssignmentP
         const schema = this;
         const properties: PropertyInfo<T>[] = [];
 
-        // Prepare should strip and serialize
-        const prepareBuilder = new FunctionBuilder().use("return").use("functions").use("optionals");
-        const hashTypeBuilder = new FunctionBuilder().use("return");
-        const hashBuilder = new FunctionBuilder().use("return-object").use("return-ids").use("functions");
-        const deserializeBuilder = new FunctionBuilder().use("return").use("variables");
-        const stripperLines: string[] = [];
-        const cloneLines: string[] = [];
-        const compareFunction: { returnBody: string[], declarations: string[] } = { declarations: [], returnBody: [] };
-        const mergeFunciton = new FunctionBuilder().use("assignments").use("functions").use("deserializers").use("post-ifs");
-        const enrichFunciton = new FunctionBuilder().use("enrichments").use("functions").use("variables").use("entity").use("change-tracking");
-        hashBuilder.append("functions", `
-    function stringifyDate(d) {
+        const enricher = new Code<"functions" | "body">({ functions: 1, body: 2 });
+        const functions = enricher.getOrCreateBlock("functions");
+        const body = enricher.getOrCreateBlock("body");
 
-        if (typeof d === "string") {
-            return d;
-        }
+        const enricherFunctionBody = functions.function().parameters("entity")
+        enricherFunctionBody.raw(this.createChangeTracker.toString());
+        body.variable("enableChangeTracking").value("createChangeTracker()");
 
-        if ("toISOString" in d) {
-            return d.toISOString();
-        }
+        // Build stringifier
+        const stringifier = new CodeBlock();
+        const returnObject = stringifier.object();
 
-        return d.toString();
-    }`);
+        //     function stringifyDate(d) {
 
-        mergeFunciton.append("functions", `
-    function pause() {
-        // initiate change tracking if needed
-        if (destination.__tracking__ == null) {
-            destination.__tracking__ = {};
-        }
+        //         if (typeof d === "string") {
+        //             return d;
+        //         }
 
-        destination.__tracking__.isPaused = true;
-    }    
+        //         if ("toISOString" in d) {
+        //             return d.toISOString();
+        //         }
 
-    function unpause() {
-        destination.__tracking__.isPaused  = false;
-    }    
-`)
+        //         return d.toString();
+        //     }`);
+
+        //         mergeFunciton.append("functions", `
+        //     function pause() {
+        //         // initiate change tracking if needed
+        //         if (destination.__tracking__ == null) {
+        //             destination.__tracking__ = {};
+        //         }
+
+        //         destination.__tracking__.isPaused = true;
+        //     }    
+
+        //     function unpause() {
+        //         destination.__tracking__.isPaused  = false;
+        //     }    
+        // `)
 
         // Call _iterate to process the schema and build the function body
         const idPropertyNames: string[] = [];
@@ -691,227 +732,35 @@ ${changedPath} = enableChangeTracking(${changedPath}, "${property.getAssignmentP
                 hasIdentityKeys = true;
             }
 
-            // Generate property code based on type
-            if (property.type === SchemaTypes.Object) {
-
-                const closureStart = `
-                    ${name}: ${isPropertyNullableOrOptional ? `${selectorPath} ? {` : `{`}`;
-
-                this._appendPrepare(property, prepareBuilder, closureStart);
-                this._appendHashMapper(property, hashBuilder, selectorPath)
-                this._appendStripper(property, stripperLines, closureStart);
-                this._appendCloner(property, cloneLines, closureStart);
-                this._appendDeserializer(property, deserializeBuilder, closureStart);
-                this._appendEnricher(property, enrichFunciton, closureStart, selectorPath);
-                this._appendMerge(property, mergeFunciton, closureStart, selectorPath);
-
-
-                property.children.forEach((nestedProperty, index) => {
-
-                    properties.push(nestedProperty);
-                    const nestedSelectorPath = `${selectorPath}${isPropertyNullableOrOptional ? "?" : ""}.${nestedProperty.name}`;
-                    const isNestedNullableOrOptional = nestedProperty.isNullable || nestedProperty.isOptional || isPropertyNullableOrOptional;
-
-                    if (nestedProperty.type === SchemaTypes.Object) {
-
-                        const nestedAssignment = `
-                            ${nestedProperty.name}: ${isNestedNullableOrOptional ? `${nestedSelectorPath} ? {` : `{`}`;
-
-                        this._appendPrepare(nestedProperty, prepareBuilder, nestedAssignment, nestedSelectorPath);
-                        this._appendStripper(nestedProperty, stripperLines, nestedAssignment);
-                        this._appendCloner(nestedProperty, cloneLines, nestedAssignment);
-                        this._appendDeserializer(nestedProperty, deserializeBuilder, nestedAssignment, nestedSelectorPath);
-                        this._appendEnricher(nestedProperty, enrichFunciton, nestedAssignment, nestedSelectorPath);
-                        this._appendMerge(nestedProperty, mergeFunciton, nestedAssignment, nestedSelectorPath);
-
-                        // Recursively add properties for deeply nested objects
-                        nestedProperty.children.forEach((deepProperty, deepIndex) => {
-                            properties.push(deepProperty);
-                            const deepSelectorPath = `${nestedSelectorPath}${isNestedNullableOrOptional ? "?" : ""}.${deepProperty.name}`;
-
-                            const deeplyNestedAssignment = `
-                                ${deepProperty.name}: ${isNestedNullableOrOptional ? `${deepSelectorPath} ?? null` : deepSelectorPath}${deepIndex < deepProperty.children.length - 1 ? "," : ""}`;
-                            this._appendPrepare(deepProperty, prepareBuilder, deeplyNestedAssignment, deepSelectorPath);
-                            this._appendHashMapper(deepProperty, hashBuilder, deepSelectorPath);
-                            this._appendStripper(deepProperty, stripperLines, deeplyNestedAssignment);
-                            this._appendCloner(deepProperty, cloneLines, deeplyNestedAssignment);
-                            this._appendDeserializer(deepProperty, deserializeBuilder, deeplyNestedAssignment, deepSelectorPath);
-                            this._appendEnricher(deepProperty, enrichFunciton, deeplyNestedAssignment, deepSelectorPath);
-                            this._appendMerge(deepProperty, mergeFunciton, deeplyNestedAssignment, deepSelectorPath);
-                            this._appendCompare(deepProperty, compareFunction, deepSelectorPath);
-                        });
-
-                        const nestedClosure = `}${isNestedNullableOrOptional ? ` : null` : ""}${index < property.children.length - 1 ? "," : ""}`;
-
-                        prepareBuilder.append("return", nestedClosure);
-                        deserializeBuilder.append("return", nestedClosure);
-                        stripperLines.push(nestedClosure);
-                        cloneLines.push(nestedClosure);
-                        enrichFunciton.append("entity", nestedClosure);
-                        return;
-                    }
-
-                    const assignment = `
-                        ${nestedProperty.name}: ${isNestedNullableOrOptional ? `${nestedSelectorPath} ?? null` : nestedSelectorPath}${index < property.children.length - 1 ? "," : ""}`;
-
-                    this._appendPrepare(nestedProperty, prepareBuilder, assignment, nestedSelectorPath);
-                    this._appendHashMapper(nestedProperty, hashBuilder, nestedSelectorPath);
-                    this._appendStripper(nestedProperty, stripperLines, assignment);
-                    this._appendCloner(nestedProperty, cloneLines, assignment);
-                    this._appendDeserializer(nestedProperty, deserializeBuilder, assignment, nestedSelectorPath);
-                    this._appendEnricher(nestedProperty, enrichFunciton, assignment, nestedSelectorPath);
-                    this._appendMerge(nestedProperty, mergeFunciton, assignment, nestedSelectorPath);
-                    this._appendCompare(nestedProperty, compareFunction, nestedSelectorPath);
-                });
-
-                const closureEnd = `}${isPropertyNullableOrOptional ? ` : null` : ""}${property.children.length > 0 ? "," : ""}`;
-
-                prepareBuilder.append("return", closureEnd);
-                deserializeBuilder.append("return", closureEnd);
-                stripperLines.push(closureEnd);
-                cloneLines.push(closureEnd);
-                enrichFunciton.append("entity", closureEnd);
-                return;
-            }
-
-            if (property.type === SchemaTypes.Array) {
-                // Arrays
-
-                const arrayAssignment = `
-                    ${name}: ${isPropertyNullableOrOptional ? `${selectorPath} ? [...(${selectorPath} || [])] : null` : `[...${selectorPath}]`},`;
-                this._appendPrepare(property, prepareBuilder, arrayAssignment, selectorPath);
-                this._appendHashMapper(property, hashBuilder, selectorPath);
-                this._appendStripper(property, stripperLines, arrayAssignment);
-                this._appendCloner(property, cloneLines, arrayAssignment);
-                this._appendDeserializer(property, deserializeBuilder, arrayAssignment, selectorPath);
-                this._appendEnricher(property, enrichFunciton, arrayAssignment, selectorPath);
-                this._appendMerge(property, mergeFunciton, arrayAssignment, selectorPath)
-                this._appendCompare(property, compareFunction, selectorPath);
-                return;
-            }
-
-            if (property.isKey === true && property.isIdentity === true) {
-                hashType = HashType.Object;
-            }
-
-            const primitiveAssignment = `
-             ${name}: ${isPropertyNullableOrOptional ? `${selectorPath} ?? null` : selectorPath},`;
-            this._appendPrepare(property, prepareBuilder, primitiveAssignment, selectorPath);
-            this._appendHashMapper(property, hashBuilder, selectorPath);
-            this._appendStripper(property, stripperLines, primitiveAssignment);
-            this._appendCloner(property, cloneLines, primitiveAssignment);
-            this._appendDeserializer(property, deserializeBuilder, primitiveAssignment, selectorPath);
-            this._appendEnricher(property, enrichFunciton, primitiveAssignment, selectorPath);
-            this._appendMerge(property, mergeFunciton, primitiveAssignment, selectorPath);
-            this._appendCompare(property, compareFunction, selectorPath);
-            this._appendHashType(property, hashTypeBuilder);
+            this._processStringifier(property, returnObject);
+            this._buildEnricher(property, enricher);
         });
 
-        const hashTypeFunctionBody = `
-    if (${hashTypeBuilder.join("return", " || ")}) {
-        return "Object";
-    }
+        console.log("enricher");
+        console.log(enricher.toString());
+        console.log("enricher");
 
-    return "Ids"
-`;
-        const prepareFunctionBody = `
-    ${prepareBuilder.join("functions", "")} 
-
-    const result = { 
-        ${prepareBuilder.join("return", "").replace(/,\s*$/, "")} 
-    };
-
-    ${prepareBuilder.join("optionals", "\r\n")}
-
-    return result;
-`;
-        const stripFunctionBody = `return {${stripperLines.join("").replace(/,\s*$/, "")}};`;
-        const cloneFunctionBody = `return {${cloneLines.join("").replace(/,\s*$/, "")}};`;
-        const deserializeFunctionBody = `${deserializeBuilder.join("variables", ";")}  return {${deserializeBuilder.join("return", "").replace(/,\s*$/, "")}};`;
-        const enrichFunctionBody = `
-    return function(entity) { 
-
-        function ${this.createChangeTracker.toString()}
-
-        const enableChangeTracking = createChangeTracker();
-
-        ${enrichFunciton.join("functions", "\r\n")} 
-        const enriched = {
-            ${enrichFunciton.join("entity", "").replace(/,\s*$/, "")}
-        }; 
-
-        ${enrichFunciton.join("enrichments", "")} 
-
-        ${enrichFunciton.join("change-tracking", "\r\n")} 
-
-        return enableChangeTracking(enriched); 
-    }`;
-
-        const mergeFunctionBody = `
-    return function(destination, source) {
-
-        ${mergeFunciton.join("functions", "\r\n")}
-
-        pause();
-
-        ${mergeFunciton.join("assignments", ";\r\n")}
-
-        ${mergeFunciton.join("post-ifs", "\r\n")}
-
-        unpause();
-
-        return destination; 
-    }`;
-        const compareFunctionBody = `${compareFunction.declarations.join(";")}  return ${compareFunction.returnBody.join(" && ").replace(/,\s*$/, "")};`
-        const hashFunctionBody = `${hashBuilder.join("functions", "")} 
-    
-    if (type === "Ids") {
-        return \`${hashBuilder.join("return-ids", "")}\`;
-    }
-
-    return \`${hashBuilder.join("return-object", "")}\`;`
-
-        enrichFunciton.inject(this.tableName, "tableName");
-        mergeFunciton.inject(this.tableName, "tableName");
-
-        console.log(enrichFunctionBody);
-
-        const merge = Function(...mergeFunciton.getInjectionsKeys(), mergeFunctionBody)(...mergeFunciton.getInjectionsValues()) as (destination: NonNullEntity<T>, source: NonNullEntity<T>) => NonNullEntity<T>;
-        const prepare = Function("entity", prepareFunctionBody) as (entity: NonNullCreateEntity<T>) => NonNullCreateEntity<T>;
-        const enrich = Function(...enrichFunciton.getInjectionsKeys(), enrichFunctionBody)(...enrichFunciton.getInjectionsValues()) as (entity: NonNullEntity<T>) => NonNullEntity<T>;
-        const strip = Function("entity", stripFunctionBody) as (entity: NonNullEntity<T>) => NonNullEntity<T>;
-        const clone = Function("entity", cloneFunctionBody) as (entity: NonNullEntity<T>) => NonNullEntity<T>;
-        const compare = Function("a", "b", compareFunctionBody) as (a: NonNullEntity<T>, b: NonNullEntity<T>) => boolean;
-        const deserialize = Function("entity", deserializeFunctionBody) as (entity: NonNullEntity<T>) => NonNullEntity<T>;
-        const idSelectorFunction = Function("entity", `return [${idPropertyNames.map(w => `entity.${w}`).join(",")}];`) as (entity: NonNullEntity<T>) => [IdType];
-        const toHash = Function("entity", "type", hashFunctionBody) as HashFunction<T>;
-        const getHashType = Function("entity", hashTypeFunctionBody) as GetHashTypeFunction<T>;
-
-        const getId = (entity: NonNullEntity<T>) => {
-            if (idPropertyNames.length > 1) {
-                return toHash(entity, HashType.Ids) as IdType;
-            }
-    
-            return idSelectorFunction(entity as any)[0] as IdType;
-        }
+        // const idSelectorFunction = Function("entity", `return [${idPropertyNames.map(w => `entity.${w}`).join(",")}];`) as (entity: NonNullEntity<T>) => [IdType];
+        // const toHash = Function("entity", "type", hashFunctionBody) as HashFunction<T>;
+        // const getHashType = Function("entity", "") as GetHashTypeFunction<T>;
 
         return {
-            getId,
+            getId: null as any,
             properties,
             idPropertyNames,
             hasIdentities,
             hashType,
-            getHashType,
-            merge,
-            prepare,
-            clone,
-            deserialize,
-            compare,
-            strip,
-            hash: toHash,
+            getHashType: null as any,
+            merge: null as any,
+            prepare: null as any,
+            clone: null as any,
+            deserialize: null as any,
+            compare: null as any,
+            strip: null as any,
+            hash: null as any,
             key: hash([...allPropertyNamesAndPaths, this.tableName].join(",")),
-            getIds: idSelectorFunction,
-            enrich,
+            getIds: null as any,
+            enrich: null as any,
             tableName: this.tableName,
             hasIdentityKeys
         }

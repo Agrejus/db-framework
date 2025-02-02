@@ -21,6 +21,12 @@ export class DbSetBuilder<TEntity extends {}, TEnhancedPropertyNames extends str
         return this;
     }
 
+    immutable() {
+        // should return immutable builder so we can return the correct type
+        this._isStateful = true;
+        return this;
+    }
+
     create(): DbSet<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>;
     create<TExtension extends DbSet<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>>(extend: (i: DbSetInstanceCreator<TEntity>, dbPlugin: IDbPlugin, schema: CompiledSchema<TEntity>, options: DbSetOptions) => TExtension): TExtension;
     create<TExtension extends DbSet<TEntity, TEnhancedPropertyNames, TComputedPropertyNames> = never>(extend?: (i: DbSetInstanceCreator<TEntity>, dbPlugin: IDbPlugin, schema: CompiledSchema<TEntity>, options: DbSetOptions) => TExtension) {

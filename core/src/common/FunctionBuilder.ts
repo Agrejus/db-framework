@@ -1,4 +1,4 @@
-export class FunctionBuilder<T extends string = never> {
+export class FunctionBuilderV2<T extends string = never> {
 
     private readonly _sections: Map<string, string[]> = new Map<string, string[]>();
     private readonly _injections: Map<string, any> = new Map<string, any>();
@@ -52,7 +52,7 @@ export class FunctionBuilder<T extends string = never> {
     }
 
     use<S extends string>(section: S) {
-        return this as FunctionBuilder<T | S>;
+        return this as FunctionBuilderV2<T | S>;
     }
 }
 

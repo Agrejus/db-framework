@@ -21,13 +21,15 @@ export class PropertyInfo<T extends {}> {
     readonly valueDeserializer: PropertyDeserializer<T> | null = null;
     readonly functionBody: FunctionBody<any, T> | null;
     readonly children: PropertyInfo<T>[] = [];
+    readonly schema: SchemaBase<T, any>;
 
     readonly parent?: PropertyInfo<T>;
 
     private _pathParts: string[] = [];
     private _joinParts: string[] = [];
 
-    constructor(schema: SchemaBase<T, any>, name: string, parent?: PropertyInfo<T>) {
+    constructor(schema: SchemaBase<T, any>, name: string, parent?: PropertyInfo<T> | null) {
+        this.schema = schema;
         this.name = name;
         this.type = schema.type;
 
@@ -47,12 +49,12 @@ export class PropertyInfo<T extends {}> {
         this.parent = parent;
     }
 
-    private _resolvePathArray() {
+    private _resolvePathArray(forceNullableOrOptional: boolean = false) {
 
         if (this._pathParts.length > 0) {
             return {
                 parts: this._pathParts,
-                join: this._joinParts
+                join: forceNullableOrOptional === true ? ["?."] : ["."]
             }
         }
 
@@ -71,11 +73,11 @@ export class PropertyInfo<T extends {}> {
         for (let i = 0; i < parentsList.length; i++) {
 
             const item = parentsList[i];
-            if (areAnyNullableOrOptional == false && (item.isNullable === true || item.isOptional === true)) {
+            if (areAnyNullableOrOptional === false && (item.isNullable === true || item.isOptional === true)) {
                 areAnyNullableOrOptional = true;
             }
 
-            if (areAnyNullableOrOptional == true) {
+            if (areAnyNullableOrOptional === true || forceNullableOrOptional === true) {
                 this._joinParts.push("?.")
                 continue;
             }
@@ -108,7 +110,7 @@ export class PropertyInfo<T extends {}> {
     get hasIdentityChildren() {
         const children = [...this.children];
 
-        for(let i = 0; i < children.length; i++){
+        for (let i = 0; i < children.length; i++) {
             const child = children[i];
 
             if (child.isIdentity === true) {
@@ -123,12 +125,12 @@ export class PropertyInfo<T extends {}> {
         return false;
     }
 
-    getSelectrorPath(parent: string) {
+    getSelectrorPath(parent: string, options?: { forceNullableOrOptional?: boolean }) {
 
-        const resolved = this._resolvePathArray();
+        const resolved = this._resolvePathArray(options?.forceNullableOrOptional);
         const parts: string[] = [];
         const pathArray = [parent, ...resolved.parts];
-        const join = [resolved.join[resolved.join.length - 1] === "?." ? "?." : ".", ...resolved.join];
+        const join = resolved.join;
 
         for (let i = 0; i < pathArray.length; i++) {
 

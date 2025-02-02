@@ -18,7 +18,7 @@ import { performance } from 'perf_hooks'
 const nested = s.define("MY_NESTED_TABLE", {
     _id: s.string().key().identity(),
     _rev: s.string().identity(),
-    order: s.number(),
+    order: s.number().default(() => 1),
     name: s.string(),
     child: s.object({
         name: s.string()
@@ -43,6 +43,7 @@ const r = async () => {
     try {
         const ctx = new Ctx();
         debugger;
+        const { add } = ctx.nested;
 
         // const s1 = performance.now();
         // const r = await ctx.nested.where(w => w.name == "James").firstOrUndefinedAsync();
