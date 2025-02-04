@@ -567,7 +567,7 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         }
     }
 
-    private _buildEnricher(property: PropertyInfo<any>, builder: Code) {
+    private _buildEnricher(property: PropertyInfo<any>, builder: Block) {
         debugger;
         const selectorPath = property.getSelectrorPath("entity", { forceNullableOrOptional: true });
 

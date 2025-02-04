@@ -1,11 +1,14 @@
-type Line = string | Block;
+export type Line<T extends BlockType> = string | Block<T>;
+export type BlockType = string | "default";
 
-export abstract class Block {
-    protected _lines: Line[] = [];
+export abstract class Block<T extends BlockType> {
+    protected sections: Map<string, Line<T>[]> = new Map<string, Line<T>[]>();
+    protected readonly order: { [key in T]: number };
     protected _indent: string = "";
-    protected _parent?: Block;
+    protected _parent?: Block<any>;
 
-    constructor(parentIndent: string = "", parent?: Block) {
+    constructor(order: { [key in T]: number }, parentIndent: string = "", parent?: Block<any>) {
+        this.order = order;
         this._indent = parentIndent;
         this._parent = parent;
     }
@@ -14,12 +17,30 @@ export abstract class Block {
         return this._indent + text;
     }
 
+    push(key: T, lines: Line<T>[]) {
+        const block = this.getOrCreateBlock(key);
+
+        block.
+    }
+
+    getOrCreateBlock(key: T) {
+        if (this.sections.has(key)) {
+            return this.sections.get(key);
+        }
+
+        const block = [new CodeBlock()];
+
+        this.sections.set(key, block);
+
+        return block;
+    }
+
     abstract toString(): string;
 }
 
-export abstract class ContainerBlock extends Block {
-    if<T extends string>(condition: string): IfBuilder<T> {
-        const builder = new IfBuilder(condition, { "default": 1 }, this._indent + "  ", this);
+export abstract class ContainerBlock<T extends BlockType> extends Block<T> {
+    if(condition: string): IfBuilder<T> {
+        const builder = new IfBuilder<BlockType>(condition, { "default": 1 }, this._indent + "  ", this);
         this._lines.push(builder);
         return builder;
     }
@@ -49,11 +70,11 @@ export abstract class ContainerBlock extends Block {
     }
 }
 
-export class VariableBuilder extends ContainerBlock {
+export class VariableBuilder<T extends BlockType> extends ContainerBlock<T> {
     private _declaration: string;
-    private _value?: string | Block;
+    private _value?: string | Block<any>;
 
-    constructor(declaration: string, parentIndent: string = "", parent?: Block) {
+    constructor(declaration: string, parentIndent: string = "", parent?: Block<any>) {
         super(parentIndent, parent);
         this._declaration = declaration;
     }
@@ -63,8 +84,8 @@ export class VariableBuilder extends ContainerBlock {
         return this;
     }
 
-    object(): ObjectBuilder {
-        const objectBuilder = new ObjectBuilder(this._indent, this);
+    object<N extends BlockType>(): ObjectBuilder<N> {
+        const objectBuilder = new ObjectBuilder<N>(this._indent, this);
 
         this._value = objectBuilder;
 
@@ -81,10 +102,10 @@ export class VariableBuilder extends ContainerBlock {
     }
 }
 
-export class RawBuilder extends ContainerBlock {
+export class RawBuilder<T extends BlockType> extends ContainerBlock<T> {
     private _raw: string;
 
-    constructor(raw: string, parentIndent: string = "", parent?: Block) {
+    constructor(raw: string, parentIndent: string = "", parent?: Block<any>) {
         super(parentIndent, parent);
         this._raw = raw;
     }
@@ -94,7 +115,7 @@ export class RawBuilder extends ContainerBlock {
     }
 }
 
-export class ObjectBuilder extends Block {
+export class ObjectBuilder<T extends BlockType> extends Block<T> {
 
     property(line: string) {
         // Add comma to previous line if it exists and isn't a brace
@@ -108,8 +129,8 @@ export class ObjectBuilder extends Block {
         return this;
     }
 
-    nested(propertyName: string) {
-        const builder = new ObjectBuilder(this._indent + "  ", this);
+    nested<N extends BlockType>(propertyName: string) {
+        const builder = new ObjectBuilder<N>(this._indent + "  ", this);
         // Add comma to previous line if it exists and isn't a brace
         if (this._lines.length > 0) {
             const lastLine = this._lines[this._lines.length - 1];
@@ -155,12 +176,12 @@ export class ObjectBuilder extends Block {
 }
 
 
-export class FunctionBuilder extends ContainerBlock {
+export class FunctionBuilder<T extends BlockType> extends ContainerBlock<T> {
     private _functionName?: string;
     private _params: string[] = [];
 
-    constructor(name?: string, parentIndent: string = "", parent?: Block) {
-        super(parentIndent, parent);
+    constructor(order: { [key in T]: number }, name?: string, parentIndent: string = "", parent?: Block<any>) {
+        super(order, parentIndent, parent);
         this._functionName = name;
     }
 
@@ -169,7 +190,7 @@ export class FunctionBuilder extends ContainerBlock {
         return this;
     }
 
-    appendBody(line: string): this {
+    appendBody(line: string, section: string = "default"): this {
         this._lines.push(line);
         return this;
     }
@@ -193,33 +214,10 @@ export class FunctionBuilder extends ContainerBlock {
     }
 }
 
-abstract class SectionContainerBlock<T extends string> extends Block {
-
-    protected sections: Map<string, Line[]> = new Map<string, Line[]>();
-    protected readonly order: { [key in T]: number };
-
-    constructor(order: { [key in T]: number }, parentIndent: string = "", parent?: Block) {
-        super(parentIndent, parent);
-        this.order = order;
-    }
-
-    getOrCreateBlock(key: T) {
-        if (this.sections.has(key)) {
-            return this.sections.get(key);
-        }
-
-        const block = [new CodeBlock()];
-
-        this.sections.set(key, block);
-
-        return block;
-    }
-}
-
-export class IfBuilder<T extends string> extends SectionContainerBlock<T> {
+export class IfBuilder<T extends BlockType> extends ContainerBlock<T> {
     private _condition: string;
 
-    constructor(condition: string, order: { [key in T]: number }, parentIndent: string = "", parent?: Block) {
+    constructor(condition: string, order: { [key in T]: number }, parentIndent: string = "", parent?: Block<any>) {
         super(order, parentIndent, parent);
         this._condition = condition;
     }
