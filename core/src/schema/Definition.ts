@@ -5,7 +5,7 @@ import { SchemaBase } from "./property/base/Base";
 import { createUUID, hash } from "../utilities";
 import { IdType } from "../types";
 import { PropertyInfo } from '../common/PropertyInfo';
-import { Block, CodeBlock, ContainerBlock, ObjectBuilder, FunctionBuilder, Code } from '../common/CodeBlock';
+import { Block, CodeBlock, ContainerBlock, ObjectBuilder, FunctionBuilder, Insert, FunctionFactoryBuilder } from '../common/CodeBlock';
 
 export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
 
@@ -127,10 +127,10 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         builder.push(value);
     }
 
-    private _toNamedFunction(stringifiedFunction: string, parent: ContainerBlock) {
+    private _toNamedFunction(stringifiedFunction: string, parent: ContainerBlock, insert?: Insert) {
         const name = createUUID()
 
-        const functionBody = parent.function(name);
+        const functionBody = parent.function(name, { insert });
 
         if (stringifiedFunction.includes("=>")) {
 
@@ -138,17 +138,21 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
             const parameters = split[0].replace(/\(|\)/g, "").split(",");
             const body = split[1];
 
-            functionBody.parameters(...parameters);
-
             if (body.startsWith("{") === true) {
 
                 functionBody.raw(stringifiedFunction);
-                
-                return;
+
+                return {
+                    functionBody,
+                    parameters
+                };
             }
 
             functionBody.appendBody(`return ${body};`);
-            return
+            return {
+                functionBody,
+                parameters
+            }
         }
 
         throw new Error("Only arrow functions are allowed in the schema definition:  function () {}  --->  () => {}");
@@ -380,109 +384,109 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
     //     builder.append("assignments", directAssignment);
     // }
 
-//     private _appendEnricher(property: PropertyInfo<any>, builder: FunctionBuilder<"variables" | "enrichments" | "functions" | "entity" | "change-tracking">, value: string, selectorPath: string) {
+    //     private _appendEnricher(property: PropertyInfo<any>, builder: FunctionBuilder<"variables" | "enrichments" | "functions" | "entity" | "change-tracking">, value: string, selectorPath: string) {
 
-//         const split = selectorPath.split(/\.|\?\./g);
+    //         const split = selectorPath.split(/\.|\?\./g);
 
-//         if (property.functionBody != null) {
+    //         if (property.functionBody != null) {
 
-//             const parameterNames: string[] = ["enriched", "tableName"];
+    //             const parameterNames: string[] = ["enriched", "tableName"];
 
-//             if (property.injected != null) {
-//                 parameterNames.push(builder.inject(property.injected));
-//             }
+    //             if (property.injected != null) {
+    //                 parameterNames.push(builder.inject(property.injected));
+    //             }
 
-//             if (property.type === SchemaTypes.Computed) {
-//                 const fn = this._toNamedFunction(property.functionBody.toString());
-//                 const ifEnricher = this._createIfAssignment(split, `${fn.name}(${parameterNames.join(",")})`, "enriched");
+    //             if (property.type === SchemaTypes.Computed) {
+    //                 const fn = this._toNamedFunction(property.functionBody.toString());
+    //                 const ifEnricher = this._createIfAssignment(split, `${fn.name}(${parameterNames.join(",")})`, "enriched");
 
-//                 builder.append("functions", fn.body);
-//                 builder.append("enrichments", ifEnricher);
-//                 return;
-//             }
+    //                 builder.append("functions", fn.body);
+    //                 builder.append("enrichments", ifEnricher);
+    //                 return;
+    //             }
 
-//             // function
-//             const fn = this._toNamedFunction(property.functionBody.toString());
-//             const changedFunction = fn.build(`() => ${fn.returning}`)
-//             const ifEnricher = this._createIfAssignment(split, `${fn.name}(${parameterNames.join(",")})`, "enriched");
+    //             // function
+    //             const fn = this._toNamedFunction(property.functionBody.toString());
+    //             const changedFunction = fn.build(`() => ${fn.returning}`)
+    //             const ifEnricher = this._createIfAssignment(split, `${fn.name}(${parameterNames.join(",")})`, "enriched");
 
-//             builder.append("functions", changedFunction);
-//             builder.append("enrichments", ifEnricher);
-//             return
-//         }
+    //             builder.append("functions", changedFunction);
+    //             builder.append("enrichments", ifEnricher);
+    //             return
+    //         }
 
-//         if (property.defaultValue != null) {
+    //         if (property.defaultValue != null) {
 
-//             if (typeof property.defaultValue === "function") {
-//                 const fn = this._toNamedFunction(property.defaultValue.toString());
-//                 builder.append("functions", fn.body);
+    //             if (typeof property.defaultValue === "function") {
+    //                 const fn = this._toNamedFunction(property.defaultValue.toString());
+    //                 builder.append("functions", fn.body);
 
-//                 const parameterNames: string[] = [];
+    //                 const parameterNames: string[] = [];
 
-//                 if (property.injected != null) {
-//                     parameterNames.push(builder.inject(property.injected));
-//                 }
+    //                 if (property.injected != null) {
+    //                     parameterNames.push(builder.inject(property.injected));
+    //                 }
 
-//                 if (property.parent == null) {
-//                     debugger;
-//                     builder.append("entity", `${property.name}: ${selectorPath.split(".").join("?.")} ?? ${fn.name}(${parameterNames.join(",")}),`);
-//                     return;
-//                 }
+    //                 if (property.parent == null) {
+    //                     debugger;
+    //                     builder.append("entity", `${property.name}: ${selectorPath.split(".").join("?.")} ?? ${fn.name}(${parameterNames.join(",")}),`);
+    //                     return;
+    //                 }
 
-//                 debugger;
-//                 builder.append("entity", `${selectorPath.split(".").join("?.")} ?? ${fn.name}(${parameterNames.join(",")})`);
-//                 return;
-//             }
+    //                 debugger;
+    //                 builder.append("entity", `${selectorPath.split(".").join("?.")} ?? ${fn.name}(${parameterNames.join(",")})`);
+    //                 return;
+    //             }
 
-//             if (property.parent == null) {
-//                 debugger;
-//                 builder.append("entity", `${property.name}: ${selectorPath.split(".").join("?.")} ?? ${this._toJson(property.defaultValue)}`);
-//                 return;
-//             }
-//             // DO THIS
-//             return;
-//         }
+    //             if (property.parent == null) {
+    //                 debugger;
+    //                 builder.append("entity", `${property.name}: ${selectorPath.split(".").join("?.")} ?? ${this._toJson(property.defaultValue)}`);
+    //                 return;
+    //             }
+    //             // DO THIS
+    //             return;
+    //         }
 
-//         if (property.isIdentity === true) {
+    //         if (property.isIdentity === true) {
 
-//             if (property.type === SchemaTypes.Object) {
-//                 debugger;
-//                 // For object identity properties, we need to create the object if it doesn't exist
-//                 const destPath = ["enriched", ...split.slice(1, split.length)].join(".");
-//                 const sourcePath = split.join("?.");
+    //             if (property.type === SchemaTypes.Object) {
+    //                 debugger;
+    //                 // For object identity properties, we need to create the object if it doesn't exist
+    //                 const destPath = ["enriched", ...split.slice(1, split.length)].join(".");
+    //                 const sourcePath = split.join("?.");
 
-//                 const objectAssignment = `
-//     if (${sourcePath} != null) {
-//         if (${destPath} == null) {
-//             ${destPath} = {};
-//         }
-//         Object.assign(${destPath}, ${sourcePath});
-//     }`;
+    //                 const objectAssignment = `
+    //     if (${sourcePath} != null) {
+    //         if (${destPath} == null) {
+    //             ${destPath} = {};
+    //         }
+    //         Object.assign(${destPath}, ${sourcePath});
+    //     }`;
 
-//                 builder.append("enrichments", objectAssignment);
-//                 return;
-//             }
+    //                 builder.append("enrichments", objectAssignment);
+    //                 return;
+    //             }
 
-//             // For primitive identity properties
-//             const ifEnricher = this._createIfConditionalPropertyAssignment(split, "enriched");
-//             builder.append("enrichments", ifEnricher);
-//             return;
-//         }
+    //             // For primitive identity properties
+    //             const ifEnricher = this._createIfConditionalPropertyAssignment(split, "enriched");
+    //             builder.append("enrichments", ifEnricher);
+    //             return;
+    //         }
 
-//         if (property.type === SchemaTypes.Object) {
-//             const changedPath = ["enriched", ...split.slice(1, split.length)].join(".");
-//             const enableChangeTracking = `
-// ${changedPath} = enableChangeTracking(${changedPath}, "${property.getAssignmentPath()}", enriched);`
-//             builder.unshift("change-tracking", enableChangeTracking);
-//             return;
-//         }
+    //         if (property.type === SchemaTypes.Object) {
+    //             const changedPath = ["enriched", ...split.slice(1, split.length)].join(".");
+    //             const enableChangeTracking = `
+    // ${changedPath} = enableChangeTracking(${changedPath}, "${property.getAssignmentPath()}", enriched);`
+    //             builder.unshift("change-tracking", enableChangeTracking);
+    //             return;
+    //         }
 
-//         if (property.parent != null && property.parent.isIdentity === true) {
-//             return;
-//         }
+    //         if (property.parent != null && property.parent.isIdentity === true) {
+    //             return;
+    //         }
 
-//         builder.append("entity", value);
-//     }
+    //         builder.append("entity", value);
+    //     }
 
     private createChangeTracker() {
 
@@ -567,9 +571,10 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         }
     }
 
-    private _buildEnricher(property: PropertyInfo<any>, builder: Block) {
-        debugger;
+    private _buildEnricher(property: PropertyInfo<any>, builder: FunctionBuilder, root: FunctionFactoryBuilder, mainName: string) {
+
         const selectorPath = property.getSelectrorPath("entity", { forceNullableOrOptional: true });
+        const index = builder.indexOf(mainName); // the index may change, keep grabbing it
 
         if (property.isIdentity === true) {
 
@@ -577,26 +582,73 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
 
                 return;
             }
-            const section = builder.getOrCreateBlock(2);
+
             const entitySelectorPath = property.getAssignmentPath("entity");
             const enrichedAssignmentPath = property.getAssignmentPath("enriched");
-            section.if(`${selectorPath} != null`).appendBody(`${enrichedAssignmentPath} = ${entitySelectorPath}`);
+            builder.if(`${selectorPath} != null`, { insert: { index, type: "after" } }).appendBody(`${enrichedAssignmentPath} = ${entitySelectorPath}`);
 
             return;
         }
 
+        // let's introduce the idea of SLOTS SO WE CAN INJECT IN DIFFERENT AREAS
         if (property.defaultValue != null) {
 
+            // only thing we can inject for defaults is an injected object
             if (typeof property.defaultValue === "function") {
-                debugger;
-                const section = builder.getBlock(1);
-                this._toNamedFunction(property.defaultValue.toString(), section);
 
-                // example: () => 1
-                // should be: const someName = () => 1;
+                // we need to add the call for this function too, want to create an if
+
+                if (property.injected != null) {
+                    const parameter = root.createParameter(property.injected);
+                    root.parameters(parameter);
+
+                    const defaultFunction = this._toNamedFunction(property.defaultValue.toString(), builder, { index, type: "before" });
+
+                    defaultFunction.functionBody.parameters(...defaultFunction.parameters.map(w => ({ name: w, callName: parameter.name })));
+
+                    // FIX ME, ADD SLOTS
+                    builder.if("test == null", { insert: { index, type: "after" } });
+
+                    return;
+                }
+
+                const defaultFunction = this._toNamedFunction(property.defaultValue.toString(), builder, { index, type: "before" });
+                defaultFunction.functionBody.parameters(...defaultFunction.parameters);
+
+                return;
             }
+
+            return;
         }
 
+        if (property.functionBody != null) {
+
+            const parameterNames: string[] = ["enriched", "tableName"];
+
+            if (property.injected != null) {
+                //parameterNames.push(builder.inject(property.injected));
+            }
+
+            if (property.type === SchemaTypes.Computed) {
+                this._toNamedFunction(property.functionBody.toString(), builder, { index, type: "before" });
+                // const ifEnricher = this._createIfAssignment(split, `${fn.name}(${parameterNames.join(",")})`, "enriched");
+
+                // builder.append("functions", fn.body);
+                // builder.append("enrichments", ifEnricher);
+                return;
+            }
+
+            return;
+        }
+
+        let enriched = builder.get<ObjectBuilder>("enrichedParent.enriched");
+
+        if (enriched == null) {
+            enriched = builder.variable("enriched", { name: "enrichedParent", insert: { index, type: "after" } }).object({ name: "enriched" });
+        }
+
+        const entitySelectorPath = property.getAssignmentPath("entity");
+        enriched.property(`${property.name}: ${entitySelectorPath}`);
     }
 
     private _processStringifier(property: PropertyInfo<any>, objectBuilder: ObjectBuilder) {
@@ -660,13 +712,15 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         const schema = this;
         const properties: PropertyInfo<T>[] = [];
 
-        const enricher = new Code<"functions" | "body">({ functions: 1, body: 2 });
-        const functions = enricher.getOrCreateBlock("functions");
-        const body = enricher.getOrCreateBlock("body");
+        const enricher = new CodeBlock();
 
-        const enricherFunctionBody = functions.function().parameters("entity")
+        const enricherFunctionRoot = enricher.factory().parameters({ name: "tableName", value: this.tableName });
+        const enricherFunctionBody = enricherFunctionRoot.function().parameters("entity").return()
         enricherFunctionBody.raw(this.createChangeTracker.toString());
-        body.variable("enableChangeTracking").value("createChangeTracker()");
+        const mainName = enricherFunctionBody.variable("enableChangeTracking").value("createChangeTracker()").name;
+        // const enricherFunctionBody = enricher.function().parameters("entity")
+        // enricherFunctionBody.raw(this.createChangeTracker.toString());
+        // const mainName = enricherFunctionBody.variable("enableChangeTracking").value("createChangeTracker()").name;
 
         // Build stringifier
         const stringifier = new CodeBlock();
@@ -733,7 +787,7 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
             }
 
             this._processStringifier(property, returnObject);
-            this._buildEnricher(property, enricher);
+            this._buildEnricher(property, enricherFunctionBody, enricherFunctionRoot, mainName);
         });
 
         console.log("enricher");

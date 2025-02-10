@@ -18,7 +18,7 @@ import { performance } from 'perf_hooks'
 const nested = s.define("MY_NESTED_TABLE", {
     _id: s.string().key().identity(),
     _rev: s.string().identity(),
-    order: s.number().default(() => 1),
+    order: s.number().default((d) => d.test, { test: 1 }),
     name: s.string(),
     child: s.object({
         name: s.string()

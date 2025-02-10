@@ -1,16 +1,83 @@
-export type Line<T extends BlockType> = string | Block<T>;
-export type BlockType = string | "default";
+import { createUUID } from "../utilities";
 
-export abstract class Block<T extends BlockType> {
-    protected sections: Map<string, Line<T>[]> = new Map<string, Line<T>[]>();
-    protected readonly order: { [key in T]: number };
+type Line = string | Block;
+
+type Param = { name: string, value: any };
+type GenericParam = { name: string, callName: string };
+
+export type Insert = { index: number, type: "before" | "after" };
+export type CreateBlockOptions = { name?: string, insert?: Insert };
+
+export abstract class Block {
+    readonly name: string = createUUID();
+    protected _lines: Line[] = [];
     protected _indent: string = "";
     protected _parent?: Block<any>;
 
-    constructor(order: { [key in T]: number }, parentIndent: string = "", parent?: Block<any>) {
-        this.order = order;
+    constructor(name?: string, parentIndent: string = "", parent?: Block) {
+        this.name = name != null ? name : createUUID();
         this._indent = parentIndent;
         this._parent = parent;
+    }
+
+    indexOf(name: string) {
+        return this._lines.findIndex(w => typeof w !== "string" && w.name === name);
+    }
+
+    get<T extends Block>(name: string): T | undefined {
+
+        if (name.includes('.') === false) {
+            return this._lines.find(w => typeof w !== "string" && w.name === name) as T | undefined;
+        }
+
+        const split = name.split('.');
+        let result: Block = this;
+
+        for (const item of split) {
+            const found = result._lines.find(w => typeof w !== "string" && w.name === item) as Block;
+
+            if (found == null) {
+
+                if (result instanceof VariableBuilder && result.getValue instanceof Block && result.getValue.name === item) {
+                    result = result.getValue;
+                    continue;
+                }
+
+                return undefined;
+            }
+
+            result = found;
+        }
+
+        return result as T;
+    }
+
+    has(name: string) {
+        return this._lines.some(w => typeof w !== "string" && w.name === name);
+    }
+
+    protected push(line: Line, insert?: Insert) {
+
+        if (insert != null) {
+
+            if (insert.type === "before") {
+                this._lines.splice(insert.index, 0, line);
+                return;
+            }
+
+            const i = insert.index + 1;
+            const max = this._lines.length - 1;
+
+            if (i > max) {
+                this._lines.push(line);
+                return;
+            }
+
+            this._lines.splice(i, 0, line);
+            return;
+        }
+
+        this._lines.push(line);
     }
 
     protected indent(text: string): string {
@@ -38,44 +105,54 @@ export abstract class Block<T extends BlockType> {
     abstract toString(): string;
 }
 
-export abstract class ContainerBlock<T extends BlockType> extends Block<T> {
-    if(condition: string): IfBuilder<T> {
-        const builder = new IfBuilder<BlockType>(condition, { "default": 1 }, this._indent + "  ", this);
-        this._lines.push(builder);
+export abstract class ContainerBlock extends Block {
+    if(condition: string, options?: CreateBlockOptions): IfBuilder {
+        const builder = new IfBuilder(condition, options?.name, this._indent + "  ", this);
+        this.push(builder, options?.insert);
         return builder;
     }
 
-    raw(raw: string): RawBuilder {
-        const builder = new RawBuilder(raw, this._indent + "  ", this);
-        this._lines.push(builder);
+    raw(raw: string, options?: CreateBlockOptions): RawBuilder {
+        const builder = new RawBuilder(raw, options?.name, this._indent + "  ", this);
+        this.push(builder, options?.insert);
         return builder;
     }
 
-    function(name?: string): FunctionBuilder {
-        const builder = new FunctionBuilder(name, this._indent + "  ", this);
-        this._lines.push(builder);
+    function(name?: string, options?: CreateBlockOptions): FunctionBuilder {
+        const builder = new FunctionBuilder(name, options?.name, this._indent + "  ", this);
+        this.push(builder, options?.insert);
         return builder;
     }
 
-    variable(declaration: string): VariableBuilder {
-        const builder = new VariableBuilder(declaration, this._indent + "  ", this);
-        this._lines.push(builder);
+    factory(name?: string, options?: CreateBlockOptions): FunctionFactoryBuilder {
+        const builder = new FunctionFactoryBuilder(name, options?.name, this._indent + "  ", this);
+        this.push(builder, options?.insert);
         return builder;
     }
 
-    object(): ObjectBuilder {
-        const builder = new ObjectBuilder(this._indent + "  ", this);
-        this._lines.push(builder);
+    variable(declaration: string, options?: CreateBlockOptions): VariableBuilder {
+        const builder = new VariableBuilder(declaration, options?.name, this._indent + "  ", this);
+        this.push(builder, options?.insert);
+        return builder;
+    }
+
+    object(options?: CreateBlockOptions): ObjectBuilder {
+        const builder = new ObjectBuilder(options?.name, this._indent + "  ", this);
+        this.push(builder, options?.insert);
         return builder;
     }
 }
 
-export class VariableBuilder<T extends BlockType> extends ContainerBlock<T> {
-    private _declaration: string;
-    private _value?: string | Block<any>;
+export class VariableBuilder extends ContainerBlock {
+    protected _declaration: string;
+    protected _value?: string | Block;
 
-    constructor(declaration: string, parentIndent: string = "", parent?: Block<any>) {
-        super(parentIndent, parent);
+    get getValue() {
+        return this._value;
+    }
+
+    constructor(declaration: string, name?: string, parentIndent: string = "", parent?: Block) {
+        super(name, parentIndent, parent);
         this._declaration = declaration;
     }
 
@@ -84,8 +161,8 @@ export class VariableBuilder<T extends BlockType> extends ContainerBlock<T> {
         return this;
     }
 
-    object<N extends BlockType>(): ObjectBuilder<N> {
-        const objectBuilder = new ObjectBuilder<N>(this._indent, this);
+    object(options?: CreateBlockOptions): ObjectBuilder {
+        const objectBuilder = new ObjectBuilder(options?.name, this._indent, this);
 
         this._value = objectBuilder;
 
@@ -105,8 +182,8 @@ export class VariableBuilder<T extends BlockType> extends ContainerBlock<T> {
 export class RawBuilder<T extends BlockType> extends ContainerBlock<T> {
     private _raw: string;
 
-    constructor(raw: string, parentIndent: string = "", parent?: Block<any>) {
-        super(parentIndent, parent);
+    constructor(raw: string, name?: string, parentIndent: string = "", parent?: Block) {
+        super(name, parentIndent, parent);
         this._raw = raw;
     }
 
@@ -125,12 +202,12 @@ export class ObjectBuilder<T extends BlockType> extends Block<T> {
                 this._lines[this._lines.length - 1] = lastLine + ",";
             }
         }
-        this._lines.push(line);
+        this.push(line);
         return this;
     }
 
-    nested<N extends BlockType>(propertyName: string) {
-        const builder = new ObjectBuilder<N>(this._indent + "  ", this);
+    nested(propertyName: string, name?: string) {
+        const builder = new ObjectBuilder(name, this._indent + "  ", this);
         // Add comma to previous line if it exists and isn't a brace
         if (this._lines.length > 0) {
             const lastLine = this._lines[this._lines.length - 1];
@@ -139,11 +216,11 @@ export class ObjectBuilder<T extends BlockType> extends Block<T> {
             }
         }
         // Add the property name and opening brace
-        this._lines.push(`${propertyName}: {`);
+        this.push(`${propertyName}: {`);
         // Add the nested builder
-        this._lines.push(builder);
+        this.push(builder);
         // Add the closing brace
-        this._lines.push("}");
+        this.push("}");
         return builder;
     }
 
@@ -175,30 +252,60 @@ export class ObjectBuilder<T extends BlockType> extends Block<T> {
     }
 }
 
-
-export class FunctionBuilder<T extends BlockType> extends ContainerBlock<T> {
+export class FunctionFactoryBuilder extends ContainerBlock {
     private _functionName?: string;
-    private _params: string[] = [];
+    private _params: Param[] = [];
+    private _return: boolean = false;
 
-    constructor(order: { [key in T]: number }, name?: string, parentIndent: string = "", parent?: Block<any>) {
-        super(order, parentIndent, parent);
-        this._functionName = name;
+    constructor(functionName?: string, sectionName?: string, parentIndent: string = "", parent?: Block) {
+        super(sectionName, parentIndent, parent);
+        this._functionName = functionName;
     }
 
-    parameters(...params: string[]): this {
+    createParameter(value: any): Param {
+        const name = `injection${this._params.length}`;
+        return {
+            name,
+            value
+        }
+    }
+
+    parameters(...params: Param[]): this {
         this._params.push(...params);
         return this;
     }
 
-    appendBody(line: string, section: string = "default"): this {
-        this._lines.push(line);
+    return() {
+        this._return = true;
         return this;
     }
 
+    appendBody(line: string): this {
+        this.push(line);
+        return this;
+    }
+
+    invoke() {
+        const body = this.toString();
+        const parameterNames = this._getParameterNames();
+        const parameterValues = this._getParameterValues();
+
+        return Function(...parameterNames, body)(...parameterValues)
+    }
+
+    private _getParameterNames() {
+        return this._params.map(w => w.name).join(", ")
+    }
+
+    private _getParameterValues() {
+        return this._params.map(w => w.value);
+    }
+
     toString(): string {
+        const r = this._return === true ? "return " : "";
         const signature = this._functionName
-            ? `function ${this._functionName}(${this._params.join(", ")})`
-            : `function(${this._params.join(", ")})`;
+            ? `${r}function ${this._functionName}(${this._getParameterNames()})`
+            : `${r}function(${this._getParameterNames()})`;
 
         const lines = [
             this.indent(signature + " {"),
@@ -214,41 +321,78 @@ export class FunctionBuilder<T extends BlockType> extends ContainerBlock<T> {
     }
 }
 
-export class IfBuilder<T extends BlockType> extends ContainerBlock<T> {
+export class FunctionBuilder extends ContainerBlock {
+    private _functionName?: string;
+    private _params: (string | GenericParam)[] = [];
+    private _return: boolean = false;
+
+    constructor(functionName?: string, sectionName?: string, parentIndent: string = "", parent?: Block) {
+        super(sectionName, parentIndent, parent);
+        this._functionName = functionName;
+    }
+
+    parameters(...params: (string | GenericParam)[]): this {
+        this._params.push(...params);
+        return this;
+    }
+
+    return() {
+        this._return = true;
+        return this;
+    }
+
+    appendBody(line: string): this {
+        this.push(line);
+        return this;
+    }
+
+    private _getParameterKeys() {
+        return this._params.map(w => typeof w === "object" ? w.name: w).join(", ")
+    }
+
+    toString(): string {
+        const r = this._return === true ? "return " : "";
+        const signature = this._functionName
+            ? `${r}function ${this._functionName}(${this._getParameterKeys()})`
+            : `${r}function(${this._getParameterKeys()})`;
+
+        const lines = [
+            this.indent(signature + " {"),
+            ...this._lines.map(line =>
+                typeof line === 'string'
+                    ? this.indent("  " + line)
+                    : line.toString()
+            ),
+            this.indent("}")
+        ];
+
+        return lines.join('\n');
+    }
+}
+
+export class IfBuilder extends ContainerBlock {
     private _condition: string;
 
-    constructor(condition: string, order: { [key in T]: number }, parentIndent: string = "", parent?: Block<any>) {
-        super(order, parentIndent, parent);
+    constructor(condition: string, name?: string, parentIndent: string = "", parent?: Block) {
+        super(name, parentIndent, parent);
         this._condition = condition;
     }
 
-    appendBody(line: string, section: string = "default"): this {
-
-        const s = this.getOrCreateBlock(section as any) 
-
-        s.push(line);
-
+    appendBody(line: string): this {
+        this.push(line);
         return this;
     }
 
     toString(): string {
-        const lines = [];
-
-        const keys = [...this.sections.keys()] as T[];
-        keys.sort((a, b) => this.order[a] - this.order[b]); // ascending
-
-        for (const key of keys) {
-            const section = this.sections.get(key);
-            lines.push([
-                this.indent(`if (${this._condition}) {`),
-                ...section.map(line =>
-                    typeof line === 'string'
-                        ? this.indent("  " + line)
-                        : line.toString()
-                ),
-                this.indent("}")
-            ]);
-        }
+        const lines = [
+            this.indent(`if (${this._condition}) {`),
+            this._lines.map(line =>
+                typeof line === 'string'
+                    ? this.indent("  " + line)
+                    : line.toString()
+            ),
+            this.indent("}")
+        ]
 
         return lines.join("\n\n");
     }
@@ -264,45 +408,3 @@ export class CodeBlock extends ContainerBlock {
         ).join('\n\n');
     }
 }
-
-// this is close, we need to be able to add sections to any block
-// that way we can define the order
-// can we set an order for each line when added?
-// it's hard to have just numbers, we need some
-// maybe have generics for each section and in the ctor define the order?
-// NOW EACH TIME WE ADD CODE WE NEED A SECTION OR PROVIDE A DEFAULT
-export class Code<T extends string> {
-
-    private _sections: Map<string, CodeBlock> = new Map<string, CodeBlock>();
-    private readonly _order: { [key in T]: number };
-
-    constructor(order: { [key in T]: number }) {
-        this._order = order;
-    }
-
-    getOrCreateBlock(key: T) {
-        if (this._sections.has(key)) {
-            return this._sections.get(key);
-        }
-
-        const block = new CodeBlock();
-
-        this._sections.set(key, block);
-
-        return block;
-    }
-
-    toString() {
-        const lines = [];
-
-        const keys = [...this._sections.keys()] as T[];
-        keys.sort((a, b) => this._order[a] - this._order[b]); // ascending
-
-        for (const key of keys) {
-            const section = this._sections.get(key);
-            lines.push(section.toString());
-        }
-
-        return lines.join("\n\n");
-    }
-}   
