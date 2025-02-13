@@ -9,10 +9,10 @@ export type Insert = { index: number, type: "before" | "after" };
 export type CreateBlockOptions = { name?: string, insert?: Insert };
 
 export abstract class Block {
-    readonly name: string = createUUID();
+    readonly name: string;
     protected _lines: Line[] = [];
     protected _indent: string = "";
-    protected _parent?: Block<any>;
+    protected _parent?: Block;
 
     constructor(name?: string, parentIndent: string = "", parent?: Block) {
         this.name = name != null ? name : createUUID();
@@ -84,23 +84,6 @@ export abstract class Block {
         return this._indent + text;
     }
 
-    push(key: T, lines: Line<T>[]) {
-        const block = this.getOrCreateBlock(key);
-
-        block.
-    }
-
-    getOrCreateBlock(key: T) {
-        if (this.sections.has(key)) {
-            return this.sections.get(key);
-        }
-
-        const block = [new CodeBlock()];
-
-        this.sections.set(key, block);
-
-        return block;
-    }
 
     abstract toString(): string;
 }
@@ -141,6 +124,31 @@ export abstract class ContainerBlock extends Block {
         this.push(builder, options?.insert);
         return builder;
     }
+
+    slot(name: string, insert?: Insert) {
+        const builder = new SlotBlock(name, this._indent + "  ", this);
+        this.push(builder, insert);
+        return builder;
+    }
+}
+
+export class SlotBlock extends ContainerBlock {
+
+    constructor(name: string, parentIndent: string = "", parent?: Block) {
+        super(name, parentIndent, parent);
+    }
+
+    insert(line: string | Block) {
+        this.push(line);
+    }
+
+    toString(): string {
+        return this._lines.map(line =>
+            typeof line === 'string'
+                ? this.indent(line)
+                : line.toString()
+        ).join('\n\n');
+    }
 }
 
 export class VariableBuilder extends ContainerBlock {
@@ -179,7 +187,7 @@ export class VariableBuilder extends ContainerBlock {
     }
 }
 
-export class RawBuilder<T extends BlockType> extends ContainerBlock<T> {
+export class RawBuilder extends ContainerBlock {
     private _raw: string;
 
     constructor(raw: string, name?: string, parentIndent: string = "", parent?: Block) {
@@ -192,7 +200,7 @@ export class RawBuilder<T extends BlockType> extends ContainerBlock<T> {
     }
 }
 
-export class ObjectBuilder<T extends BlockType> extends Block<T> {
+export class ObjectBuilder extends Block {
 
     property(line: string) {
         // Add comma to previous line if it exists and isn't a brace
@@ -347,7 +355,11 @@ export class FunctionBuilder extends ContainerBlock {
     }
 
     private _getParameterKeys() {
-        return this._params.map(w => typeof w === "object" ? w.name: w).join(", ")
+        return this._params.map(w => typeof w === "object" ? w.name : w).join(", ")
+    }
+
+    toCallable() {
+        return `${this._functionName}(${this._params.map(w => typeof w === "object" ? w.callName : w).join(", ")})`
     }
 
     toString(): string {

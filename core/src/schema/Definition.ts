@@ -5,7 +5,7 @@ import { SchemaBase } from "./property/base/Base";
 import { createUUID, hash } from "../utilities";
 import { IdType } from "../types";
 import { PropertyInfo } from '../common/PropertyInfo';
-import { Block, CodeBlock, ContainerBlock, ObjectBuilder, FunctionBuilder, Insert, FunctionFactoryBuilder } from '../common/CodeBlock';
+import { Block, CodeBlock, ContainerBlock, ObjectBuilder, FunctionBuilder, Insert, FunctionFactoryBuilder, SlotBlock } from '../common/CodeBlock';
 
 export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
 
@@ -130,7 +130,7 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
     private _toNamedFunction(stringifiedFunction: string, parent: ContainerBlock, insert?: Insert) {
         const name = createUUID()
 
-        const functionBody = parent.function(name, { insert });
+        const builder = parent.function(name, { insert });
 
         if (stringifiedFunction.includes("=>")) {
 
@@ -140,17 +140,17 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
 
             if (body.startsWith("{") === true) {
 
-                functionBody.raw(stringifiedFunction);
+                builder.raw(stringifiedFunction);
 
                 return {
-                    functionBody,
+                    builder,
                     parameters
                 };
             }
 
-            functionBody.appendBody(`return ${body};`);
+            builder.appendBody(`return ${body};`);
             return {
-                functionBody,
+                builder,
                 parameters
             }
         }
@@ -571,21 +571,32 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         }
     }
 
-    private _buildEnricher(property: PropertyInfo<any>, builder: FunctionBuilder, root: FunctionFactoryBuilder, mainName: string) {
+    private _setEnrichedProperty(property: PropertyInfo<any>, root: CodeBlock) {
+        let enriched = root.get<ObjectBuilder>("factory.function.enriched.object.enriched");
+
+        if (enriched == null) {
+            const enrichedSlot = root.get<SlotBlock>("factory.function.enriched");
+            enriched = enrichedSlot.variable("enriched", { name: "object" }).object({ name: "enriched" });
+        }
+
+        const entitySelectorPath = property.getAssignmentPath("entity");
+        enriched.property(`${property.name}: ${entitySelectorPath}`);
+    }
+
+    private _buildEnricher(property: PropertyInfo<any>, root: CodeBlock) {
 
         const selectorPath = property.getSelectrorPath("entity", { forceNullableOrOptional: true });
-        const index = builder.indexOf(mainName); // the index may change, keep grabbing it
 
         if (property.isIdentity === true) {
 
             if (property.type === SchemaTypes.Object) {
-
                 return;
             }
 
+            const slot = root.get<SlotBlock>("factory.function.ifs");
             const entitySelectorPath = property.getAssignmentPath("entity");
             const enrichedAssignmentPath = property.getAssignmentPath("enriched");
-            builder.if(`${selectorPath} != null`, { insert: { index, type: "after" } }).appendBody(`${enrichedAssignmentPath} = ${entitySelectorPath}`);
+            slot.if(`${selectorPath} != null`).appendBody(`${enrichedAssignmentPath} = ${entitySelectorPath}`);
 
             return;
         }
@@ -593,27 +604,36 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         // let's introduce the idea of SLOTS SO WE CAN INJECT IN DIFFERENT AREAS
         if (property.defaultValue != null) {
 
+            this._setEnrichedProperty(property, root);
+
             // only thing we can inject for defaults is an injected object
             if (typeof property.defaultValue === "function") {
-
                 // we need to add the call for this function too, want to create an if
+                const declarationsSlot = root.get<SlotBlock>("factory.function.declarations");
 
                 if (property.injected != null) {
-                    const parameter = root.createParameter(property.injected);
-                    root.parameters(parameter);
 
-                    const defaultFunction = this._toNamedFunction(property.defaultValue.toString(), builder, { index, type: "before" });
+                    const factory = root.get<FunctionFactoryBuilder>("factory");
+                    const parameter = factory.createParameter(property.injected);
+                    factory.parameters(parameter);
 
-                    defaultFunction.functionBody.parameters(...defaultFunction.parameters.map(w => ({ name: w, callName: parameter.name })));
+                    const defaultFunctionWithParameters = this._toNamedFunction(property.defaultValue.toString(), declarationsSlot);
+                    // This is ok, defaults can only inject one parameter anyways
+                    defaultFunctionWithParameters.builder.parameters(...defaultFunctionWithParameters.parameters.map(w => ({ name: w, callName: parameter.name })));
 
-                    // FIX ME, ADD SLOTS
-                    builder.if("test == null", { insert: { index, type: "after" } });
+
+                    const ifsSlot = root.get<SlotBlock>("factory.function.ifs");
+                    const enrichedAssignmentPath = property.getAssignmentPath("enriched");
+                    ifsSlot.if(`${enrichedAssignmentPath} == null`).appendBody(`${enrichedAssignmentPath} = ${defaultFunctionWithParameters.builder.toCallable()}`);
 
                     return;
                 }
 
-                const defaultFunction = this._toNamedFunction(property.defaultValue.toString(), builder, { index, type: "before" });
-                defaultFunction.functionBody.parameters(...defaultFunction.parameters);
+                const defaultFunction = this._toNamedFunction(property.defaultValue.toString(), declarationsSlot);
+
+                const ifsSlot = root.get<SlotBlock>("factory.function.ifs");
+                const enrichedAssignmentPath = property.getAssignmentPath("enriched");
+                ifsSlot.if(`${enrichedAssignmentPath} == null`).appendBody(`${enrichedAssignmentPath} = ${defaultFunction.builder.toCallable()}`);
 
                 return;
             }
@@ -626,29 +646,30 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
             const parameterNames: string[] = ["enriched", "tableName"];
 
             if (property.injected != null) {
-                //parameterNames.push(builder.inject(property.injected));
+
+                const factory = root.get<FunctionFactoryBuilder>("factory");
+                const parameter = factory.createParameter(property.injected);
+                factory.parameters(parameter);
+
+                parameterNames.push(parameter.name);
             }
 
             if (property.type === SchemaTypes.Computed) {
-                this._toNamedFunction(property.functionBody.toString(), builder, { index, type: "before" });
-                // const ifEnricher = this._createIfAssignment(split, `${fn.name}(${parameterNames.join(",")})`, "enriched");
+                const declarationsSlot = root.get<SlotBlock>("factory.function.declarations");
+                const defaultFunctionWithParameters = this._toNamedFunction(property.functionBody.toString(), declarationsSlot);
+                defaultFunctionWithParameters.builder.parameters(...parameterNames.map(w => ({ name: w, callName: w })));
 
-                // builder.append("functions", fn.body);
-                // builder.append("enrichments", ifEnricher);
+
+                const ifsSlot = root.get<SlotBlock>("factory.function.ifs");
+                const enrichedAssignmentPath = property.getAssignmentPath("enriched");
+                ifsSlot.if(`${enrichedAssignmentPath} == null`).appendBody(`${enrichedAssignmentPath} = ${defaultFunctionWithParameters.builder.toCallable()}`);
                 return;
             }
 
             return;
         }
 
-        let enriched = builder.get<ObjectBuilder>("enrichedParent.enriched");
-
-        if (enriched == null) {
-            enriched = builder.variable("enriched", { name: "enrichedParent", insert: { index, type: "after" } }).object({ name: "enriched" });
-        }
-
-        const entitySelectorPath = property.getAssignmentPath("entity");
-        enriched.property(`${property.name}: ${entitySelectorPath}`);
+        this._setEnrichedProperty(property, root);
     }
 
     private _processStringifier(property: PropertyInfo<any>, objectBuilder: ObjectBuilder) {
@@ -713,11 +734,19 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         const properties: PropertyInfo<T>[] = [];
 
         const enricher = new CodeBlock();
+        debugger;
+        const enricherFunctionRoot = enricher.factory(undefined, { name: "factory" }).parameters({ name: "tableName", value: this.tableName });
+        const enricherFunctionBody = enricherFunctionRoot.function(undefined, { name: "function" }).parameters("entity").return();
 
-        const enricherFunctionRoot = enricher.factory().parameters({ name: "tableName", value: this.tableName });
-        const enricherFunctionBody = enricherFunctionRoot.function().parameters("entity").return()
         enricherFunctionBody.raw(this.createChangeTracker.toString());
-        const mainName = enricherFunctionBody.variable("enableChangeTracking").value("createChangeTracker()").name;
+        enricherFunctionBody.variable("enableChangeTracking").value("createChangeTracker()");
+        
+        enricherFunctionBody.slot("enriched");
+        enricherFunctionBody.slot("declarations");
+        enricherFunctionBody.slot("ifs");
+        enricherFunctionBody.slot("assignment");
+
+        enricherFunctionBody.raw('return enriched;')
         // const enricherFunctionBody = enricher.function().parameters("entity")
         // enricherFunctionBody.raw(this.createChangeTracker.toString());
         // const mainName = enricherFunctionBody.variable("enableChangeTracking").value("createChangeTracker()").name;
@@ -787,7 +816,7 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
             }
 
             this._processStringifier(property, returnObject);
-            this._buildEnricher(property, enricherFunctionBody, enricherFunctionRoot, mainName);
+            this._buildEnricher(property, enricher);
         });
 
         console.log("enricher");
