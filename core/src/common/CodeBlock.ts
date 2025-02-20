@@ -30,7 +30,7 @@ export abstract class Block {
             return this._lines.find(w => typeof w !== "string" && w.name === name) as T | undefined;
         }
 
-        const split = name.split('.');
+        const split = name.match(/(\[[^\]]+\]|[^.]+)/g);
         let result: Block = this;
 
         for (const item of split) {
@@ -119,6 +119,12 @@ export abstract class ContainerBlock extends Block {
         return builder;
     }
 
+    assign(variableName: string, options?: CreateBlockOptions): AssignmentBuilder {
+        const builder = new AssignmentBuilder(variableName, options?.name, this._indent + "  ", this);
+        this.push(builder, options?.insert);
+        return builder;
+    }
+
     object(options?: CreateBlockOptions): ObjectBuilder {
         const builder = new ObjectBuilder(options?.name, this._indent + "  ", this);
         this.push(builder, options?.insert);
@@ -148,6 +154,56 @@ export class SlotBlock extends ContainerBlock {
                 ? this.indent(line)
                 : line.toString()
         ).join('\n\n');
+    }
+}
+
+export class AssignmentBuilder extends ContainerBlock {
+    protected _variableName: string;
+    protected _value?: string | Block;
+    protected _functionName?: string;
+
+    get getValue() {
+        return this._value;
+    }
+
+    constructor(variableName: string, name?: string, parentIndent: string = "", parent?: Block) {
+        super(name, parentIndent, parent);
+        this._variableName = variableName;
+    }
+
+    value(value: string): this {
+        this._value = value;
+        return this;
+    }
+
+    object(options?: CreateBlockOptions): ObjectBuilder {
+        const objectBuilder = new ObjectBuilder(options?.name, this._indent, this);
+
+        this._value = objectBuilder;
+
+        return objectBuilder;
+    }
+
+    call(functionName: string, options?: CreateBlockOptions): ObjectBuilder {
+        this._functionName = functionName;
+        const objectBuilder = new ObjectBuilder(options?.name, this._indent, this);
+
+        this._value = objectBuilder;
+
+        return objectBuilder;
+    }
+
+    toString(): string {
+
+        if (this._value == null) {
+            throw new Error("Value cannot be null for AssignmentBuilder Builder")
+        }
+
+        if (this._functionName != null) {
+            return this.indent(`${this._variableName} = ${this._functionName}(${this._value.toString()});`);
+        }
+
+        return this.indent(`${this._variableName} = ${this._value.toString()};`);
     }
 }
 

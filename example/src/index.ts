@@ -21,7 +21,10 @@ const nested = s.define("MY_NESTED_TABLE", {
     order: s.number().default((d) => d.test, { test: 1 }),
     name: s.string(),
     child: s.object({
-        name: s.string()
+        name: s.string(),
+        nested: s.object({
+            winner: s.number()
+        })
     })
 }).modify(w => ({
     documentType: w.computed((_, t) => t).tracked()

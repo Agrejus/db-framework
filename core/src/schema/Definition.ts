@@ -5,7 +5,8 @@ import { SchemaBase } from "./property/base/Base";
 import { createUUID, hash } from "../utilities";
 import { IdType } from "../types";
 import { PropertyInfo } from '../common/PropertyInfo';
-import { Block, CodeBlock, ContainerBlock, ObjectBuilder, FunctionBuilder, Insert, FunctionFactoryBuilder, SlotBlock } from '../common/CodeBlock';
+import { Block, CodeBlock, ContainerBlock, ObjectBuilder, FunctionBuilder, Insert, FunctionFactoryBuilder, SlotBlock, AssignmentBuilder } from '../common/CodeBlock';
+import { SlotPath } from '../common/SlotPath';
 
 export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
 
@@ -41,41 +42,65 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         return this;
     }
 
-    private _iterate(instance: SchemaBase<any, any>, callback: (property: PropertyInfo<any>) => void) {
+    private _iterate(
+        instance: SchemaBase<any, any>,
+        callback: (property: PropertyInfo<any>) => void
+    ) {
         const explore: {
-            path: string | null,
-            instance: (SchemaBase<any, any> | { [key: string]: SchemaBase<any, any> }),
-            parents: { schema: { [key: string]: SchemaBase<any, any> }, propertyInfo: PropertyInfo<any> }[],
-            propertyInfo: PropertyInfo<any> | null
-
-        }[] = [{ path: null, instance, parents: [], propertyInfo: null }];
+            path: string | null;
+            instance:
+            | SchemaBase<any, any>
+            | { [key: string]: SchemaBase<any, any> };
+            parents: {
+                schema: { [key: string]: SchemaBase<any, any> };
+                propertyInfo: PropertyInfo<any>;
+            }[];
+            propertyInfo: PropertyInfo<any> | null;
+        }[] = [
+                { path: null, instance, parents: [], propertyInfo: null }
+            ];
         const properties: PropertyInfo<any>[] = [];
 
         for (let i = 0; i < explore.length; i++) {
             const item = explore[i];
 
-            if (item.instance.type == SchemaTypes.Definition) {
-                explore.push({ path: null, instance: item.instance.instance, parents: [], propertyInfo: null });
+            if (item.instance.type === SchemaTypes.Definition) {
+                explore.push({
+                    path: null,
+                    instance: item.instance.instance,
+                    parents: [],
+                    propertyInfo: null
+                });
                 continue;
             }
 
-            const instance = item.instance as { [key: string]: SchemaBase<any, any> };
-            for (const key in instance) {
+            const instanceObj = item.instance as {
+                [key: string]: SchemaBase<any, any>;
+            };
+            for (const key in instanceObj) {
+                const propertyInstance = instanceObj[key] as SchemaBase<any, any>;
+                const previousParent =
+                    item.parents.length === 0
+                        ? null
+                        : item.parents[item.parents.length - 1].propertyInfo;
 
-                const property = instance[key] as SchemaBase<any, any>;
-                const previousParent = item.parents.length == 0 ? null : item.parents[item.parents.length - 1].propertyInfo;
-
-                if (property.type === SchemaTypes.Object) {
-
-                    const propertyInfo = new PropertyInfo<any>(property, key, previousParent)
+                if (propertyInstance.type === SchemaTypes.Object) {
+                    const propertyInfo = new PropertyInfo<any>(
+                        propertyInstance,
+                        key,
+                        previousParent
+                    );
                     explore.push({
-                        path: [item.path, key].filter(w => w != null).join("."),
-                        instance: property.instance,
-                        parents: [...item.parents, { schema: instance, propertyInfo: propertyInfo }],
+                        path: [item.path, key].filter((w) => w != null).join("."),
+                        instance: propertyInstance.instance,
+                        parents: [
+                            ...item.parents,
+                            { schema: instanceObj, propertyInfo: propertyInfo }
+                        ],
                         propertyInfo
                     });
 
-                    if (item.parents.length === 0) {
+                    if (previousParent === null) {
                         properties.push(propertyInfo);
                         continue;
                     }
@@ -84,8 +109,12 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
                     continue;
                 }
 
-                const childPrimitivePropertyInfo = new PropertyInfo<any>((item.instance as any)[key], key, previousParent)
-                if (item.parents.length === 0) {
+                const childPrimitivePropertyInfo = new PropertyInfo<any>(
+                    (item.instance as any)[key],
+                    key,
+                    previousParent
+                );
+                if (previousParent === null) {
                     properties.push(childPrimitivePropertyInfo);
                     continue;
                 }
@@ -94,8 +123,16 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
             }
         }
 
-        for (let i = 0; i < properties.length; i++) {
-            callback(properties[i]);
+        // Recursively trigger callbacks on properties and their children
+        function recursiveCallback(prop: PropertyInfo<any>) {
+            callback(prop);
+            for (const child of prop.children) {
+                recursiveCallback(child);
+            }
+        }
+
+        for (const prop of properties) {
+            recursiveCallback(prop);
         }
     }
 
@@ -157,336 +194,6 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
 
         throw new Error("Only arrow functions are allowed in the schema definition:  function () {}  --->  () => {}");
     }
-
-    // private _appendCompare(property: PropertyInfo<any>, builder: { returnBody: string[], declarations: string[] }, path: string) {
-
-    //     if (property.isUnmapped == true) {
-    //         return;
-    //     }
-
-    //     if (property.isIdentity === true) {
-    //         return;
-    //     }
-
-    //     if (property.valueSerializer != null) {
-    //         const fn = this._toNamedFunction(property.valueSerializer.toString());
-
-    //         builder.declarations.push(fn.body)
-    //         builder.returnBody.push(`${path.replace("entity.", "a.")} == ${fn.name}(${path.replace("entity.", "b.")})`);
-    //         return;
-    //     }
-
-    //     builder.returnBody.push(`${path.replace("entity.", "a.")} == ${path.replace("entity.", "b.")}`);
-    // }
-
-    // private _appendPrepare(property: PropertyInfo<any>, builder: FunctionBuilder<"return" | "functions" | "optionals">, value: string, selectorPath?: string) {
-
-    //     if (property.isUnmapped === true) {
-    //         return;
-    //     }
-
-    //     if (property.isIdentity === true && selectorPath != null) {
-    //         // Optionally map for updates.  Identities need to be sent in for updates, but not for additions
-    //         const path = property.getSelectrorPath("entity");
-    //         const assignmentPath = property.getAssignmentPath("result");
-    //         const optionalAssignment = `
-    // if (${path} != null) {
-    //     ${assignmentPath} = ${path};
-    // }
-    //         `;
-
-    //         builder.append("optionals", optionalAssignment)
-    //         return;
-    //     }
-
-    //     if (property.valueSerializer != null) {
-    //         const fn = this._toNamedFunction(property.valueSerializer.toString());
-
-    //         builder.append("functions", fn.body);
-    //         builder.append("return", value.replace(selectorPath, `${fn.name}(${selectorPath})`));
-    //         return;
-    //     }
-
-    //     builder.append("return", value);
-    // }
-
-    // private _appendDeserializer(property: PropertyInfo<any>, builder: FunctionBuilder<"return" | "variables">, value: string, selectorPath?: string) {
-
-    //     if (property.isUnmapped == true) {
-    //         return;
-    //     }
-
-    //     if (selectorPath == null) {
-    //         builder.append("return", value);
-    //         return;
-    //     }
-
-    //     if (property.valueDeserializer != null) {
-    //         const fn = this._toNamedFunction(property.valueDeserializer.toString());
-
-    //         builder.append("variables", fn.body);
-    //         builder.append("return", value.replace(selectorPath, `${fn.name}(${selectorPath})`));
-    //         return;
-    //     }
-
-    //     builder.append("return", value);
-    // }
-
-    // private _appendHashMapper(property: PropertyInfo<any>, builder: FunctionBuilder<"return-object" | "return-ids" | "functions">, selectorPath: string) {
-
-    //     if (property.isKey) {
-    //         builder.append("return-ids", `$\{${property.getSelectrorPath("entity")}\}`);
-    //         return
-    //     }
-
-    //     if (property.isIdentity == true || property.type === SchemaTypes.Computed || property.type === SchemaTypes.Function) {
-    //         return;
-    //     }
-
-    //     let optionalPath = selectorPath.split(/\.|\?\./g);
-
-    //     if (property.type === SchemaTypes.Date) {
-    //         const path = optionalPath.join("?.");
-
-    //         optionalPath = [`stringifyDate(${path})`];
-    //     }
-
-    //     builder.append("return-object", `$\{${optionalPath.join("?.")}\}`);
-    // }
-
-    private _createIfAssignment(splitSelectorPath: string[], functionBody: string, parentName: string) {
-
-        const parentPathParts: string[] = [parentName];
-        for (let i = 0; i < splitSelectorPath.length; i++) {
-
-            const item = splitSelectorPath[i];
-            if (i === 0) {
-                continue;
-            }
-
-            if (i >= splitSelectorPath.length - 1) {
-                break;
-            }
-
-            parentPathParts.push(item);
-        }
-
-        const parentPath = parentPathParts.join("?.");
-        const assignmentPath = [parentName, ...splitSelectorPath.slice(1, splitSelectorPath.length)].join(".")
-
-        return `
-    if (${parentPath} != null) {
-        ${assignmentPath} = ${functionBody};
-    }
-    `
-    }
-
-    private _createIfConditionalPropertyAssignment(splitSelectorPath: string[], parentName: string) {
-
-        const assignmentPath = [parentName, ...splitSelectorPath.slice(1, splitSelectorPath.length)].join(".")
-
-        return `
-    if (${splitSelectorPath.join("?.")} != null) {
-        ${assignmentPath} = ${splitSelectorPath.join(".")};
-    }
-`
-
-    }
-
-    // private _appendMerge(property: PropertyInfo<any>, builder: FunctionBuilder<"assignments" | "functions" | "deserializers" | "post-ifs">, value: string, selectorPath: string) {
-
-    //     const fullSplit = selectorPath.split(/\.|\?\./g)
-    //     const split = [...fullSplit];
-
-    //     split.splice(0, 1);
-
-    //     if (property.valueDeserializer != null) {
-    //         const fn = this._toNamedFunction(property.valueDeserializer.toString());
-    //         const assignment = `
-    //     if (${fullSplit.join("?.")} != null) {
-    //         ${fullSplit.join(".")} = ${fn.name}(${fullSplit.join(".")});
-    //     }
-    //     `
-    //         builder.append("functions", fn.body);
-    //         builder.append("deserializers", assignment);
-    //         return;
-    //     }
-
-    //     if (property.functionBody != null) {
-
-    //         const parameterNames: string[] = ["destination", "tableName"];
-
-    //         if (property.injected != null) {
-    //             parameterNames.push(builder.inject(property.injected));
-    //         }
-
-    //         if (property.type === SchemaTypes.Computed) {
-    //             const fn = this._toNamedFunction(property.functionBody.toString());
-    //             const ifEnricher = this._createIfAssignment(fullSplit, `${fn.name}(${parameterNames.join(",")})`, "destination");
-
-    //             builder.append("functions", fn.body);
-    //             builder.append("post-ifs", ifEnricher);
-    //             return;
-    //         }
-
-    //         // function
-    //         const fn = this._toNamedFunction(property.functionBody.toString());
-    //         const changedFunction = fn.build(`() => ${fn.returning}`)
-
-    //         const ifEnricher = this._createIfAssignment(fullSplit, `${fn.name}(${parameterNames.join(",")})`, "destination");
-
-    //         builder.append("functions", changedFunction);
-    //         builder.append("post-ifs", ifEnricher);
-    //         return
-    //     }
-
-    //     if ((property.isNullable === true || property.isOptional === true) && property.type !== SchemaTypes.Object) {
-    //         const ifEnricher = this._createIfConditionalPropertyAssignment(fullSplit, "source");
-    //         builder.append("assignments", ifEnricher);
-    //         return;
-    //     }
-
-    //     if (property.type === SchemaTypes.Object) {
-    //         // Create the object if it doesn't exist
-    //         const destPath = ["destination", ...split].join(".");
-    //         const sourcePath = ["source", ...split].join(".");
-
-    //         const objectAssignment = `
-    //     if (${sourcePath} != null) {
-    //         if (${destPath} == null) {
-    //             ${destPath} = {};
-    //         }
-    //         ${property.hasIdentityChildren ?
-    //                 // For objects with identity children, we need to merge
-    //                 `Object.assign(${destPath}, ${sourcePath});` :
-    //                 // For regular objects, we can do a direct assignment
-    //                 `${destPath} = ${sourcePath};`
-    //             }
-    //     }`
-    //         builder.append("assignments", objectAssignment);
-    //         return;
-    //     }
-
-    //     if (property.isKey === true || property.isIdentity === true) {
-    //         const conditionalAssignment = `
-    //     if (${["source", ...split].join("?.")} != null) {
-    //         ${["destination", ...split].join(".")} = ${["source", ...split].join("?.")}
-    //     }`
-    //         builder.append("post-ifs", conditionalAssignment);
-    //         return;
-    //     }
-
-    //     // For all other properties, do a direct assignment if source value exists
-    //     const directAssignment = `
-    //     if (${["source", ...split].join("?.")} != null) {
-    //         ${["destination", ...split].join(".")} = ${["source", ...split].join("?.")}
-    //     }`
-    //     builder.append("assignments", directAssignment);
-    // }
-
-    //     private _appendEnricher(property: PropertyInfo<any>, builder: FunctionBuilder<"variables" | "enrichments" | "functions" | "entity" | "change-tracking">, value: string, selectorPath: string) {
-
-    //         const split = selectorPath.split(/\.|\?\./g);
-
-    //         if (property.functionBody != null) {
-
-    //             const parameterNames: string[] = ["enriched", "tableName"];
-
-    //             if (property.injected != null) {
-    //                 parameterNames.push(builder.inject(property.injected));
-    //             }
-
-    //             if (property.type === SchemaTypes.Computed) {
-    //                 const fn = this._toNamedFunction(property.functionBody.toString());
-    //                 const ifEnricher = this._createIfAssignment(split, `${fn.name}(${parameterNames.join(",")})`, "enriched");
-
-    //                 builder.append("functions", fn.body);
-    //                 builder.append("enrichments", ifEnricher);
-    //                 return;
-    //             }
-
-    //             // function
-    //             const fn = this._toNamedFunction(property.functionBody.toString());
-    //             const changedFunction = fn.build(`() => ${fn.returning}`)
-    //             const ifEnricher = this._createIfAssignment(split, `${fn.name}(${parameterNames.join(",")})`, "enriched");
-
-    //             builder.append("functions", changedFunction);
-    //             builder.append("enrichments", ifEnricher);
-    //             return
-    //         }
-
-    //         if (property.defaultValue != null) {
-
-    //             if (typeof property.defaultValue === "function") {
-    //                 const fn = this._toNamedFunction(property.defaultValue.toString());
-    //                 builder.append("functions", fn.body);
-
-    //                 const parameterNames: string[] = [];
-
-    //                 if (property.injected != null) {
-    //                     parameterNames.push(builder.inject(property.injected));
-    //                 }
-
-    //                 if (property.parent == null) {
-    //                     debugger;
-    //                     builder.append("entity", `${property.name}: ${selectorPath.split(".").join("?.")} ?? ${fn.name}(${parameterNames.join(",")}),`);
-    //                     return;
-    //                 }
-
-    //                 debugger;
-    //                 builder.append("entity", `${selectorPath.split(".").join("?.")} ?? ${fn.name}(${parameterNames.join(",")})`);
-    //                 return;
-    //             }
-
-    //             if (property.parent == null) {
-    //                 debugger;
-    //                 builder.append("entity", `${property.name}: ${selectorPath.split(".").join("?.")} ?? ${this._toJson(property.defaultValue)}`);
-    //                 return;
-    //             }
-    //             // DO THIS
-    //             return;
-    //         }
-
-    //         if (property.isIdentity === true) {
-
-    //             if (property.type === SchemaTypes.Object) {
-    //                 debugger;
-    //                 // For object identity properties, we need to create the object if it doesn't exist
-    //                 const destPath = ["enriched", ...split.slice(1, split.length)].join(".");
-    //                 const sourcePath = split.join("?.");
-
-    //                 const objectAssignment = `
-    //     if (${sourcePath} != null) {
-    //         if (${destPath} == null) {
-    //             ${destPath} = {};
-    //         }
-    //         Object.assign(${destPath}, ${sourcePath});
-    //     }`;
-
-    //                 builder.append("enrichments", objectAssignment);
-    //                 return;
-    //             }
-
-    //             // For primitive identity properties
-    //             const ifEnricher = this._createIfConditionalPropertyAssignment(split, "enriched");
-    //             builder.append("enrichments", ifEnricher);
-    //             return;
-    //         }
-
-    //         if (property.type === SchemaTypes.Object) {
-    //             const changedPath = ["enriched", ...split.slice(1, split.length)].join(".");
-    //             const enableChangeTracking = `
-    // ${changedPath} = enableChangeTracking(${changedPath}, "${property.getAssignmentPath()}", enriched);`
-    //             builder.unshift("change-tracking", enableChangeTracking);
-    //             return;
-    //         }
-
-    //         if (property.parent != null && property.parent.isIdentity === true) {
-    //             return;
-    //         }
-
-    //         builder.append("entity", value);
-    //     }
 
     private createChangeTracker() {
 
@@ -572,15 +279,48 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
     }
 
     private _setEnrichedProperty(property: PropertyInfo<any>, root: CodeBlock) {
-        let enriched = root.get<ObjectBuilder>("factory.function.enriched.object.enriched");
+        const entitySelectorPath = property.getAssignmentPath("entity");
+
+        if (property.parent != null) {
+            debugger;
+            const slotPath = new SlotPath("factory", "function", "assignment");
+            const path = property.parent.getAssignmentPath("enriched");
+            slotPath.push(`[${path}]`)
+            const builder = root.get<AssignmentBuilder>(slotPath.get());
+            const objectBuilder = builder.getValue as ObjectBuilder;
+
+            const childEntityPathSelector = property.getSelectrorPath("entity");
+            objectBuilder.property(`${property.name}: ${childEntityPathSelector}`);
+            return;
+        }
+
+        const slotPath = new SlotPath("factory", "function", "enriched", "object", "enriched");
+        let enriched = root.get<ObjectBuilder>(slotPath.get());
 
         if (enriched == null) {
             const enrichedSlot = root.get<SlotBlock>("factory.function.enriched");
             enriched = enrichedSlot.variable("enriched", { name: "object" }).object({ name: "enriched" });
         }
 
-        const entitySelectorPath = property.getAssignmentPath("entity");
         enriched.property(`${property.name}: ${entitySelectorPath}`);
+    }
+
+    private _buildSlotPath(property: PropertyInfo<any>, path: SlotPath) {
+
+        const result = new SlotPath(...path.path);
+        const items: string[] = []
+        let p = property;
+
+        while (p.parent != null) {
+            items.unshift(p.name);
+            p = p.parent;
+        }
+
+        items.unshift(p.name);
+
+        result.push(...items);
+
+        return result
     }
 
     private _buildEnricher(property: PropertyInfo<any>, root: CodeBlock) {
@@ -601,7 +341,41 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
             return;
         }
 
-        // let's introduce the idea of SLOTS SO WE CAN INJECT IN DIFFERENT AREAS
+        // Handle nested objects recursively using PropertyInfo children
+        if (property.type === SchemaTypes.Object) {
+            debugger;
+
+            const slotPath = new SlotPath("factory", "function", "enriched", "object", "enriched");
+            const nestedSlotPath = this._buildSlotPath(property, slotPath);
+
+            // Generate null check for current level using parent relationships
+            const entityPath = property.getSelectrorPath("entity", { forceNullableOrOptional: true });
+            const enrichedPath = property.getAssignmentPath("enriched");
+
+            if (property.isNullable || property.isOptional) {
+                const ifsSlot = root.get<SlotBlock>("factory.function.ifs");
+                ifsSlot.if(`${entityPath} != null`).appendBody(`${enrichedPath} = enableChangeTracking(${enrichedPath} || {}, "${property.name}");`);
+
+                let enriched = root.get<ObjectBuilder>(nestedSlotPath.get());
+
+                if (enriched == null) {
+                    const enrichedSlot = root.get<ObjectBuilder>(slotPath.get());
+                    enriched = enrichedSlot.nested(property.name, property.name);
+                }
+                return;
+            }
+
+            const assignmentSlot = root.get<SlotBlock>("factory.function.assignment");
+            const childPath = property.getAssignmentPath("enriched");
+            assignmentSlot.assign(childPath, { name: `[${childPath}]` }).call("enableChangeTracking", { name: "builder" });
+
+            // for (const child of property.children) {
+            //     const childEntityPathSelector = child.getSelectrorPath("entity");
+            //     objectBuilder.property(`${child.name}: ${childEntityPathSelector}`)
+            // }
+            return;
+        }
+
         if (property.defaultValue != null) {
 
             this._setEnrichedProperty(property, root);
@@ -740,7 +514,7 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
 
         enricherFunctionBody.raw(this.createChangeTracker.toString());
         enricherFunctionBody.variable("enableChangeTracking").value("createChangeTracker()");
-        
+
         enricherFunctionBody.slot("enriched");
         enricherFunctionBody.slot("declarations");
         enricherFunctionBody.slot("ifs");

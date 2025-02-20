@@ -130,7 +130,7 @@ export class PropertyInfo<T extends {}> {
         const resolved = this._resolvePathArray(options?.forceNullableOrOptional);
         const parts: string[] = [];
         const pathArray = [parent, ...resolved.parts];
-        const join = resolved.join;
+        const join = [options?.forceNullableOrOptional === true ? "?." : ".", ...resolved.join];
 
         for (let i = 0; i < pathArray.length; i++) {
 
