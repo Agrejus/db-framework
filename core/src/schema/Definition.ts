@@ -5,8 +5,9 @@ import { SchemaBase } from "./property/base/Base";
 import { createUUID, hash } from "../utilities";
 import { IdType } from "../types";
 import { PropertyInfo } from '../common/PropertyInfo';
-import { Block, CodeBlock, ContainerBlock, ObjectBuilder, FunctionBuilder, Insert, FunctionFactoryBuilder, SlotBlock, AssignmentBuilder } from '../common/CodeBlock';
+import { Block, CodeBuilder, ContainerBlock, ObjectBuilder, FunctionBuilder, Insert, FunctionFactoryBuilder, SlotBlock, AssignmentBuilder } from '../common/CodeBlock';
 import { SlotPath } from '../common/SlotPath';
+import { EnrichmentHandlerBuilder } from '../handlers/EnrichmentHandlerBuilder';
 
 export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
 
@@ -278,11 +279,10 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         }
     }
 
-    private _setEnrichedProperty(property: PropertyInfo<any>, root: CodeBlock) {
+    private _setEnrichedProperty(property: PropertyInfo<any>, root: CodeBuilder) {
         const entitySelectorPath = property.getAssignmentPath("entity");
 
         if (property.parent != null) {
-            debugger;
             const slotPath = new SlotPath("factory", "function", "assignment");
             const path = property.parent.getAssignmentPath("enriched");
             slotPath.push(`[${path}]`)
@@ -323,7 +323,7 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         return result
     }
 
-    private _buildEnricher(property: PropertyInfo<any>, root: CodeBlock) {
+    private _buildEnricher(property: PropertyInfo<any>, root: CodeBuilder) {
 
         const selectorPath = property.getSelectrorPath("entity", { forceNullableOrOptional: true });
 
@@ -343,7 +343,6 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
 
         // Handle nested objects recursively using PropertyInfo children
         if (property.type === SchemaTypes.Object) {
-            debugger;
 
             const slotPath = new SlotPath("factory", "function", "enriched", "object", "enriched");
             const nestedSlotPath = this._buildSlotPath(property, slotPath);
@@ -431,7 +430,8 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
             if (property.type === SchemaTypes.Computed) {
                 const declarationsSlot = root.get<SlotBlock>("factory.function.declarations");
                 const defaultFunctionWithParameters = this._toNamedFunction(property.functionBody.toString(), declarationsSlot);
-                defaultFunctionWithParameters.builder.parameters(...parameterNames.map(w => ({ name: w, callName: w })));
+
+                defaultFunctionWithParameters.builder.parameters(...parameterNames.map((w, i) => ({ name: defaultFunctionWithParameters.parameters[i], callName: w })));
 
 
                 const ifsSlot = root.get<SlotBlock>("factory.function.ifs");
@@ -507,26 +507,27 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         const schema = this;
         const properties: PropertyInfo<T>[] = [];
 
-        const enricher = new CodeBlock();
-        debugger;
-        const enricherFunctionRoot = enricher.factory(undefined, { name: "factory" }).parameters({ name: "tableName", value: this.tableName });
+        const enrichmentHandlerBuilder = new EnrichmentHandlerBuilder();
+        const enricher = enrichmentHandlerBuilder.build();
+        const enricherCodeBuilder = new CodeBuilder();
+        const enricherFunctionRoot = enricherCodeBuilder.factory("factory", { name: "factory" }).parameters({ name: "tableName", value: this.tableName });
         const enricherFunctionBody = enricherFunctionRoot.function(undefined, { name: "function" }).parameters("entity").return();
 
-        enricherFunctionBody.raw(this.createChangeTracker.toString());
+        enricherFunctionBody.raw(`function ${this.createChangeTracker.toString()}`);
         enricherFunctionBody.variable("enableChangeTracking").value("createChangeTracker()");
 
         enricherFunctionBody.slot("enriched");
         enricherFunctionBody.slot("declarations");
         enricherFunctionBody.slot("ifs");
         enricherFunctionBody.slot("assignment");
+        enricherFunctionBody.raw('\treturn enableChangeTracking(enriched);');
 
-        enricherFunctionBody.raw('return enriched;')
         // const enricherFunctionBody = enricher.function().parameters("entity")
         // enricherFunctionBody.raw(this.createChangeTracker.toString());
         // const mainName = enricherFunctionBody.variable("enableChangeTracking").value("createChangeTracker()").name;
 
         // Build stringifier
-        const stringifier = new CodeBlock();
+        const stringifier = new CodeBuilder();
         const returnObject = stringifier.object();
 
         //     function stringifyDate(d) {
@@ -590,16 +591,18 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
             }
 
             this._processStringifier(property, returnObject);
-            this._buildEnricher(property, enricher);
+            enricher.handle(property, enricherCodeBuilder)
         });
 
-        console.log("enricher");
-        console.log(enricher.toString());
-        console.log("enricher");
-
+        const params = enricherFunctionRoot.getParameters()
+        const enrichGenerator = Function(`return ${enricher.toString()}`);
+        const enricherFactoryFunction = enrichGenerator();
         // const idSelectorFunction = Function("entity", `return [${idPropertyNames.map(w => `entity.${w}`).join(",")}];`) as (entity: NonNullEntity<T>) => [IdType];
         // const toHash = Function("entity", "type", hashFunctionBody) as HashFunction<T>;
         // const getHashType = Function("entity", "") as GetHashTypeFunction<T>;
+        const enricherFunction = enricherFactoryFunction(...params.map(w => w.value));
+
+        console.log(enricher.toString());
 
         return {
             getId: null as any,
@@ -617,7 +620,7 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
             hash: null as any,
             key: hash([...allPropertyNamesAndPaths, this.tableName].join(",")),
             getIds: null as any,
-            enrich: null as any,
+            enrich: enricherFunction,
             tableName: this.tableName,
             hasIdentityKeys
         }

@@ -24,7 +24,7 @@ export abstract class Block {
         return this._lines.findIndex(w => typeof w !== "string" && w.name === name);
     }
 
-    get<T extends Block>(name: string): T | undefined {
+    getOrDefault<T extends Block>(name: string): T | undefined {
 
         if (name.includes('.') === false) {
             return this._lines.find(w => typeof w !== "string" && w.name === name) as T | undefined;
@@ -50,6 +50,16 @@ export abstract class Block {
         }
 
         return result as T;
+    }
+
+    get<T extends Block>(name: string): T {
+        const found = this.getOrDefault(name);
+
+        if (found == null) {
+            throw new Error(`Error finding code block for given path.  Path: ${name}`)
+        }
+
+        return found as T;
     }
 
     has(name: string) {
@@ -326,6 +336,10 @@ export class FunctionFactoryBuilder extends ContainerBlock {
         this._functionName = functionName;
     }
 
+    getParameters() {
+        return [...this._params];
+    }
+
     createParameter(value: any): Param {
         const name = `injection${this._params.length}`;
         return {
@@ -466,7 +480,7 @@ export class IfBuilder extends ContainerBlock {
     }
 }
 
-export class CodeBlock extends ContainerBlock {
+export class CodeBuilder extends ContainerBlock {
 
     toString(): string {
         return this._lines.map(line =>
