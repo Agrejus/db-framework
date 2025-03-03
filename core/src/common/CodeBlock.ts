@@ -465,14 +465,23 @@ export class IfBuilder extends ContainerBlock {
         return this;
     }
 
+    private stringifyLine(line: Line) {
+        if (typeof line === 'string') {
+            return this.indent("  " + line);
+        }
+
+        if (Array.isArray(line)) {
+            return line.join("\r\n")
+        }
+
+        return line.toString();
+    }
+
     toString(): string {
+        // need to join with \r\n because we are not an object
         const lines = [
             this.indent(`if (${this._condition}) {`),
-            this._lines.map(line =>
-                typeof line === 'string'
-                    ? this.indent("  " + line)
-                    : line.toString()
-            ),
+            this._lines.map(x => this.stringifyLine(x)).join("\r\n"),
             this.indent("}")
         ]
 

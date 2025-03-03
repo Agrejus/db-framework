@@ -8,6 +8,7 @@ import { PropertyInfo } from '../common/PropertyInfo';
 import { Block, CodeBuilder, ContainerBlock, ObjectBuilder, FunctionBuilder, Insert, FunctionFactoryBuilder, SlotBlock, AssignmentBuilder } from '../common/CodeBlock';
 import { SlotPath } from '../common/SlotPath';
 import { EnrichmentHandlerBuilder } from '../handlers/EnrichmentHandlerBuilder';
+import { MergeHandlerBuilder } from '../handlers/MergeHandlerBuilder';
 
 export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
 
@@ -508,8 +509,13 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         const properties: PropertyInfo<T>[] = [];
 
         const enrichmentHandlerBuilder = new EnrichmentHandlerBuilder();
+        const mergeHandlerFactory = new MergeHandlerBuilder();
+
         const enricher = enrichmentHandlerBuilder.build();
+        const merge = mergeHandlerFactory.build();
+
         const enricherCodeBuilder = new CodeBuilder();
+
         const enricherFunctionRoot = enricherCodeBuilder.factory("factory", { name: "factory" }).parameters({ name: "tableName", value: this.tableName });
         const enricherFunctionBody = enricherFunctionRoot.function(undefined, { name: "function" }).parameters("entity").return();
 
@@ -522,6 +528,20 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         enricherFunctionBody.slot("assignment");
         enricherFunctionBody.raw('\treturn enableChangeTracking(enriched);');
 
+        const mergeCodeBuilder = new CodeBuilder();
+        const mergeFunctionsSlot = mergeCodeBuilder.slot("functions")
+
+        mergeFunctionsSlot.function("pause")
+            .appendBody("// initiate change tracking if needed")
+            .if("destination.__tracking__ == null")
+            .appendBody("destination.__tracking__ = {};")
+            .appendBody("destination.__tracking__.isPaused = true;");
+
+        mergeFunctionsSlot.function("unpause")
+            .appendBody("destination.__tracking__.isPaused  = false;");
+
+        mergeCodeBuilder.slot("assignments");
+        mergeCodeBuilder.slot("return");
         // const enricherFunctionBody = enricher.function().parameters("entity")
         // enricherFunctionBody.raw(this.createChangeTracker.toString());
         // const mainName = enricherFunctionBody.variable("enableChangeTracking").value("createChangeTracker()").name;
@@ -591,18 +611,19 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
             }
 
             this._processStringifier(property, returnObject);
-            enricher.handle(property, enricherCodeBuilder)
+            enricher.handle(property, enricherCodeBuilder);
+            merge.handle(property, mergeCodeBuilder);
         });
-
+        console.log(enricherCodeBuilder.toString());
         const params = enricherFunctionRoot.getParameters()
-        const enrichGenerator = Function(`return ${enricher.toString()}`);
+        const enrichGenerator = Function(`return ${enricherCodeBuilder.toString()}`);
         const enricherFactoryFunction = enrichGenerator();
         // const idSelectorFunction = Function("entity", `return [${idPropertyNames.map(w => `entity.${w}`).join(",")}];`) as (entity: NonNullEntity<T>) => [IdType];
         // const toHash = Function("entity", "type", hashFunctionBody) as HashFunction<T>;
         // const getHashType = Function("entity", "") as GetHashTypeFunction<T>;
         const enricherFunction = enricherFactoryFunction(...params.map(w => w.value));
 
-        console.log(enricher.toString());
+        console.log(mergeFunctionsSlot.toString());
 
         return {
             getId: null as any,
