@@ -25,9 +25,6 @@ export class PropertyInfo<T extends {}> {
 
     readonly parent?: PropertyInfo<T>;
 
-    private _pathParts: string[] = [];
-    private _joinParts: string[] = [];
-
     constructor(schema: SchemaBase<T, any>, name: string, parent?: PropertyInfo<T> | null) {
         this.schema = schema;
         this.name = name;
@@ -49,46 +46,64 @@ export class PropertyInfo<T extends {}> {
         this.parent = parent;
     }
 
-    private _resolvePathArray(forceNullableOrOptional: boolean = false) {
+    private _getPropertyChain(): PropertyInfo<T>[] {
+        const chain: PropertyInfo<T>[] = [];
+        let current: PropertyInfo<T> | undefined = this;
 
-        if (this._pathParts.length > 0) {
-            return {
-                parts: this._pathParts,
-                join: forceNullableOrOptional === true ? ["?."] : ["."]
-            }
+        while (current) {
+            chain.unshift(current);
+            current = current.parent;
         }
 
-        const parentsList: PropertyInfo<T>[] = [];
-        this._pathParts.push(this.name);
+        return chain;
+    }
 
-        let parent = this.parent;
-
-        while (parent != null) {
-            parentsList.unshift(parent);
-            this._pathParts.unshift(parent.name);
-            parent = parent.parent;
+    private _needsOptionalChaining(prop: PropertyInfo<T>, assignmentType?: AssignmentType): boolean {
+        if (assignmentType === "ASSIGNMENT") {
+            return false;
         }
 
-        let areAnyNullableOrOptional: boolean = false
-        for (let i = 0; i < parentsList.length; i++) {
+        return assignmentType === "FORCE_NULLABLE_OR_OPTIONAL" || prop.isNullable || prop.isOptional;
+    }
 
-            const item = parentsList[i];
-            if (areAnyNullableOrOptional === false && (item.isNullable === true || item.isOptional === true)) {
-                areAnyNullableOrOptional = true;
-            }
+    private _resolvePathArray(options?: {
+        root?: string,
+        assignmentType?: AssignmentType
+    }) {
+        const path: string[] = options?.root ? [options.root] : [];
+        const propertyChain = this._getPropertyChain();
 
-            if (areAnyNullableOrOptional === true || forceNullableOrOptional === true) {
-                this._joinParts.push("?.")
-                continue;
-            }
-
-            this._joinParts.push(".");
+        // Process each property in the chain
+        for (const prop of propertyChain) {
+            const accessor = this._needsOptionalChaining(prop, options?.assignmentType) ? '?.' : '.';
+            path.push(accessor, prop.name);
         }
 
-        return {
-            parts: this._pathParts,
-            join: this._joinParts
-        };
+        return path;
+    }
+
+    getPathArray() {
+        const path: string[] = [];
+        const propertyChain = this._getPropertyChain();
+
+        // Process each property in the chain
+        for (const prop of propertyChain) {
+            path.push(prop.name);
+        }
+
+        return path;
+    }
+
+    getParentPathArray() {
+        const path: string[] = [];
+        const propertyChain = this._getPropertyChain();
+
+        for (let i = 0; i < propertyChain.length - 1; i++) {
+            const prop = propertyChain[i];
+            path.push(prop.name);
+        }
+
+        return path;
     }
 
     get hasNullableParents() {
@@ -125,34 +140,24 @@ export class PropertyInfo<T extends {}> {
         return false;
     }
 
-    getSelectrorPath(parent: string, options?: { forceNullableOrOptional?: boolean }) {
+    getSelectrorPath(options: { parent: string, assignmentType?: AssignmentType }) {
 
-        const resolved = this._resolvePathArray(options?.forceNullableOrOptional);
-        const parts: string[] = [];
-        const pathArray = [parent, ...resolved.parts];
-        let join = resolved.join;
-
-        if (options?.forceNullableOrOptional === true) {
-            join = new Array(join.length).fill("?.");
-        }
-
-        for (let i = 0; i < pathArray.length; i++) {
-
-            parts.push(pathArray[i]);
-
-            if (i > join.length - 1) {
-                continue;
-            }
-
-            parts.push(join[i]);
-        }
+        const parts = this._resolvePathArray({
+            root: options.parent,
+            assignmentType: options.assignmentType
+        });
 
         return parts.join("");
     }
 
-    getAssignmentPath(parent?: string) {
-        const resolved = this._resolvePathArray();
-        const pathArray = !!parent ? [parent, ...resolved.parts] : resolved.parts;
-        return pathArray.join(".");
+    getAssignmentPath(options?: { parent?: string }) {
+        const parts = this._resolvePathArray({
+            root: options.parent,
+            assignmentType: "ASSIGNMENT"
+        });
+
+        return parts.join("");
     }
 }
+
+type AssignmentType = "FORCE_NULLABLE_OR_OPTIONAL" | "ASSIGNMENT";

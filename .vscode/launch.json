@@ -19,7 +19,7 @@
         "name": "Run Example",
         "type": "node",
         "request": "launch",
-        "runtimeExecutable": "/var/home/jdemeuse/.nvm/versions/node/v20.12.0/bin/node",
+        "runtimeExecutable": "/Users/jdemeuse/.nvm/versions/node/v20.12.0/bin/node",
         "runtimeArgs": ["--nolazy", "-r", "ts-node/register/transpile-only"],
 
         "args": ["src/index.ts"],

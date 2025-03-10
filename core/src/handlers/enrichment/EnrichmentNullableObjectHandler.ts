@@ -14,8 +14,8 @@ export class EnrichmentNullableObjectHandler extends PropertyInfoHandler {
             const nestedSlotPath = this.buildSlotPath(property, slotPath);
 
             // Generate null check for current level using parent relationships
-            const entityPath = property.getSelectrorPath("entity", { forceNullableOrOptional: true });
-            const enrichedPath = property.getAssignmentPath("enriched");
+            const entityPath = property.getSelectrorPath({ parent: "entity", assignmentType: "FORCE_NULLABLE_OR_OPTIONAL" });
+            const enrichedPath = property.getAssignmentPath({ parent: "enriched" });
 
             const ifsSlot = builder.get<SlotBlock>("factory.function.ifs");
 

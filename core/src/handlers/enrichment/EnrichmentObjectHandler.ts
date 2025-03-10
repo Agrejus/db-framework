@@ -9,7 +9,7 @@ export class EnrichmentObjectHandler extends PropertyInfoHandler {
 
         if (property.type === SchemaTypes.Object && (property.isNullable || property.isOptional) === false) {
             const assignmentSlot = builder.get<SlotBlock>("factory.function.assignment");
-            const childPath = property.getAssignmentPath("enriched");
+            const childPath = property.getAssignmentPath({parent: "enriched"});
 
             if (assignmentSlot == null) {
                 throw new Error("Error building enricher, could not find slot for factory.function.assignment")

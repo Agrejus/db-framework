@@ -38,7 +38,7 @@ export abstract class Block {
 
             if (found == null) {
 
-                if (result instanceof VariableBuilder && result.getValue instanceof Block && result.getValue.name === item) {
+                if ("getValue" in result && result.getValue instanceof Block && result.getValue.name === item) {
                     result = result.getValue;
                     continue;
                 }

@@ -23,7 +23,11 @@ const nested = s.define("MY_NESTED_TABLE", {
     child: s.object({
         name: s.string(),
         nested: s.object({
-            winner: s.number()
+            winner: s.number(),
+            more: s.object({
+                final: s.number(),
+                array: s.array<string>()
+            })
         })
     })
 }).modify(w => ({

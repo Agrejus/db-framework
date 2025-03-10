@@ -1,14 +1,16 @@
-import { CompiledSchema, GetHashTypeFunction, HashFunction, HashType, InferType, NonNullCreateEntity, NonNullEntity, SchemaTypes } from ".";
+import { CompiledSchema, HashType, InferType, SchemaTypes } from ".";
 import { SchemaFunction } from './table/Function';
 import { SchemaComputed } from './table/Computed';
 import { SchemaBase } from "./property/base/Base";
 import { createUUID, hash } from "../utilities";
-import { IdType } from "../types";
 import { PropertyInfo } from '../common/PropertyInfo';
-import { Block, CodeBuilder, ContainerBlock, ObjectBuilder, FunctionBuilder, Insert, FunctionFactoryBuilder, SlotBlock, AssignmentBuilder } from '../common/CodeBlock';
+import { CodeBuilder, ContainerBlock, ObjectBuilder, Insert, FunctionFactoryBuilder, SlotBlock, AssignmentBuilder } from '../common/CodeBlock';
 import { SlotPath } from '../common/SlotPath';
 import { EnrichmentHandlerBuilder } from '../handlers/EnrichmentHandlerBuilder';
 import { MergeHandlerBuilder } from '../handlers/MergeHandlerBuilder';
+import { PrepareHandlerBuilder } from '../handlers/PrepareHandlerBuilder';
+import { StripHandlerBuilder } from '../handlers/StripHandlerBuilder';
+import { CloneHandlerBuilder } from '../handlers/CloneHandlerBuilder';
 
 export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
 
@@ -281,16 +283,16 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
     }
 
     private _setEnrichedProperty(property: PropertyInfo<any>, root: CodeBuilder) {
-        const entitySelectorPath = property.getAssignmentPath("entity");
+        const entitySelectorPath = property.getAssignmentPath({ parent: "entity" });
 
         if (property.parent != null) {
             const slotPath = new SlotPath("factory", "function", "assignment");
-            const path = property.parent.getAssignmentPath("enriched");
+            const path = property.parent.getAssignmentPath({ parent: "enriched" });
             slotPath.push(`[${path}]`)
             const builder = root.get<AssignmentBuilder>(slotPath.get());
             const objectBuilder = builder.getValue as ObjectBuilder;
 
-            const childEntityPathSelector = property.getSelectrorPath("entity");
+            const childEntityPathSelector = property.getSelectrorPath({ parent: "entity" });
             objectBuilder.property(`${property.name}: ${childEntityPathSelector}`);
             return;
         }
@@ -326,7 +328,7 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
 
     private _buildEnricher(property: PropertyInfo<any>, root: CodeBuilder) {
 
-        const selectorPath = property.getSelectrorPath("entity", { forceNullableOrOptional: true });
+        const selectorPath = property.getSelectrorPath({ parent: "entity", assignmentType: "FORCE_NULLABLE_OR_OPTIONAL" });
 
         if (property.isIdentity === true) {
 
@@ -335,8 +337,8 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
             }
 
             const slot = root.get<SlotBlock>("factory.function.ifs");
-            const entitySelectorPath = property.getAssignmentPath("entity");
-            const enrichedAssignmentPath = property.getAssignmentPath("enriched");
+            const entitySelectorPath = property.getAssignmentPath({ parent: "entity" });
+            const enrichedAssignmentPath = property.getAssignmentPath({ parent: "enriched" });
             slot.if(`${selectorPath} != null`).appendBody(`${enrichedAssignmentPath} = ${entitySelectorPath}`);
 
             return;
@@ -349,8 +351,8 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
             const nestedSlotPath = this._buildSlotPath(property, slotPath);
 
             // Generate null check for current level using parent relationships
-            const entityPath = property.getSelectrorPath("entity", { forceNullableOrOptional: true });
-            const enrichedPath = property.getAssignmentPath("enriched");
+            const entityPath = property.getSelectrorPath({ parent: "entity", assignmentType: "FORCE_NULLABLE_OR_OPTIONAL" });
+            const enrichedPath = property.getAssignmentPath({ parent: "enriched" });
 
             if (property.isNullable || property.isOptional) {
                 const ifsSlot = root.get<SlotBlock>("factory.function.ifs");
@@ -366,7 +368,7 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
             }
 
             const assignmentSlot = root.get<SlotBlock>("factory.function.assignment");
-            const childPath = property.getAssignmentPath("enriched");
+            const childPath = property.getAssignmentPath({ parent: "enriched" });
             assignmentSlot.assign(childPath, { name: `[${childPath}]` }).call("enableChangeTracking", { name: "builder" });
 
             // for (const child of property.children) {
@@ -397,7 +399,7 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
 
 
                     const ifsSlot = root.get<SlotBlock>("factory.function.ifs");
-                    const enrichedAssignmentPath = property.getAssignmentPath("enriched");
+                    const enrichedAssignmentPath = property.getAssignmentPath({ parent: "enriched" });
                     ifsSlot.if(`${enrichedAssignmentPath} == null`).appendBody(`${enrichedAssignmentPath} = ${defaultFunctionWithParameters.builder.toCallable()}`);
 
                     return;
@@ -406,7 +408,7 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
                 const defaultFunction = this._toNamedFunction(property.defaultValue.toString(), declarationsSlot);
 
                 const ifsSlot = root.get<SlotBlock>("factory.function.ifs");
-                const enrichedAssignmentPath = property.getAssignmentPath("enriched");
+                const enrichedAssignmentPath = property.getAssignmentPath({ parent: "enriched" });
                 ifsSlot.if(`${enrichedAssignmentPath} == null`).appendBody(`${enrichedAssignmentPath} = ${defaultFunction.builder.toCallable()}`);
 
                 return;
@@ -436,7 +438,7 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
 
 
                 const ifsSlot = root.get<SlotBlock>("factory.function.ifs");
-                const enrichedAssignmentPath = property.getAssignmentPath("enriched");
+                const enrichedAssignmentPath = property.getAssignmentPath({ parent: "enriched" });
                 ifsSlot.if(`${enrichedAssignmentPath} == null`).appendBody(`${enrichedAssignmentPath} = ${defaultFunctionWithParameters.builder.toCallable()}`);
                 return;
             }
@@ -448,7 +450,7 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
     }
 
     private _processStringifier(property: PropertyInfo<any>, objectBuilder: ObjectBuilder) {
-        const selectorPath = property.getSelectrorPath("entity");
+        const selectorPath = property.getSelectrorPath({ parent: "entity" });
 
         // Handle arrays
         if (property.type === SchemaTypes.Array) {
@@ -510,9 +512,15 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
 
         const enrichmentHandlerBuilder = new EnrichmentHandlerBuilder();
         const mergeHandlerFactory = new MergeHandlerBuilder();
+        const prepareHandlerBuilder = new PrepareHandlerBuilder();
+        const stripHandlerBuilder = new StripHandlerBuilder();
+        const cloneHandlerBuilder = new CloneHandlerBuilder();
 
         const enricher = enrichmentHandlerBuilder.build();
         const merge = mergeHandlerFactory.build();
+        const prepare = prepareHandlerBuilder.build();
+        const strip = stripHandlerBuilder.build();
+        const clone = cloneHandlerBuilder.build();
 
         const enricherCodeBuilder = new CodeBuilder();
 
@@ -540,8 +548,26 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         mergeFunctionsSlot.function("unpause")
             .appendBody("destination.__tracking__.isPaused  = false;");
 
+        mergeCodeBuilder.slot("header").raw(`pause()`);
         mergeCodeBuilder.slot("assignments");
-        mergeCodeBuilder.slot("return");
+        mergeCodeBuilder.slot("return").raw(`
+    unpause();
+
+    return destination;`);
+
+        const prepareCodeBuilder = new CodeBuilder(); 
+        prepareCodeBuilder.slot("result");
+        prepareCodeBuilder.slot("assignments");
+        prepareCodeBuilder.slot("return").raw(`     return result;`);
+
+        const stripCodeBuilder = new CodeBuilder();
+        stripCodeBuilder.slot("result");
+        stripCodeBuilder.slot("return").raw(`     return result;`);
+
+        const cloneCodeBuilder = new CodeBuilder();
+        cloneCodeBuilder.slot("result");
+        cloneCodeBuilder.slot("return").raw(`     return result;`);
+
         // const enricherFunctionBody = enricher.function().parameters("entity")
         // enricherFunctionBody.raw(this.createChangeTracker.toString());
         // const mainName = enricherFunctionBody.variable("enableChangeTracking").value("createChangeTracker()").name;
@@ -588,14 +614,14 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         this._iterate(schema, (property) => {
 
             properties.push(property);
-            allPropertyNamesAndPaths.push(property.getSelectrorPath("entity"));
+            allPropertyNamesAndPaths.push(property.getSelectrorPath({ parent: "entity" }));
 
             // Check if the property or any parent is nullable/optional
             const isParentNullableOrOptional = property.hasNullableParents;
             const isPropertyNullableOrOptional = property.isNullable || property.isOptional || isParentNullableOrOptional;
 
             // Construct the selector path with or without null-safe operators
-            const selectorPath = property.getSelectrorPath("entity");
+            const selectorPath = property.getSelectrorPath({ parent: "entity" });
             const name = property.name;
 
             if (property.isIdentity === true) {
@@ -610,9 +636,12 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
                 hasIdentityKeys = true;
             }
 
-            this._processStringifier(property, returnObject);
+            //this._processStringifier(property, returnObject);
             enricher.handle(property, enricherCodeBuilder);
             merge.handle(property, mergeCodeBuilder);
+            prepare.handle(property, prepareCodeBuilder);
+            strip.handle(property, stripCodeBuilder);
+            clone.handle(property, cloneCodeBuilder);
         });
         console.log(enricherCodeBuilder.toString());
         const params = enricherFunctionRoot.getParameters()
@@ -623,7 +652,9 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         // const getHashType = Function("entity", "") as GetHashTypeFunction<T>;
         const enricherFunction = enricherFactoryFunction(...params.map(w => w.value));
 
-        console.log(mergeFunctionsSlot.toString());
+        console.log(prepareCodeBuilder.toString());
+        console.log(stripCodeBuilder.toString());
+        console.log(cloneCodeBuilder.toString())
 
         return {
             getId: null as any,

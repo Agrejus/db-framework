@@ -3,13 +3,13 @@ import { PropertyInfo } from "../../common/PropertyInfo";
 import { SchemaTypes } from "../../schema";
 import { PropertyInfoHandler } from "../types";
 
-export class EnrichmentComputedValueHandler extends PropertyInfoHandler {
+export class MergeComputedValueHandler extends PropertyInfoHandler {
 
     override handle(property: PropertyInfo<any>, builder: CodeBuilder): CodeBuilder | null {
 
         if (property.functionBody != null && property.type === SchemaTypes.Computed) {
 
-            const parameterNames: string[] = ["enriched", "tableName"];
+            const parameterNames: string[] = ["source", "tableName"];
 
             if (property.injected != null) {
 
@@ -20,14 +20,14 @@ export class EnrichmentComputedValueHandler extends PropertyInfoHandler {
                 parameterNames.push(parameter.name);
             }
 
-            const declarationsSlot = builder.get<SlotBlock>("factory.function.declarations");
+            const declarationsSlot = builder.get<SlotBlock>("functions");
             const defaultFunctionWithParameters = this.toNamedFunction(property.functionBody.toString(), declarationsSlot);
 
             defaultFunctionWithParameters.builder.parameters(...parameterNames.map((w, i) => ({ name: defaultFunctionWithParameters.parameters[i], callName: w })));
 
 
-            const ifsSlot = builder.get<SlotBlock>("factory.function.ifs");
-            const enrichedAssignmentPath = property.getAssignmentPath({ parent: "enriched" });
+            const ifsSlot = builder.get<SlotBlock>("assignments");
+            const enrichedAssignmentPath = property.getAssignmentPath({ parent: "destination" });
             ifsSlot.if(`${enrichedAssignmentPath} == null`).appendBody(`${enrichedAssignmentPath} = ${defaultFunctionWithParameters.builder.toCallable()}`);
 
             return builder;
