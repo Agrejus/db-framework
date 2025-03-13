@@ -1,5 +1,5 @@
 import { CompiledSchema, IDbPlugin } from '@agrejus/db-framework-core';
-import { DbSet } from '../DbSet';
+import { DbSet } from '../db-sets/DbSet';
 import { DbSetOptions } from '../types';
 import { DbSetInstanceCreator } from './types';
 

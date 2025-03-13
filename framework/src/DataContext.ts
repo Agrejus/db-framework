@@ -1,5 +1,5 @@
 import { CompiledSchema, IDbPlugin } from '@agrejus/db-framework-core';
-import { DbSet } from './DbSet';
+import { DbSet } from './db-sets/DbSet';
 import { forEach } from './utilities';
 import { DbSetBuilder } from './dbset-builder/DbSetBuilder';
 

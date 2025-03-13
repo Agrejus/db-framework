@@ -1,4 +1,4 @@
-import { CompiledSchema, EntityModificationResult, HashType, IDbPlugin, IdType, NonNullCreateEntity, NonNullEntity, Query } from "@agrejus/db-framework-core";
+import { CompiledSchema, EntityModificationResult, IDbPlugin, IdType, NonNullCreateEntity, NonNullEntity, Query } from "@agrejus/db-framework-core";
 import { ChangeTrackedEntity, EntityCallbackMany } from "../../types";
 import { DataAccessManager } from "../../data-access/DataAccessManager";
 import { UniDirectionalSubscription } from '../../subscriptions/UniDirectionalSubscription';
@@ -149,7 +149,6 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
 
         // need to merge adds with data sent in
         adds.forEach(add => {
-            debugger;
             const found = findAddition(add as any);
 
             // Let's only map Ids and identities

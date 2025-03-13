@@ -467,8 +467,16 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         const enricherFactoryFunction = enrichGenerator();
         const enricherFunction = enricherFactoryFunction(...params.map(w => w.value));
 
+        const getId = (entity: NonNullEntity<T>) => {
+            if (idPropertyNames.length > 1) {
+                return hashFunction(entity, HashType.Ids) as IdType;
+            }
+    
+            return getIdsFunction(entity as any)[0] as IdType;
+        }
+
         return {
-            getId: null as any,
+            getId,
             properties,
             idPropertyNames,
             hasIdentities,

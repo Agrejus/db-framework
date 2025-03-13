@@ -1,25 +1,27 @@
-import { IChangeTracker } from "./change-tracking/types";
-import { ChangeTrackerFactory } from "./change-tracking/ChangeTrackerFactory";
-import { DbSetOptions, EntityCallbackMany, EntityMap, QueryResult } from "./types";
+import { IChangeTracker } from "../change-tracking/types";
+import { ChangeTrackerFactory } from "../change-tracking/ChangeTrackerFactory";
+import { DbSetOptions, EntityCallbackMany, EntityMap, QueryResult } from "../types";
 import { IDbPlugin, NonNullCreateEntity, NonNullEntity, Filter, ParamsFilter, CompiledSchema } from '@agrejus/db-framework-core';
-import { Queryable } from './query/Queryable';
-import { QueryableAsync } from './query/QueryableAsync';
-import { ParamsQueryableAsync } from "./query/ParamsQueryableAsync";
-import { SelectionQueryable } from "./query/SelectionQueryable";
-import { SelectionQueryableAsync } from "./query/SelectionQueryableAsync";
-import { DataAccessManager } from "./data-access/DataAccessManager";
-import { StatefulDataAccessManager } from "./data-access/StatefulDataAccessManager";
-import { IDataAccessManager } from "./data-access/types";
-import { DataAccessInstanceCreator } from "./dbset-builder/types";
+import { Queryable } from '../query/Queryable';
+import { QueryableAsync } from '../query/QueryableAsync';
+import { ParamsQueryableAsync } from "../query/ParamsQueryableAsync";
+import { SelectionQueryable } from "../query/SelectionQueryable";
+import { SelectionQueryableAsync } from "../query/SelectionQueryableAsync";
+import { DataAccessManager } from "../data-access/DataAccessManager";
+import { StatefulDataAccessManager } from "../data-access/StatefulDataAccessManager";
+import { IDataAccessManager } from "../data-access/types";
+import { DataAccessInstanceCreator } from "../dbset-builder/types";
 
 
 export class DbSet<TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never> {
 
     readonly changeTracker: IChangeTracker<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>;
     protected readonly manager: IDataAccessManager<TEntity>;
-    private readonly DataAccessInstanceCreator: DataAccessInstanceCreator<TEntity>
+    private readonly DataAccessInstanceCreator: DataAccessInstanceCreator<TEntity>;
+    schema: CompiledSchema<TEntity>;
 
     constructor(dbPlugin: IDbPlugin, schema: CompiledSchema<TEntity>, options: DbSetOptions) {
+        this.schema = schema;
         this.changeTracker = ChangeTrackerFactory.create<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>(schema, dbPlugin);
 
         if (options.stateful === true) {

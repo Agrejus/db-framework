@@ -1,5 +1,5 @@
 import { CompiledSchema, IDbPlugin } from "@agrejus/db-framework-core";
-import { DbSet } from "../DbSet";
+import { DbSet } from "../db-sets/DbSet";
 import { DbSetOptions } from "../types";
 import { IChangeTracker } from "../change-tracking/types";
 import { IDataAccessManager } from "../data-access/types";
