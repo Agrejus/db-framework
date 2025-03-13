@@ -50,10 +50,23 @@ const r = async () => {
     try {
         const ctx = new Ctx();
         debugger;
-        const { add } = ctx.nested;
+        await ctx.nested.addAsync({
+            child: {
+                name: "Child Name",
+                nested: {
+                    more: {
+                        array: ["test"],
+                        final: 1
+                    },
+                    winner: 100
+                }
+            },
+            name: "James"
+        });
 
+        await ctx.saveChangesAsync();
         // const s1 = performance.now();
-        // const r = await ctx.nested.where(w => w.name == "James").firstOrUndefinedAsync();
+            // const r = await ctx.nested.where(w => w.name == "James").firstOrUndefinedAsync();
         // console.log('DONE 5', performance.now() - s1, r);
 
         // const s2 = performance.now();

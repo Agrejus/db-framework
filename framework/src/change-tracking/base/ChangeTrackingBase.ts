@@ -120,7 +120,7 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
 
                 this.setAddition(enriched);
 
-                result.push(enriched as any);
+                // result.push(enriched as any);
 
                 return enriched as NonNullEntity<TEntity>;
             });
@@ -149,6 +149,7 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
 
         // need to merge adds with data sent in
         adds.forEach(add => {
+            debugger;
             const found = findAddition(add as any);
 
             // Let's only map Ids and identities

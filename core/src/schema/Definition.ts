@@ -1,4 +1,4 @@
-import { CompiledSchema, HashType, InferType, SchemaTypes } from ".";
+import { CompiledSchema, GetHashTypeFunction, HashFunction, HashType, InferType, NonNullCreateEntity, NonNullEntity, SchemaTypes } from ".";
 import { SchemaFunction } from './table/Function';
 import { SchemaComputed } from './table/Computed';
 import { SchemaBase } from "./property/base/Base";
@@ -11,6 +11,12 @@ import { MergeHandlerBuilder } from '../handlers/MergeHandlerBuilder';
 import { PrepareHandlerBuilder } from '../handlers/PrepareHandlerBuilder';
 import { StripHandlerBuilder } from '../handlers/StripHandlerBuilder';
 import { CloneHandlerBuilder } from '../handlers/CloneHandlerBuilder';
+import { CompareHandlerBuilder } from '../handlers/CompareHandlerBuilder';
+import { DeserializeHandlerBuilder } from '../handlers/DeserializeHandlerBuilder';
+import { HashTypeHandlerBuilder } from '../handlers/HashTypeHandlerBuilder';
+import { IdSelectorHandlerBuilder } from '../handlers/IdSelectorHandlerBuilder';
+import { HashHandlerBuilder } from '../handlers/HashHandlerBuilder';
+import { IdType } from "../types";
 
 export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
 
@@ -140,65 +146,6 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         }
     }
 
-    private _toJson(value: string | number | Date) {
-        if (typeof value === "string") {
-            return `"${value}"`;
-        }
-
-        if (typeof value === "object" && "toISOString" in value) {
-            return `new Date("${value.toISOString()}")`;
-        }
-
-        return value;
-    }
-
-    private _appendCloner(property: PropertyInfo<any>, builder: string[], value: string) {
-        builder.push(value);
-    }
-
-    private _appendStripper(property: PropertyInfo<any>, builder: string[], value: string) {
-        if (property.isUnmapped == true) {
-            return;
-        }
-
-        if (property.isIdentity === true) {
-            return;
-        }
-
-        builder.push(value);
-    }
-
-    private _toNamedFunction(stringifiedFunction: string, parent: ContainerBlock, insert?: Insert) {
-        const name = createUUID()
-
-        const builder = parent.function(name, { insert });
-
-        if (stringifiedFunction.includes("=>")) {
-
-            const split = stringifiedFunction.split("=>").map(w => w.trim());
-            const parameters = split[0].replace(/\(|\)/g, "").split(",");
-            const body = split[1];
-
-            if (body.startsWith("{") === true) {
-
-                builder.raw(stringifiedFunction);
-
-                return {
-                    builder,
-                    parameters
-                };
-            }
-
-            builder.appendBody(`return ${body};`);
-            return {
-                builder,
-                parameters
-            }
-        }
-
-        throw new Error("Only arrow functions are allowed in the schema definition:  function () {}  --->  () => {}");
-    }
-
     private createChangeTracker() {
 
         const DIRTY_ENTITY_MARKER: string = "isDirty";
@@ -282,173 +229,6 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         }
     }
 
-    private _setEnrichedProperty(property: PropertyInfo<any>, root: CodeBuilder) {
-        const entitySelectorPath = property.getAssignmentPath({ parent: "entity" });
-
-        if (property.parent != null) {
-            const slotPath = new SlotPath("factory", "function", "assignment");
-            const path = property.parent.getAssignmentPath({ parent: "enriched" });
-            slotPath.push(`[${path}]`)
-            const builder = root.get<AssignmentBuilder>(slotPath.get());
-            const objectBuilder = builder.getValue as ObjectBuilder;
-
-            const childEntityPathSelector = property.getSelectrorPath({ parent: "entity" });
-            objectBuilder.property(`${property.name}: ${childEntityPathSelector}`);
-            return;
-        }
-
-        const slotPath = new SlotPath("factory", "function", "enriched", "object", "enriched");
-        let enriched = root.get<ObjectBuilder>(slotPath.get());
-
-        if (enriched == null) {
-            const enrichedSlot = root.get<SlotBlock>("factory.function.enriched");
-            enriched = enrichedSlot.variable("enriched", { name: "object" }).object({ name: "enriched" });
-        }
-
-        enriched.property(`${property.name}: ${entitySelectorPath}`);
-    }
-
-    private _buildSlotPath(property: PropertyInfo<any>, path: SlotPath) {
-
-        const result = new SlotPath(...path.path);
-        const items: string[] = []
-        let p = property;
-
-        while (p.parent != null) {
-            items.unshift(p.name);
-            p = p.parent;
-        }
-
-        items.unshift(p.name);
-
-        result.push(...items);
-
-        return result
-    }
-
-    private _buildEnricher(property: PropertyInfo<any>, root: CodeBuilder) {
-
-        const selectorPath = property.getSelectrorPath({ parent: "entity", assignmentType: "FORCE_NULLABLE_OR_OPTIONAL" });
-
-        if (property.isIdentity === true) {
-
-            if (property.type === SchemaTypes.Object) {
-                return;
-            }
-
-            const slot = root.get<SlotBlock>("factory.function.ifs");
-            const entitySelectorPath = property.getAssignmentPath({ parent: "entity" });
-            const enrichedAssignmentPath = property.getAssignmentPath({ parent: "enriched" });
-            slot.if(`${selectorPath} != null`).appendBody(`${enrichedAssignmentPath} = ${entitySelectorPath}`);
-
-            return;
-        }
-
-        // Handle nested objects recursively using PropertyInfo children
-        if (property.type === SchemaTypes.Object) {
-
-            const slotPath = new SlotPath("factory", "function", "enriched", "object", "enriched");
-            const nestedSlotPath = this._buildSlotPath(property, slotPath);
-
-            // Generate null check for current level using parent relationships
-            const entityPath = property.getSelectrorPath({ parent: "entity", assignmentType: "FORCE_NULLABLE_OR_OPTIONAL" });
-            const enrichedPath = property.getAssignmentPath({ parent: "enriched" });
-
-            if (property.isNullable || property.isOptional) {
-                const ifsSlot = root.get<SlotBlock>("factory.function.ifs");
-                ifsSlot.if(`${entityPath} != null`).appendBody(`${enrichedPath} = enableChangeTracking(${enrichedPath} || {}, "${property.name}");`);
-
-                let enriched = root.get<ObjectBuilder>(nestedSlotPath.get());
-
-                if (enriched == null) {
-                    const enrichedSlot = root.get<ObjectBuilder>(slotPath.get());
-                    enriched = enrichedSlot.nested(property.name, property.name);
-                }
-                return;
-            }
-
-            const assignmentSlot = root.get<SlotBlock>("factory.function.assignment");
-            const childPath = property.getAssignmentPath({ parent: "enriched" });
-            assignmentSlot.assign(childPath, { name: `[${childPath}]` }).call("enableChangeTracking", { name: "builder" });
-
-            // for (const child of property.children) {
-            //     const childEntityPathSelector = child.getSelectrorPath("entity");
-            //     objectBuilder.property(`${child.name}: ${childEntityPathSelector}`)
-            // }
-            return;
-        }
-
-        if (property.defaultValue != null) {
-
-            this._setEnrichedProperty(property, root);
-
-            // only thing we can inject for defaults is an injected object
-            if (typeof property.defaultValue === "function") {
-                // we need to add the call for this function too, want to create an if
-                const declarationsSlot = root.get<SlotBlock>("factory.function.declarations");
-
-                if (property.injected != null) {
-
-                    const factory = root.get<FunctionFactoryBuilder>("factory");
-                    const parameter = factory.createParameter(property.injected);
-                    factory.parameters(parameter);
-
-                    const defaultFunctionWithParameters = this._toNamedFunction(property.defaultValue.toString(), declarationsSlot);
-                    // This is ok, defaults can only inject one parameter anyways
-                    defaultFunctionWithParameters.builder.parameters(...defaultFunctionWithParameters.parameters.map(w => ({ name: w, callName: parameter.name })));
-
-
-                    const ifsSlot = root.get<SlotBlock>("factory.function.ifs");
-                    const enrichedAssignmentPath = property.getAssignmentPath({ parent: "enriched" });
-                    ifsSlot.if(`${enrichedAssignmentPath} == null`).appendBody(`${enrichedAssignmentPath} = ${defaultFunctionWithParameters.builder.toCallable()}`);
-
-                    return;
-                }
-
-                const defaultFunction = this._toNamedFunction(property.defaultValue.toString(), declarationsSlot);
-
-                const ifsSlot = root.get<SlotBlock>("factory.function.ifs");
-                const enrichedAssignmentPath = property.getAssignmentPath({ parent: "enriched" });
-                ifsSlot.if(`${enrichedAssignmentPath} == null`).appendBody(`${enrichedAssignmentPath} = ${defaultFunction.builder.toCallable()}`);
-
-                return;
-            }
-
-            return;
-        }
-
-        if (property.functionBody != null) {
-
-            const parameterNames: string[] = ["enriched", "tableName"];
-
-            if (property.injected != null) {
-
-                const factory = root.get<FunctionFactoryBuilder>("factory");
-                const parameter = factory.createParameter(property.injected);
-                factory.parameters(parameter);
-
-                parameterNames.push(parameter.name);
-            }
-
-            if (property.type === SchemaTypes.Computed) {
-                const declarationsSlot = root.get<SlotBlock>("factory.function.declarations");
-                const defaultFunctionWithParameters = this._toNamedFunction(property.functionBody.toString(), declarationsSlot);
-
-                defaultFunctionWithParameters.builder.parameters(...parameterNames.map((w, i) => ({ name: defaultFunctionWithParameters.parameters[i], callName: w })));
-
-
-                const ifsSlot = root.get<SlotBlock>("factory.function.ifs");
-                const enrichedAssignmentPath = property.getAssignmentPath({ parent: "enriched" });
-                ifsSlot.if(`${enrichedAssignmentPath} == null`).appendBody(`${enrichedAssignmentPath} = ${defaultFunctionWithParameters.builder.toCallable()}`);
-                return;
-            }
-
-            return;
-        }
-
-        this._setEnrichedProperty(property, root);
-    }
-
     private _processStringifier(property: PropertyInfo<any>, objectBuilder: ObjectBuilder) {
         const selectorPath = property.getSelectrorPath({ parent: "entity" });
 
@@ -515,15 +295,24 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         const prepareHandlerBuilder = new PrepareHandlerBuilder();
         const stripHandlerBuilder = new StripHandlerBuilder();
         const cloneHandlerBuilder = new CloneHandlerBuilder();
+        const compareHandlerBuilder = new CompareHandlerBuilder();
+        const deserializeHandlerBuilder = new DeserializeHandlerBuilder();
+        const hashTypeHandlerBuilder = new HashTypeHandlerBuilder();
+        const idSelectorHandlerBuilder = new IdSelectorHandlerBuilder();
+        const hashHandlerBuilder = new HashHandlerBuilder();
 
         const enricher = enrichmentHandlerBuilder.build();
         const merge = mergeHandlerFactory.build();
         const prepare = prepareHandlerBuilder.build();
         const strip = stripHandlerBuilder.build();
         const clone = cloneHandlerBuilder.build();
+        const compare = compareHandlerBuilder.build();
+        const deserialize = deserializeHandlerBuilder.build();
+        const hashTypeHandler = hashTypeHandlerBuilder.build();
+        const idSelectorHandler = idSelectorHandlerBuilder.build();
+        const hashHandler = hashHandlerBuilder.build();
 
         const enricherCodeBuilder = new CodeBuilder();
-
         const enricherFunctionRoot = enricherCodeBuilder.factory("factory", { name: "factory" }).parameters({ name: "tableName", value: this.tableName });
         const enricherFunctionBody = enricherFunctionRoot.function(undefined, { name: "function" }).parameters("entity").return();
 
@@ -555,7 +344,7 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
 
     return destination;`);
 
-        const prepareCodeBuilder = new CodeBuilder(); 
+        const prepareCodeBuilder = new CodeBuilder();
         prepareCodeBuilder.slot("result");
         prepareCodeBuilder.slot("assignments");
         prepareCodeBuilder.slot("return").raw(`     return result;`);
@@ -568,43 +357,46 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         cloneCodeBuilder.slot("result");
         cloneCodeBuilder.slot("return").raw(`     return result;`);
 
-        // const enricherFunctionBody = enricher.function().parameters("entity")
-        // enricherFunctionBody.raw(this.createChangeTracker.toString());
-        // const mainName = enricherFunctionBody.variable("enableChangeTracking").value("createChangeTracker()").name;
+        const compareCodeBuilder = new CodeBuilder();
+        compareCodeBuilder.slot("result");
+        compareCodeBuilder.slot("return").raw(`     return result;`);
 
-        // Build stringifier
+        const deserializeCodeBuilder = new CodeBuilder();
+        deserializeCodeBuilder.slot("result");
+        deserializeCodeBuilder.slot("return").raw(`     return result;`);
+
+        const idSelectorCodeBuilder = new CodeBuilder();
+        idSelectorCodeBuilder.slot("result");
+        idSelectorCodeBuilder.slot("return").raw(`     return result;`);
+
+        const hashTypeCodeBuilder = new CodeBuilder();
+        hashTypeCodeBuilder.slot("ifs");
+        hashTypeCodeBuilder.slot("return").raw(`     return "Ids";`);
+
+        const hashCodeBuilder = new CodeBuilder();
+        hashCodeBuilder.slot("functions").raw(`
+    function stringifyDate(d) {
+
+        if (typeof d === "string") {
+            return d;
+        }
+
+        if ("toISOString" in d) {
+            return d.toISOString();
+        }
+
+        return d.toString();
+    } 
+`);
+        const hashCodeBuilderIfBlock = hashCodeBuilder.if(`type === "Ids"`, { name: "hash-id-if" });
+        hashCodeBuilderIfBlock.slot("if-body");
+        hashCodeBuilderIfBlock.appendBody("return result");
+        hashCodeBuilder.slot("hash-object-return");
+        hashCodeBuilder.raw(`   return result;`)
+
         const stringifier = new CodeBuilder();
         const returnObject = stringifier.object();
 
-        //     function stringifyDate(d) {
-
-        //         if (typeof d === "string") {
-        //             return d;
-        //         }
-
-        //         if ("toISOString" in d) {
-        //             return d.toISOString();
-        //         }
-
-        //         return d.toString();
-        //     }`);
-
-        //         mergeFunciton.append("functions", `
-        //     function pause() {
-        //         // initiate change tracking if needed
-        //         if (destination.__tracking__ == null) {
-        //             destination.__tracking__ = {};
-        //         }
-
-        //         destination.__tracking__.isPaused = true;
-        //     }    
-
-        //     function unpause() {
-        //         destination.__tracking__.isPaused  = false;
-        //     }    
-        // `)
-
-        // Call _iterate to process the schema and build the function body
         const idPropertyNames: string[] = [];
         const allPropertyNamesAndPaths: string[] = [];
         let hashType: HashType = HashType.Ids;
@@ -642,19 +434,38 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
             prepare.handle(property, prepareCodeBuilder);
             strip.handle(property, stripCodeBuilder);
             clone.handle(property, cloneCodeBuilder);
+            compare.handle(property, compareCodeBuilder);
+            deserialize.handle(property, deserializeCodeBuilder);
+            hashTypeHandler.handle(property, hashTypeCodeBuilder);
+            idSelectorHandler.handle(property, idSelectorCodeBuilder);
+            hashHandler.handle(property, hashCodeBuilder);
         });
-        console.log(enricherCodeBuilder.toString());
+
+        // console.log(prepareCodeBuilder.toString());
+        // console.log(stripCodeBuilder.toString());
+        // console.log(cloneCodeBuilder.toString());
+        // console.log(compareCodeBuilder.toString());
+        // console.log(deserializeCodeBuilder.toString());
+        // console.log(hashTypeCodeBuilder.toString());
+        // console.log(idSelectorCodeBuilder.toString());
+        // console.log(hashCodeBuilder.toString());
+
+
         const params = enricherFunctionRoot.getParameters()
         const enrichGenerator = Function(`return ${enricherCodeBuilder.toString()}`);
-        const enricherFactoryFunction = enrichGenerator();
-        // const idSelectorFunction = Function("entity", `return [${idPropertyNames.map(w => `entity.${w}`).join(",")}];`) as (entity: NonNullEntity<T>) => [IdType];
-        // const toHash = Function("entity", "type", hashFunctionBody) as HashFunction<T>;
-        // const getHashType = Function("entity", "") as GetHashTypeFunction<T>;
-        const enricherFunction = enricherFactoryFunction(...params.map(w => w.value));
 
-        console.log(prepareCodeBuilder.toString());
-        console.log(stripCodeBuilder.toString());
-        console.log(cloneCodeBuilder.toString())
+        const mergeFunction = Function("destination", "source", mergeCodeBuilder.toString()) as (destination: NonNullEntity<T>, source: NonNullEntity<T>) => NonNullEntity<T>;;
+        const getIdsFunction = Function("entity", idSelectorCodeBuilder.toString()) as (entity: NonNullEntity<T>) => [IdType];
+        const getHashTypeFunction = Function("entity", hashTypeCodeBuilder.toString()) as GetHashTypeFunction<T>;
+        const prepareFunction = Function("entity", prepareCodeBuilder.toString()) as (entity: NonNullCreateEntity<T>) => NonNullCreateEntity<T>;
+        const cloneFunction = Function("entity", cloneCodeBuilder.toString()) as (entity: NonNullEntity<T>) => NonNullEntity<T>;
+        const deserializeFunction = Function("entity", deserializeCodeBuilder.toString()) as (entity: NonNullEntity<T>) => NonNullEntity<T>;
+        const compareFunction = Function("a", "b", compareCodeBuilder.toString()) as (a: NonNullEntity<T>, fromDb: NonNullEntity<T>) => boolean;;
+        const stripFunction = Function("entity", stripCodeBuilder.toString()) as (entity: NonNullEntity<T>) => NonNullEntity<T>;
+        const hashFunction = Function("entity", "type", hashCodeBuilder.toString()) as HashFunction<T>;
+
+        const enricherFactoryFunction = enrichGenerator();
+        const enricherFunction = enricherFactoryFunction(...params.map(w => w.value));
 
         return {
             getId: null as any,
@@ -662,16 +473,16 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
             idPropertyNames,
             hasIdentities,
             hashType,
-            getHashType: null as any,
-            merge: null as any,
-            prepare: null as any,
-            clone: null as any,
-            deserialize: null as any,
-            compare: null as any,
-            strip: null as any,
-            hash: null as any,
+            getHashType: getHashTypeFunction,
+            merge: mergeFunction,
+            prepare: prepareFunction,
+            clone: cloneFunction,
+            deserialize: deserializeFunction,
+            compare: compareFunction,
+            strip: stripFunction,
+            hash: hashFunction,
             key: hash([...allPropertyNamesAndPaths, this.tableName].join(",")),
-            getIds: null as any,
+            getIds: getIdsFunction,
             enrich: enricherFunction,
             tableName: this.tableName,
             hasIdentityKeys

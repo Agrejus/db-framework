@@ -146,6 +146,37 @@ export abstract class ContainerBlock extends Block {
         this.push(builder, insert);
         return builder;
     }
+
+    array(accessor: string, options?: CreateBlockOptions) {
+        const builder = new ArrayBuilder(accessor, options?.name, this._indent + "  ", this);
+        this.push(builder, options?.insert);
+        return builder;
+    }
+}
+
+export type StringType = "template" | "default";
+
+export class StringBuilder extends Block {
+
+    private _type: StringType;
+
+    constructor(type: StringType, name?: string, parentIndent: string = "", parent?: Block) {
+        super(name, parentIndent, parent);
+        this._type = type;
+    }
+
+    append(value: string) {
+        this._lines.push(value);
+        return this;
+    }
+
+    toString() {
+        if (this._type === "template") {
+            return "`" + this._lines.join("") + "`";
+        }
+
+        return `"${this._lines.join("")}"`;
+    }
 }
 
 export class SlotBlock extends ContainerBlock {
@@ -186,6 +217,11 @@ export class AssignmentBuilder extends ContainerBlock {
         return this;
     }
 
+    and(and: string, options?: CreateBlockOptions): this {
+        this._value = new AndBuilder(and, options?.name, this._indent, this);
+        return this;
+    }
+
     object(options?: CreateBlockOptions): ObjectBuilder {
         const objectBuilder = new ObjectBuilder(options?.name, this._indent, this);
 
@@ -203,6 +239,14 @@ export class AssignmentBuilder extends ContainerBlock {
         return objectBuilder;
     }
 
+    string(type: StringType, options?: CreateBlockOptions) {
+        const stringBuilder = new StringBuilder(type, options?.name, this._indent, this);
+
+        this._value = stringBuilder;
+
+        return stringBuilder;
+    }
+
     toString(): string {
 
         if (this._value == null) {
@@ -217,7 +261,23 @@ export class AssignmentBuilder extends ContainerBlock {
     }
 }
 
-export class VariableBuilder extends ContainerBlock {
+export class AndBuilder extends ContainerBlock {
+
+    constructor(and: string, name?: string, parentIndent: string = "", parent?: Block) {
+        super(name, parentIndent, parent);
+        this._lines.push(and);
+    }
+
+    and(and: string) {
+        this._lines.push(and);
+    }
+
+    toString() {
+        return this._lines.join(" && ")
+    }
+}
+
+export class VariableBuilder extends Block {
     protected _declaration: string;
     protected _value?: string | Block;
 
@@ -241,6 +301,14 @@ export class VariableBuilder extends ContainerBlock {
         this._value = objectBuilder;
 
         return objectBuilder;
+    }
+
+    array(accessor: string, options?: CreateBlockOptions): ArrayBuilder {
+        const arrayBuilder = new ArrayBuilder(accessor, options?.name, this._indent, this);
+
+        this._value = arrayBuilder;
+
+        return arrayBuilder;
     }
 
     toString(): string {
@@ -449,6 +517,22 @@ export class FunctionBuilder extends ContainerBlock {
         ];
 
         return lines.join('\n');
+    }
+}
+
+export class ArrayBuilder extends Block {
+    constructor(accessor: string, name?: string, parentIndent: string = "", parent?: Block) {
+        super(name, parentIndent, parent);
+        this._lines.push(accessor);
+    }
+
+    append(accessor: string) {
+        this._lines.push(accessor);
+        return this;
+    }
+
+    toString() {
+        return `[${this._lines.join(",")}]`
     }
 }
 

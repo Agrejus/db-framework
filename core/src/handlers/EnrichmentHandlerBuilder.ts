@@ -8,6 +8,7 @@ import { EnrichmentDefaultValueHandler } from './enrichment/EnrichmentDefaultVal
 import { EnrichmentDefaultFunctionHandler } from './enrichment/EnrichmentDefaultFunctionHandler';
 import { EnrichmentComputedValueHandler } from './enrichment/EnrichmentComputedValueHandler';
 
+/// Purpose: 
 export class EnrichmentHandlerBuilder {
 
     build() {

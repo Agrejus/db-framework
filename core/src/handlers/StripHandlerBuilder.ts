@@ -3,6 +3,7 @@ import { StripValueHandler } from "./strip/StripValueHandler";
 import { StripKeyHandler } from "./strip/StripKeyHandler";
 import { StripIdentityHandler } from "./strip/StripIdentityHandler";
 
+/// Purpose: 
 export class StripHandlerBuilder {
 
     build() {

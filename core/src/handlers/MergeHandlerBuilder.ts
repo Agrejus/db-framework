@@ -2,6 +2,7 @@ import { MergeDefaultFunctionHandler } from "./merge/MergeDefaultFunctionHandler
 import { MergePrimitiveHandler } from "./merge/MergePrimitiveHandler";
 import { MergeComputedValueHandler } from "./merge/MergeComputedValueHandler";
 
+/// Purpose: 
 export class MergeHandlerBuilder {
 
     build() {
