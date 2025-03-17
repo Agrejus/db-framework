@@ -43,6 +43,7 @@ class Ctx extends DataContext {
 
     // test = this.dbset(model).create();
     nested = this.dbset(nested).stateful().create();
+    immutable = this.dbset(nested).immutable().create();
 }
 
 

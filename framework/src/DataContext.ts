@@ -17,7 +17,13 @@ export class DataContext {
 
         const onDbSetCreated = (dbset: DbSet<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>) => this._dbsets.set(schema.key, dbset);
 
-        return new DbSetBuilder<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>(this._dbPlugin, schema, onDbSetCreated.bind(this));
+        return new DbSetBuilder<TEntity, TEnhancedPropertyNames, TComputedPropertyNames, DbSet<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>>({
+            dbPlugin: this._dbPlugin,
+            instanceCreator: DbSet<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>,
+            isStateful: false,
+            onDbSetCreated: onDbSetCreated.bind(this),
+            schema
+        });
     }
 
     saveChanges(done: (result: number, error?: any) => void) {

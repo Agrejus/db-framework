@@ -20,6 +20,7 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
     }
 
     protected abstract setAddition(enriched: NonNullCreateEntity<TEntity>): void;
+    protected abstract replaceAddition(existingEntity: NonNullCreateEntity<TEntity>, newEntity: NonNullCreateEntity<TEntity>): boolean;
     protected abstract getPreparedAdditions(): NonNullCreateEntity<TEntity>[];
     protected abstract clearAdditions(): void;
     abstract saveChanges(done: (result: number, error?: any) => void): void;
@@ -109,6 +110,20 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
     remove(entities: NonNullEntity<TEntity>[], done: EntityCallbackMany<TEntity>) {
         this.removals.push(...entities);
         done(entities);
+    }
+
+    replace(existingEntity: NonNullEntity<TEntity> | NonNullCreateEntity<TEntity>, newEntity: NonNullEntity<TEntity> | NonNullCreateEntity<TEntity>) {
+        for (const [key, document] of this.attachments) {
+
+            if (document === existingEntity) {
+                this.attachments.set(key, newEntity as NonNullEntity<TEntity>);
+                return;
+            }
+        }
+
+        if (this.replaceAddition(existingEntity as NonNullCreateEntity<TEntity>, newEntity as NonNullCreateEntity<TEntity>) === false) {
+            throw new Error("Could not find entity to mutate, please ensure a reference to the existing object is passed in to .mutate")
+        }
     }
 
     add(entities: NonNullCreateEntity<TEntity, TEnhancedPropertyNames | TComputedPropertyNames>[], done: EntityCallbackMany<TEntity>) {

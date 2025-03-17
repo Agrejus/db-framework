@@ -8,6 +8,7 @@ export interface IChangeTracker<TEntity extends {}, TEnhancedPropertyNames exten
     saveChanges(done: (result: number, error?: any) => void): void;
     resolve(entities: NonNullEntity<TEntity>[], options?: FetchOptions): NonNullEntity<TEntity>[];
     hasChanges(): boolean;
+    replace(existingEntity: NonNullEntity<TEntity> | NonNullCreateEntity<TEntity>, newEntity: NonNullEntity<TEntity> | NonNullCreateEntity<TEntity>): void;
     subscribe<U>(query: Query<TEntity>, shape: (data: TEntity[]) => U, done: (result: U, error?: any) => void): () => void;
 }
 

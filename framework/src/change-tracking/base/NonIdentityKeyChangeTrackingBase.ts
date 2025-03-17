@@ -1,4 +1,4 @@
-import { IdType, NonNullCreateEntity, CompiledSchema, IDbPlugin, HashType } from "@agrejus/db-framework-core";
+import { IdType, NonNullCreateEntity, CompiledSchema, IDbPlugin } from "@agrejus/db-framework-core";
 import { ChangeTrackingBase } from "./ChangeTrackingBase";
 import { IChangeTracker } from '../types';
 
@@ -26,6 +26,18 @@ export class NonIdentityKeyChangeTrackingBase<TKey extends IdType, TEntity exten
 
     protected override clearAdditions() {
         this.additions = new Map();
+    }
+
+    protected override replaceAddition(existingEntity: NonNullCreateEntity<TEntity>, newEntity: NonNullCreateEntity<TEntity>) : boolean {
+        for (const [key, document] of this.additions) {
+
+            if (document === existingEntity) {
+                this.additions.set(key, newEntity);
+                return true;
+            }
+        }
+
+        return false;
     }
 
     override saveChanges(done: (result: number, error?: any) => void) {

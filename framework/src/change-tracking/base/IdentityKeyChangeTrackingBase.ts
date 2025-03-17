@@ -27,6 +27,18 @@ export class IdentityKeyChangeTrackingBase<TKey extends IdType, TEntity extends 
         this.additions = [];
     }
 
+    protected override replaceAddition(existingEntity: NonNullCreateEntity<TEntity>, newEntity: NonNullCreateEntity<TEntity>) : boolean {
+        const index = this.additions.findIndex(x => x === existingEntity);
+
+        if (index === -1) {
+            return false;
+        }
+
+        this.additions[index] = newEntity;
+
+        return true;
+    }
+
     override saveChanges(done: (result: number, error?: any) => void): void {
         const hashedAdds = toMap(this.additions, w => this.schema.hash(w, HashType.Object));
 
