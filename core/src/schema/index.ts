@@ -71,6 +71,8 @@ export type GetHashTypeFunction<TEntity extends {}> = {
     (entity: NonNullEntity<TEntity>): HashType.Ids;
 }
 
+export type ChangeTrackingType = "entity" | "immutable";
+
 export type CompiledSchema<TEntity extends {}> = {
     getId: (entity: NonNullEntity<TEntity>) => IdType;
     clone: (entity: NonNullEntity<TEntity>) => NonNullEntity<TEntity>;
@@ -88,7 +90,7 @@ export type CompiledSchema<TEntity extends {}> = {
     key: number,
     tableName: string;
     getIds: (entity: NonNullEntity<TEntity>) => [IdType];
-    enrich: (entity: NonNullEntity<TEntity>) => NonNullEntity<TEntity>;
+    enrich: (entity: NonNullEntity<TEntity>, changeTrackingType: ChangeTrackingType) => NonNullEntity<TEntity>;
     hasIdentityKeys: boolean;
 }
 

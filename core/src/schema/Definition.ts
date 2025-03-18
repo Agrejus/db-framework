@@ -229,62 +229,6 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         }
     }
 
-    private _processStringifier(property: PropertyInfo<any>, objectBuilder: ObjectBuilder) {
-        const selectorPath = property.getSelectrorPath({ parent: "entity" });
-
-        // Handle arrays
-        if (property.type === SchemaTypes.Array) {
-            debugger;
-            const arrayItemSchema = (property as any).itemSchema;
-
-            // if (arrayItemSchema.type === SchemaTypes.Object) {
-            //     const nestedBuilder = objectBuilder.nested(property.name);
-            //     nestedBuilder.property(
-            //         `${selectorPath}?.map(item => ({${
-            //             arrayItemSchema.children.map(child => 
-            //                 `${child.name}: item.${child.name}`
-            //             ).join(",")
-            //         }))`
-            //     );
-            //     return;
-            // }
-
-            if (arrayItemSchema.type === SchemaTypes.Date) {
-                objectBuilder.property(
-                    `${property.name}: ${selectorPath}?.map(item => item.toISOString())`
-                );
-                return;
-            }
-
-            objectBuilder.property(
-                `${property.name}: ${selectorPath}`
-            );
-            return;
-        }
-
-        // Handle objects
-        if (property.type === SchemaTypes.Object) {
-            const nestedBuilder = objectBuilder.nested(property.name);
-
-            // Process each child property
-            property.children.forEach(child => {
-                this._processStringifier(child, nestedBuilder);
-            });
-            return;
-        }
-
-        // Handle dates
-        if (property.type === SchemaTypes.Date) {
-            objectBuilder.property(
-                `${property.name}: ${selectorPath}?.toISOString()`
-            );
-            return;
-        }
-
-        // Handle primitives
-        objectBuilder.property(`${property.name}: ${selectorPath}`);
-    }
-
     compile(): CompiledSchema<T> {
 
         const schema = this;
@@ -314,10 +258,10 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
 
         const enricherCodeBuilder = new CodeBuilder();
         const enricherFunctionRoot = enricherCodeBuilder.factory("factory", { name: "factory" }).parameters({ name: "tableName", value: this.tableName });
-        const enricherFunctionBody = enricherFunctionRoot.function(undefined, { name: "function" }).parameters("entity").return();
+        const enricherFunctionBody = enricherFunctionRoot.function(undefined, { name: "function" }).parameters("entity", "changeTrackingType").return();
 
         enricherFunctionBody.raw(`function ${this.createChangeTracker.toString()}`);
-        enricherFunctionBody.variable("enableChangeTracking").value("createChangeTracker()");
+        enricherFunctionBody.variable("enableChangeTracking").value('changeTrackingType === "entity" ? createChangeTracker() : e => e');
 
         enricherFunctionBody.slot("enriched");
         enricherFunctionBody.slot("declarations");
@@ -428,7 +372,6 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
                 hasIdentityKeys = true;
             }
 
-            //this._processStringifier(property, returnObject);
             enricher.handle(property, enricherCodeBuilder);
             merge.handle(property, mergeCodeBuilder);
             prepare.handle(property, prepareCodeBuilder);
@@ -448,7 +391,7 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         // console.log(deserializeCodeBuilder.toString());
         // console.log(hashTypeCodeBuilder.toString());
         // console.log(idSelectorCodeBuilder.toString());
-        // console.log(hashCodeBuilder.toString());
+        console.log(enricherCodeBuilder.toString());
 
 
         const params = enricherFunctionRoot.getParameters()

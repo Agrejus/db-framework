@@ -72,7 +72,7 @@ export class DataAccessManager<T extends {}> implements IDataAccessManager<T> {
         const shouldEnableChangeTracking = query.options.fields?.length == null || query.options.fields.length === 0;
 
         if (shouldEnableChangeTracking === true) {
-            const enriched = entities.map(w => this.schema.enrich(w as any));
+            const enriched = entities.map(w => this.schema.enrich(w as any, this.changeTracker.changeTrackingType));
             const resolved = this.changeTracker.resolve(enriched, options);
             return resolved as T[]
         }

@@ -1,14 +1,15 @@
 import { IdType, NonNullCreateEntity, CompiledSchema, IDbPlugin, HashType, toMap } from "@agrejus/db-framework-core";
 import { ChangeTrackingBase } from "./ChangeTrackingBase";
 import { IChangeTracker } from '../types';
+import { ChangeTrackingType } from "@agrejus/db-framework-core/dist/schema";
 
 export class IdentityKeyChangeTrackingBase<TKey extends IdType, TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never>
     extends ChangeTrackingBase<TKey, TEntity, TEnhancedPropertyNames, TComputedPropertyNames> implements IChangeTracker<TEntity, TEnhancedPropertyNames, TComputedPropertyNames> {
 
     protected additions: NonNullCreateEntity<TEntity>[] = [];
 
-    constructor(schema: CompiledSchema<TEntity>, dbPlugin: IDbPlugin) {
-        super(schema, dbPlugin);
+    constructor(schema: CompiledSchema<TEntity>, dbPlugin: IDbPlugin, changeTrackingType: ChangeTrackingType) {
+        super(schema, dbPlugin, changeTrackingType);
     }
 
     protected override get additionsCount() {

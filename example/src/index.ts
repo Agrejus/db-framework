@@ -51,21 +51,21 @@ const r = async () => {
     try {
         const ctx = new Ctx();
         debugger;
-        await ctx.nested.addAsync({
-            child: {
-                name: "Child Name",
-                nested: {
-                    more: {
-                        array: ["test"],
-                        final: 1
-                    },
-                    winner: 100
-                }
-            },
-            name: "James"
-        });
+        // await ctx.nested.addAsync({
+        //     child: {
+        //         name: "Child Name",
+        //         nested: {
+        //             more: {
+        //                 array: ["test"],
+        //                 final: 1
+        //             },
+        //             winner: 100
+        //         }
+        //     },
+        //     name: "James"
+        // });
 
-        await ctx.saveChangesAsync();
+        // await ctx.saveChangesAsync();
         // const s1 = performance.now();
             // const r = await ctx.nested.where(w => w.name == "James").firstOrUndefinedAsync();
         // console.log('DONE 5', performance.now() - s1, r);
@@ -89,6 +89,37 @@ const r = async () => {
             console.log('DONE 3', performance.now() - s3, r, e)
         });
 
+        await ctx.immutable.addAsync({
+            child: {
+                name: "Child Name",
+                nested: {
+                    more: {
+                        array: ["test"],
+                        final: 1
+                    },
+                    winner: 100
+                }
+            },
+            name: "James"
+        });
+
+        await ctx.saveChangesAsync();
+        const found = await ctx.immutable.firstOrUndefinedAsync(w => w.name === "James");
+
+        if (found != null) {
+            const mutated = ctx.immutable.mutate(found, draft => {
+
+                draft.name = "Some New Name";
+                draft.child.nested.winner = 1;
+
+                return draft;
+            })
+
+            console.log("Changed", mutated, found);
+        }
+
+
+        debugger;
 
         // // we need to stop returning a new Data Access manager, can we put this in the plugin instead?
         // const unsubscribe = ctx.nested.where(w => w.name == "James").subscribe().toArray((r, e) => {

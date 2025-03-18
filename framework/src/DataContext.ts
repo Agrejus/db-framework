@@ -26,6 +26,9 @@ export class DataContext {
         });
     }
 
+    // Can we borrow from redux and create a way to inject middleware?
+    // use actions?
+    // action.type -> "SaveChanges"
     saveChanges(done: (result: number, error?: any) => void) {
 
         let success_count = 0;

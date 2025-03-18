@@ -11,6 +11,7 @@ import { DataAccessManager } from "../data-access/DataAccessManager";
 import { StatefulDataAccessManager } from "../data-access/StatefulDataAccessManager";
 import { IDataAccessManager } from "../data-access/types";
 import { DataAccessInstanceCreator } from "../dbset-builder/types";
+import { ChangeTrackingType } from "@agrejus/db-framework-core/dist/schema";
 
 
 export class DbSet<TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never> {
@@ -22,7 +23,7 @@ export class DbSet<TEntity extends {}, TEnhancedPropertyNames extends string = n
 
     constructor(dbPlugin: IDbPlugin, schema: CompiledSchema<TEntity>, options: DbSetOptions) {
         this.schema = schema;
-        this.changeTracker = ChangeTrackerFactory.create<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>(schema, dbPlugin);
+        this.changeTracker = ChangeTrackerFactory.create<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>(schema, dbPlugin, this.getChangeTrackingType());
 
         if (options.stateful === true) {
             this.DataAccessInstanceCreator = StatefulDataAccessManager<TEntity>;
@@ -31,6 +32,15 @@ export class DbSet<TEntity extends {}, TEnhancedPropertyNames extends string = n
         }
 
         this.manager = new this.DataAccessInstanceCreator(schema, dbPlugin, this.changeTracker);
+    }
+
+    protected getChangeTrackingType(): ChangeTrackingType {
+        return "entity";
+    }
+
+    // change to use params, easier to understand
+    params() {
+
     }
 
     add(entities: NonNullCreateEntity<TEntity, TEnhancedPropertyNames | TComputedPropertyNames>[], done: EntityCallbackMany<TEntity>) {

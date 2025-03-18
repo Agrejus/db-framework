@@ -1,6 +1,5 @@
 Can we put TTL on some of the records?  We can check every N times for TTLs and purge them
 
-Let's add immutabilty!
 class Ctx extends DataContext {
 
     constructor() {

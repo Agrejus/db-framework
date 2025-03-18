@@ -3,6 +3,7 @@ import { ChangeTrackedEntity, EntityCallbackMany } from "../../types";
 import { DataAccessManager } from "../../data-access/DataAccessManager";
 import { UniDirectionalSubscription } from '../../subscriptions/UniDirectionalSubscription';
 import { FetchOptions } from "../../data-access/types";
+import { ChangeTrackingType } from "@agrejus/db-framework-core/dist/schema";
 
 export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never> {
 
@@ -12,11 +13,13 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
     protected abstract additionsCount: number;
     protected manager: DataAccessManager<TEntity>;
     protected unidirecitonalSubscription: UniDirectionalSubscription;
+    readonly changeTrackingType: ChangeTrackingType;
 
-    constructor(schema: CompiledSchema<TEntity>, dbPlugin: IDbPlugin) {
+    constructor(schema: CompiledSchema<TEntity>, dbPlugin: IDbPlugin, changeTrackingType: ChangeTrackingType) {
         this.schema = schema;
         this.manager = new DataAccessManager<TEntity>(schema, dbPlugin, this);
         this.unidirecitonalSubscription = new UniDirectionalSubscription(schema.key);
+        this.changeTrackingType = changeTrackingType;
     }
 
     protected abstract setAddition(enriched: NonNullCreateEntity<TEntity>): void;
@@ -131,7 +134,7 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
         try {
 
             const result = entities.map(entity => {
-                const enriched: NonNullCreateEntity<TEntity> = this.schema.enrich(entity as any) as any;
+                const enriched: NonNullCreateEntity<TEntity> = this.schema.enrich(entity as any, this.changeTrackingType) as any;
 
                 this.setAddition(enriched);
 
