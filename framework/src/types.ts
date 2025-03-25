@@ -23,6 +23,16 @@ export type DeepKeyOf<T> = T extends object ? {
         ? `${Key & string}` | `${Key & string}.${DeepKeyOf<T[Key]>}` 
         : `${Key & string}`
 }[keyof T & (string | number)] : never;
+
+export type DeepValueType<T, P extends string> = 
+    P extends `${infer K}.${infer Rest}`
+        ? K extends keyof T 
+            ? DeepValueType<T[K], Rest>
+            : never
+        : P extends keyof T
+            ? T[P]
+            : never;
+
 export type NonOverlappingKeys<T, U> = Exclude<keyof T, keyof U>;
 
 export type DeepNonOverlappingKeys<

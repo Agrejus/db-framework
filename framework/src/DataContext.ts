@@ -31,6 +31,33 @@ export class DataContext {
     // action.type -> "SaveChanges"
     saveChanges(done: (result: number, error?: any) => void) {
 
+        // Swap this over to Pipe & Filter, this way we can have any middleware vs being stuck
+        /* 
+        * action: { type: "check-for-changes", payload: {} } => void
+        * context: { 
+        *   hasChanges: boolean
+        *   additions: T[] -> will eventually get prepared and overwritten
+        *   removals: T[]
+        *   updates: T[]
+        *   findAddition: fn,
+        *   
+        * }
+        * 
+        * 
+        * 
+        * 
+        * ORDER
+        * action: { type: "check-for-changes", payload -> context } => void
+        * action: { type: "prepare-additions", payload -> context } => void
+        * action: { type: "prepare-updates", payload -> context } => void
+        * action: { type: "prepare-removals", payload -> context } => void
+        * action: { type: "persist", payload -> context } => void
+        * action: { type: "post-op-adds", payload -> context } => void
+        * action: { type: "post-op-updates", payload -> context } => void
+        * action: { type: "notify-subscribers", payload -> context } => void
+        * action: { type: "clean-up", payload -> context } => void
+        */
+
         let success_count = 0;
         const errors: any[] = [];
         const dbSets = [...this._dbsets.values()];

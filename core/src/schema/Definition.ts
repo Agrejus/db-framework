@@ -16,6 +16,8 @@ import { DeserializeHandlerBuilder } from '../handlers/DeserializeHandlerBuilder
 import { HashTypeHandlerBuilder } from '../handlers/HashTypeHandlerBuilder';
 import { IdSelectorHandlerBuilder } from '../handlers/IdSelectorHandlerBuilder';
 import { HashHandlerBuilder } from '../handlers/HashHandlerBuilder';
+import { EnableChangeTrackingHandlerBuilder } from '../handlers/EnableChangeTrackingHandlerBuilder';
+import { FreezeHanderBuilder } from '../handlers/FreezeHandlerBuilder';
 import { IdType } from "../types";
 
 export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
@@ -244,6 +246,8 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         const hashTypeHandlerBuilder = new HashTypeHandlerBuilder();
         const idSelectorHandlerBuilder = new IdSelectorHandlerBuilder();
         const hashHandlerBuilder = new HashHandlerBuilder();
+        const enableChangeTrackingHandlerBuilder = new EnableChangeTrackingHandlerBuilder();
+        const freezeHandlerBuilder = new FreezeHanderBuilder();
 
         const enricher = enrichmentHandlerBuilder.build();
         const merge = mergeHandlerFactory.build();
@@ -255,6 +259,18 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         const hashTypeHandler = hashTypeHandlerBuilder.build();
         const idSelectorHandler = idSelectorHandlerBuilder.build();
         const hashHandler = hashHandlerBuilder.build();
+        const enableChangeTrackingHandler = enableChangeTrackingHandlerBuilder.build();
+        const freezeHandler = freezeHandlerBuilder.build();
+
+        const changeTrackingCodeBuilder = new CodeBuilder();
+        changeTrackingCodeBuilder.raw(`function ${this.createChangeTracker.toString()}`);
+        changeTrackingCodeBuilder.slot("declarations").variable("enableChangeTracking").value('createChangeTracker()');
+        changeTrackingCodeBuilder.slot("assignment");
+        changeTrackingCodeBuilder.slot("return").raw('\treturn enableChangeTracking(entity);');
+
+        const freezeCodeBuilder = new CodeBuilder();
+        freezeCodeBuilder.slot("assignment");
+        freezeCodeBuilder.slot("return").raw('\treturn Object.freeze(entity);');
 
         const enricherCodeBuilder = new CodeBuilder();
         const enricherFunctionRoot = enricherCodeBuilder.factory("factory", { name: "factory" }).parameters({ name: "tableName", value: this.tableName });
@@ -267,23 +283,27 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         enricherFunctionBody.slot("declarations");
         enricherFunctionBody.slot("ifs");
         enricherFunctionBody.slot("assignment");
+        enricherFunctionBody.slot("tracking").if('changeTrackingType === "immutable"', { name: "freeze" });
         enricherFunctionBody.raw('\treturn enableChangeTracking(enriched);');
 
         const mergeCodeBuilder = new CodeBuilder();
-        const mergeFunctionsSlot = mergeCodeBuilder.slot("functions")
 
-        mergeFunctionsSlot.function("pause")
+        const mergeFunctionRoot = mergeCodeBuilder.factory("factory", { name: "factory" }).parameters({ name: "tableName", value: this.tableName });
+        const mergeFunctionBody = mergeFunctionRoot.function(undefined, { name: "function" }).parameters("destination", "source").return();
+
+        mergeFunctionBody.function("pause")
             .appendBody("// initiate change tracking if needed")
             .if("destination.__tracking__ == null")
             .appendBody("destination.__tracking__ = {};")
             .appendBody("destination.__tracking__.isPaused = true;");
 
-        mergeFunctionsSlot.function("unpause")
+        mergeFunctionBody.function("unpause")
             .appendBody("destination.__tracking__.isPaused  = false;");
 
-        mergeCodeBuilder.slot("header").raw(`pause()`);
-        mergeCodeBuilder.slot("assignments");
-        mergeCodeBuilder.slot("return").raw(`
+        mergeFunctionBody.slot("header").raw(`pause()`);
+        mergeFunctionBody.slot("assignments");
+        mergeFunctionBody.slot("ifs");
+        mergeFunctionBody.slot("return").raw(`
     unpause();
 
     return destination;`);
@@ -382,22 +402,27 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
             hashTypeHandler.handle(property, hashTypeCodeBuilder);
             idSelectorHandler.handle(property, idSelectorCodeBuilder);
             hashHandler.handle(property, hashCodeBuilder);
+            enableChangeTrackingHandler.handle(property, changeTrackingCodeBuilder);
+            freezeHandler.handle(property, freezeCodeBuilder);
         });
 
-        // console.log(prepareCodeBuilder.toString());
-        // console.log(stripCodeBuilder.toString());
-        // console.log(cloneCodeBuilder.toString());
-        // console.log(compareCodeBuilder.toString());
-        // console.log(deserializeCodeBuilder.toString());
-        // console.log(hashTypeCodeBuilder.toString());
-        // console.log(idSelectorCodeBuilder.toString());
+        console.log(prepareCodeBuilder.toString());
+        console.log(stripCodeBuilder.toString());
+        console.log(cloneCodeBuilder.toString());
+        console.log(compareCodeBuilder.toString());
+        console.log(deserializeCodeBuilder.toString());
+        console.log(hashTypeCodeBuilder.toString());
+        console.log(idSelectorCodeBuilder.toString());
         console.log(enricherCodeBuilder.toString());
+        console.log(mergeCodeBuilder.toString());
+        console.log(changeTrackingCodeBuilder.toString());
+        console.log(freezeCodeBuilder.toString());
 
-
-        const params = enricherFunctionRoot.getParameters()
+        const enrichParams = enricherFunctionRoot.getParameters()
+        const mergeParams = mergeFunctionRoot.getParameters()
         const enrichGenerator = Function(`return ${enricherCodeBuilder.toString()}`);
+        const mergeGenerator = Function(`return ${mergeCodeBuilder.toString()}`);
 
-        const mergeFunction = Function("destination", "source", mergeCodeBuilder.toString()) as (destination: NonNullEntity<T>, source: NonNullEntity<T>) => NonNullEntity<T>;;
         const getIdsFunction = Function("entity", idSelectorCodeBuilder.toString()) as (entity: NonNullEntity<T>) => [IdType];
         const getHashTypeFunction = Function("entity", hashTypeCodeBuilder.toString()) as GetHashTypeFunction<T>;
         const prepareFunction = Function("entity", prepareCodeBuilder.toString()) as (entity: NonNullCreateEntity<T>) => NonNullCreateEntity<T>;
@@ -406,15 +431,19 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         const compareFunction = Function("a", "b", compareCodeBuilder.toString()) as (a: NonNullEntity<T>, fromDb: NonNullEntity<T>) => boolean;;
         const stripFunction = Function("entity", stripCodeBuilder.toString()) as (entity: NonNullEntity<T>) => NonNullEntity<T>;
         const hashFunction = Function("entity", "type", hashCodeBuilder.toString()) as HashFunction<T>;
+        const enableChangeTrackingFunction = Function("entity", changeTrackingCodeBuilder.toString()) as (entity: NonNullEntity<T>) => NonNullEntity<T>;
+        const freezeFunction = Function("entity", freezeCodeBuilder.toString()) as (entity: NonNullEntity<T>) => NonNullEntity<T>;
 
         const enricherFactoryFunction = enrichGenerator();
-        const enricherFunction = enricherFactoryFunction(...params.map(w => w.value));
+        const mergeFactoryFunction = mergeGenerator();
+        const enricherFunction = enricherFactoryFunction(...enrichParams.map(w => w.value));
+        const mergeFunction = mergeFactoryFunction(...mergeParams.map(w => w.value));
 
         const getId = (entity: NonNullEntity<T>) => {
             if (idPropertyNames.length > 1) {
                 return hashFunction(entity, HashType.Ids) as IdType;
             }
-    
+
             return getIdsFunction(entity as any)[0] as IdType;
         }
 
@@ -436,7 +465,9 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
             getIds: getIdsFunction,
             enrich: enricherFunction,
             tableName: this.tableName,
-            hasIdentityKeys
+            hasIdentityKeys,
+            freeze: freezeFunction,
+            enableChangeTracking: enableChangeTrackingFunction,
         }
     }
 }

@@ -5,8 +5,8 @@ type Line = string | Block;
 type Param = { name: string, value: any };
 type GenericParam = { name: string, callName: string };
 
-export type Insert = { index: number, type: "before" | "after" };
-export type CreateBlockOptions = { name?: string, insert?: Insert };
+export type Insert = { index: number, type: "before" | "after", unshift: boolean };
+export type CreateBlockOptions = { name?: string, unshift?: boolean };
 
 export abstract class Block {
     readonly name: string;
@@ -66,28 +66,12 @@ export abstract class Block {
         return this._lines.some(w => typeof w !== "string" && w.name === name);
     }
 
-    protected push(line: Line, insert?: Insert) {
-
-        if (insert != null) {
-
-            if (insert.type === "before") {
-                this._lines.splice(insert.index, 0, line);
-                return;
-            }
-
-            const i = insert.index + 1;
-            const max = this._lines.length - 1;
-
-            if (i > max) {
-                this._lines.push(line);
-                return;
-            }
-
-            this._lines.splice(i, 0, line);
-            return;
-        }
-
+    protected push(line: Line) {
         this._lines.push(line);
+    }
+
+    protected unshift(line: Line) {
+        this._lines.unshift(line);
     }
 
     protected indent(text: string): string {
@@ -101,55 +85,60 @@ export abstract class Block {
 export abstract class ContainerBlock extends Block {
     if(condition: string, options?: CreateBlockOptions): IfBuilder {
         const builder = new IfBuilder(condition, options?.name, this._indent + "  ", this);
-        this.push(builder, options?.insert);
+        if (options?.unshift === true) {
+            this.unshift(builder);
+        } else {
+            this.push(builder);
+        }
+
         return builder;
     }
 
     raw(raw: string, options?: CreateBlockOptions): RawBuilder {
         const builder = new RawBuilder(raw, options?.name, this._indent + "  ", this);
-        this.push(builder, options?.insert);
+        this.push(builder);
         return builder;
     }
 
     function(name?: string, options?: CreateBlockOptions): FunctionBuilder {
         const builder = new FunctionBuilder(name, options?.name, this._indent + "  ", this);
-        this.push(builder, options?.insert);
+        this.push(builder);
         return builder;
     }
 
     factory(name?: string, options?: CreateBlockOptions): FunctionFactoryBuilder {
         const builder = new FunctionFactoryBuilder(name, options?.name, this._indent + "  ", this);
-        this.push(builder, options?.insert);
+        this.push(builder);
         return builder;
     }
 
     variable(declaration: string, options?: CreateBlockOptions): VariableBuilder {
         const builder = new VariableBuilder(declaration, options?.name, this._indent + "  ", this);
-        this.push(builder, options?.insert);
+        this.push(builder);
         return builder;
     }
 
     assign(variableName: string, options?: CreateBlockOptions): AssignmentBuilder {
         const builder = new AssignmentBuilder(variableName, options?.name, this._indent + "  ", this);
-        this.push(builder, options?.insert);
+        this.push(builder);
         return builder;
     }
 
     object(options?: CreateBlockOptions): ObjectBuilder {
         const builder = new ObjectBuilder(options?.name, this._indent + "  ", this);
-        this.push(builder, options?.insert);
+        this.push(builder);
         return builder;
     }
 
-    slot(name: string, insert?: Insert) {
+    slot(name: string) {
         const builder = new SlotBlock(name, this._indent + "  ", this);
-        this.push(builder, insert);
+        this.push(builder);
         return builder;
     }
 
     array(accessor: string, options?: CreateBlockOptions) {
         const builder = new ArrayBuilder(accessor, options?.name, this._indent + "  ", this);
-        this.push(builder, options?.insert);
+        this.push(builder);
         return builder;
     }
 }
@@ -546,6 +535,11 @@ export class IfBuilder extends ContainerBlock {
 
     appendBody(line: string): this {
         this.push(line);
+        return this;
+    }
+
+    unshiftBody(line: string): this {
+        this.unshift(line);
         return this;
     }
 

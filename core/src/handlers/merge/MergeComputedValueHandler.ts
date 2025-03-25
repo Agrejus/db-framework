@@ -8,7 +8,6 @@ export class MergeComputedValueHandler extends PropertyInfoHandler {
     override handle(property: PropertyInfo<any>, builder: CodeBuilder): CodeBuilder | null {
 
         if (property.functionBody != null && property.type === SchemaTypes.Computed) {
-
             const parameterNames: string[] = ["source", "tableName"];
 
             if (property.injected != null) {
@@ -20,13 +19,13 @@ export class MergeComputedValueHandler extends PropertyInfoHandler {
                 parameterNames.push(parameter.name);
             }
 
-            const declarationsSlot = builder.get<SlotBlock>("functions");
+            const declarationsSlot = builder.get<SlotBlock>("factory.function.header");
             const defaultFunctionWithParameters = this.toNamedFunction(property.functionBody.toString(), declarationsSlot);
 
             defaultFunctionWithParameters.builder.parameters(...parameterNames.map((w, i) => ({ name: defaultFunctionWithParameters.parameters[i], callName: w })));
 
 
-            const ifsSlot = builder.get<SlotBlock>("assignments");
+            const ifsSlot = builder.get<SlotBlock>("factory.function.assignments");
             const enrichedAssignmentPath = property.getAssignmentPath({ parent: "destination" });
             ifsSlot.if(`${enrichedAssignmentPath} == null`).appendBody(`${enrichedAssignmentPath} = ${defaultFunctionWithParameters.builder.toCallable()}`);
 

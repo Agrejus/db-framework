@@ -34,6 +34,15 @@ const nested = s.define("MY_NESTED_TABLE", {
     documentType: w.computed((_, t) => t).tracked()
 })).compile();
 
+// const modelWithDate = s.define("MY_DATE_TABLE", {
+//     _id: s.string().key().identity(),
+//     _rev: s.string().identity(),
+//     date: s.date().default(new Date()).deserialize(w => new Date(w)).serialize(w => w.toISOString()),
+//     name: s.string()
+// }).modify(w => ({
+//     documentType: w.computed((_, t) => t).tracked()
+// })).compile();
+
 const plugin = new PouchDbPlugin("testing-db");
 class Ctx extends DataContext {
 
@@ -44,13 +53,23 @@ class Ctx extends DataContext {
     // test = this.dbset(model).create();
     nested = this.dbset(nested).stateful().create();
     immutable = this.dbset(nested).immutable().create();
+    // date = this.dbset(modelWithDate).create();
 }
 
-
+// HOW CAN WE PUSH UPDATES TO THE DBSET FROM THE PLUGIN?
 const r = async () => {
     try {
+        // need to make sure we are handling enriching and merging correctly,
+        // they are not taking into account defaults
         const ctx = new Ctx();
         debugger;
+
+        // await ctx.date.addAsync({
+        //     name: "James"
+        // });
+
+        // await ctx.saveChangesAsync();
+        
         // await ctx.nested.addAsync({
         //     child: {
         //         name: "Child Name",
@@ -74,20 +93,20 @@ const r = async () => {
         // const r2 = await ctx.nested.where(w => w.name == "James").firstOrUndefinedAsync();
         // console.log('DONE 6', performance.now() - s2, r2)
 
-        const s1 = performance.now();
-        ctx.nested.where(w => w.name == "James").firstOrUndefined((r, e) => {
-            console.log('DONE 1', performance.now() - s1, r, e)
-        });
+        // const s1 = performance.now();
+        // ctx.nested.where(w => w.name == "James").firstOrUndefined((r, e) => {
+        //     console.log('DONE 1', performance.now() - s1, r, e)
+        // });
 
-        const s2 = performance.now();
-        ctx.nested.where(w => w.name == "James").firstOrUndefined((r, e) => {
-            console.log('DONE 2', performance.now() - s2, r, e)
-        });
+        // const s2 = performance.now();
+        // ctx.nested.where(w => w.name == "James").firstOrUndefined((r, e) => {
+        //     console.log('DONE 2', performance.now() - s2, r, e)
+        // });
 
-        const s3 = performance.now();
-        ctx.nested.where(w => w.name == "James").toArray((r, e) => {
-            console.log('DONE 3', performance.now() - s3, r, e)
-        });
+        // const s3 = performance.now();
+        // ctx.nested.where(w => w.name == "James").toArray((r, e) => {
+        //     console.log('DONE 3', performance.now() - s3, r, e)
+        // });
 
         await ctx.immutable.addAsync({
             child: {
@@ -103,20 +122,16 @@ const r = async () => {
             name: "James"
         });
 
-        await ctx.saveChangesAsync();
-        const found = await ctx.immutable.firstOrUndefinedAsync(w => w.name === "James");
+        // await ctx.saveChangesAsync();
+        // const found = await ctx.immutable.firstOrUndefinedAsync(w => w.name === "James");
 
-        if (found != null) {
-            const mutated = ctx.immutable.mutate(found, draft => {
+        // if (found != null) {
+        //     const mutated = ctx.immutable.mutate(found, entity => {
+        //         entity.name = "test";
+        //     })
 
-                draft.name = "Some New Name";
-                draft.child.nested.winner = 1;
-
-                return draft;
-            })
-
-            console.log("Changed", mutated, found);
-        }
+        //     console.log("Changed", mutated, found);
+        // }
 
 
         debugger;
@@ -212,15 +227,15 @@ const r = async () => {
 
         // console.log(added.toString())
 
-        let count = 0;
-        const id = setInterval(() => {
-            count++;
-            console.log(count);
-            if (count >= 5 && id != null) {
-                clearInterval(id);
-            } 
+        // let count = 0;
+        // const id = setInterval(() => {
+        //     count++;
+        //     console.log(count);
+        //     if (count >= 5 && id != null) {
+        //         clearInterval(id);
+        //     } 
 
-        }, 500)
+        // }, 500)
     } catch (e) {
         debugger;
         console.log(e)

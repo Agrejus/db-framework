@@ -44,3 +44,59 @@ Can we do CDC so we can create history tables?
     Can we apply a TTL to documents?
 
 Can we provide optimistic updates to provide faster subscription calls?
+
+
+Lets use Pipe and Filter to perform actions on our data
+
+// Define the context type (can be extended as needed)
+interface Context {
+  [key: string]: any;
+}
+
+// Define the rule/processor type
+type Processor = (context: Context) => Context;
+
+// Pipeline class to manage the sequence of operations
+class Pipeline {
+  private processors: Processor[] = [];
+
+  // Add a processor to the pipeline
+  addProcessor(processor: Processor): Pipeline {
+    this.processors.push(processor);
+    return this; // For chaining
+  }
+
+  // Process the context through all processors
+  run(initialContext: Context): Context {
+    return this.processors.reduce(
+      (context, processor) => processor(context),
+      initialContext
+    );
+  }
+}
+
+// Example usage
+const pipeline = new Pipeline();
+
+// Add processors/rules
+pipeline
+  .addProcessor((ctx) => {
+    // Rule 1: Add user info
+    return { ...ctx, user: { name: "John", role: "admin" } };
+  })
+  .addProcessor((ctx) => {
+    // Rule 2: Add timestamp
+    return { ...ctx, timestamp: Date.now() };
+  })
+  .addProcessor((ctx) => {
+    // Rule 3: Calculate permissions based on role
+    const permissions = ctx.user.role === "admin" 
+      ? ["read", "write", "delete"] 
+      : ["read"];
+    return { ...ctx, permissions };
+  });
+
+// Run the pipeline with initial context
+const initialContext: Context = { requestId: "123" };
+const result = pipeline.run(initialContext);
+console.log(result);

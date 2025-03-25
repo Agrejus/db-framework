@@ -71,10 +71,10 @@ export abstract class PropertyInfoHandler implements IHandler {
         enriched.property(`${property.name}: ${entitySelectorPath}`);
     }
 
-    protected toNamedFunction(stringifiedFunction: string, parent: ContainerBlock, insert?: Insert) {
+    protected toNamedFunction(stringifiedFunction: string, parent: ContainerBlock) {
         const name = createUUID()
 
-        const builder = parent.function(name, { insert });
+        const builder = parent.function(name);
 
         if (stringifiedFunction.includes("=>")) {
 

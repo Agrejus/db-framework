@@ -38,11 +38,6 @@ export class DbSet<TEntity extends {}, TEnhancedPropertyNames extends string = n
         return "entity";
     }
 
-    // change to use params, easier to understand
-    params() {
-
-    }
-
     add(entities: NonNullCreateEntity<TEntity, TEnhancedPropertyNames | TComputedPropertyNames>[], done: EntityCallbackMany<TEntity>) {
         this.changeTracker.add(entities, done);
     }

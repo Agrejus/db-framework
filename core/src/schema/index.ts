@@ -92,6 +92,8 @@ export type CompiledSchema<TEntity extends {}> = {
     getIds: (entity: NonNullEntity<TEntity>) => [IdType];
     enrich: (entity: NonNullEntity<TEntity>, changeTrackingType: ChangeTrackingType) => NonNullEntity<TEntity>;
     hasIdentityKeys: boolean;
+    freeze: (entity: NonNullEntity<TEntity>) => NonNullEntity<TEntity>;
+    enableChangeTracking: (entity: NonNullEntity<TEntity>) => NonNullEntity<TEntity>;
 }
 
 export type PropertySerializer<T extends any> = (value: T) => string | number;

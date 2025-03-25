@@ -9,7 +9,7 @@ export class MergePrimitiveHandler extends PropertyInfoHandler {
 
         if (property.type != SchemaTypes.Object) {
             const selectorPath = property.getSelectrorPath({ parent: "source", assignmentType: "FORCE_NULLABLE_OR_OPTIONAL" });
-            const slot = builder.get<SlotBlock>("assignments");
+            const slot = builder.get<SlotBlock>("factory.function.assignments");
             const entitySelectorPath = property.getAssignmentPath({ parent: "source" });
             const enrichedAssignmentPath = property.getAssignmentPath({ parent: "destination" });
 
