@@ -1,6 +1,6 @@
 import { IChangeTracker } from "../change-tracking/types";
 import { ChangeTrackerFactory } from "../change-tracking/ChangeTrackerFactory";
-import { DbSetOptions, EntityCallbackMany, EntityMap, QueryResult } from "../types";
+import { DbSetOptions, EntityCallbackMany, EntityMap, QueryResult, SaveChangesContext } from "../types";
 import { IDbPlugin, NonNullCreateEntity, NonNullEntity, Filter, ParamsFilter, CompiledSchema } from '@agrejus/db-framework-core';
 import { Queryable } from '../query/Queryable';
 import { QueryableAsync } from '../query/QueryableAsync';
@@ -12,6 +12,7 @@ import { StatefulDataAccessManager } from "../data-access/StatefulDataAccessMana
 import { IDataAccessManager } from "../data-access/types";
 import { DataAccessInstanceCreator } from "../dbset-builder/types";
 import { ChangeTrackingType } from "@agrejus/db-framework-core/dist/schema";
+import { Pipeline } from "../DataContextPipeline";
 
 
 export class DbSet<TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never> {
@@ -21,9 +22,10 @@ export class DbSet<TEntity extends {}, TEnhancedPropertyNames extends string = n
     private readonly DataAccessInstanceCreator: DataAccessInstanceCreator<TEntity>;
     schema: CompiledSchema<TEntity>;
 
-    constructor(dbPlugin: IDbPlugin, schema: CompiledSchema<TEntity>, options: DbSetOptions) {
+    constructor(dbPlugin: IDbPlugin, schema: CompiledSchema<TEntity>, options: DbSetOptions, pipeline: Pipeline<SaveChangesContext<TEntity>, SaveChangesContext<TEntity>>) {
+
         this.schema = schema;
-        this.changeTracker = ChangeTrackerFactory.create<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>(schema, dbPlugin, this.getChangeTrackingType());
+        this.changeTracker = ChangeTrackerFactory.create<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>(schema, dbPlugin, this.getChangeTrackingType(), pipeline);
 
         if (options.stateful === true) {
             this.DataAccessInstanceCreator = StatefulDataAccessManager<TEntity>;

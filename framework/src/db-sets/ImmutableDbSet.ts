@@ -2,11 +2,6 @@ import { NonNullEntity } from "@agrejus/db-framework-core";
 import { DbSet } from "./DbSet";
 import { ChangeTrackingType } from "@agrejus/db-framework-core/dist/schema";
 
-type Setter<T> = <K>(
-    getter: (entity:T) => K,
-    setter: (entity: T, value: K) => void
-) => T;
-
 export class ImmutableDbSet<TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never> extends DbSet<TEntity, TEnhancedPropertyNames, TComputedPropertyNames> {
 
     protected override getChangeTrackingType(): ChangeTrackingType {

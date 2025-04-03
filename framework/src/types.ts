@@ -1,4 +1,4 @@
-import { GenericFunction, IdType, NonNullEntity } from "@agrejus/db-framework-core";
+import { EntityChanges, EntityModificationResult, GenericFunction, IdType, NonNullCreateEntity, NonNullEntity } from "@agrejus/db-framework-core";
 
 export type QueryResult<T> = (value: T, error?: any) => void;
 export type EntityMap<T extends {}, R> = GenericFunction<T, R>;
@@ -71,4 +71,29 @@ export type DeepOptional<T> = {
 
 export type DbSetOptions = {
     stateful: boolean;
+}
+
+export type SaveChangesContextStepOne = {
+    count: number;
+}
+
+export type SaveChangesContextStepTwo = SaveChangesContextStepOne & {
+    hasChanges: boolean;
+}
+
+export type SaveChangesContextStepThree<T> = SaveChangesContextStepTwo & {
+    adds: EntityChanges<T>["adds"];
+    find: (entity: NonNullEntity<T>) => NonNullCreateEntity<T> | undefined;
+}
+
+export type SaveChangesContextStepFour<T> = SaveChangesContextStepThree<T> & {
+    removes: EntityChanges<T>["removes"];
+}
+
+export type SaveChangesContextStepFive<T> = SaveChangesContextStepFour<T> & {
+    updates: EntityChanges<T>["updates"];
+}
+
+export type SaveChangesContextStepSix<T> = SaveChangesContextStepFive<T> & {
+    result: EntityModificationResult<T> | null;
 }

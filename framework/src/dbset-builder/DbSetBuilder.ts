@@ -1,9 +1,10 @@
 import { CompiledSchema, IDbPlugin } from '@agrejus/db-framework-core';
 import { DbSet } from '../db-sets/DbSet';
 import { ImmutableDbSet } from '../db-sets/ImmutableDbSet';
-import { DbSetOptions } from '../types';
+import { DbSetOptions, SaveChangesContext } from '../types';
 import { DbSetInstanceCreator } from './types';
 import { StatefulDbSet } from '../db-sets/StatefulDbSet';
+import { Pipeline } from '../DataContextPipeline';
 
 type DbSetBuilderProps<TEntity extends {}, TEnhancedPropertyNames extends string, TComputedPropertyNames extends string, TDbSet extends DbSet<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>> = {
     onDbSetCreated: (dbset: DbSet<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>) => void;
@@ -11,6 +12,7 @@ type DbSetBuilderProps<TEntity extends {}, TEnhancedPropertyNames extends string
     dbPlugin: IDbPlugin;
     isStateful: boolean;
     instanceCreator: DbSetInstanceCreator<TEntity, TEnhancedPropertyNames, TComputedPropertyNames, TDbSet>;
+    pipeline: Pipeline<SaveChangesContext<TEntity>, SaveChangesContext<TEntity>>;
 }
 
 export class DbSetBuilder<TEntity extends {}, TEnhancedPropertyNames extends string, TComputedPropertyNames extends string, TDbSet extends DbSet<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>> {
@@ -20,8 +22,10 @@ export class DbSetBuilder<TEntity extends {}, TEnhancedPropertyNames extends str
     private readonly _dbPlugin: IDbPlugin;
     private _isStateful: boolean = false;
     private _instanceCreator: DbSetInstanceCreator<TEntity, TEnhancedPropertyNames, TComputedPropertyNames, TDbSet>;
+    private _pipeline: Pipeline<SaveChangesContext<TEntity>, SaveChangesContext<TEntity>>;
 
     constructor(props: DbSetBuilderProps<TEntity, TEnhancedPropertyNames, TComputedPropertyNames, TDbSet>) {
+        this._pipeline = props.pipeline;
         this._schema = props.schema;
         this._dbPlugin = props.dbPlugin;
         this._onDbSetCreated = props.onDbSetCreated;
@@ -36,7 +40,8 @@ export class DbSetBuilder<TEntity extends {}, TEnhancedPropertyNames extends str
             isStateful: true,
             onDbSetCreated: this._onDbSetCreated,
             schema: this._schema,
-            instanceCreator: StatefulDbSet
+            instanceCreator: StatefulDbSet,
+            pipeline: this._pipeline
         });
     }
 
@@ -46,18 +51,19 @@ export class DbSetBuilder<TEntity extends {}, TEnhancedPropertyNames extends str
             isStateful: this._isStateful,
             onDbSetCreated: this._onDbSetCreated,
             schema: this._schema,
-            instanceCreator: ImmutableDbSet
+            instanceCreator: ImmutableDbSet,
+            pipeline: this._pipeline
         });
     }
 
     create(): TDbSet;
-    create<TExtension extends TDbSet>(extend: (i: DbSetInstanceCreator<TEntity, TEnhancedPropertyNames, TComputedPropertyNames, TDbSet>, dbPlugin: IDbPlugin, schema: CompiledSchema<TEntity>, options: DbSetOptions) => TExtension): TExtension;
-    create<TExtension extends TDbSet = never>(extend?: (i: DbSetInstanceCreator<TEntity, TEnhancedPropertyNames, TComputedPropertyNames, TDbSet>, dbPlugin: IDbPlugin, schema: CompiledSchema<TEntity>, options: DbSetOptions) => TExtension) {
+    create<TExtension extends TDbSet>(extend: (i: DbSetInstanceCreator<TEntity, TEnhancedPropertyNames, TComputedPropertyNames, TDbSet>, dbPlugin: IDbPlugin, schema: CompiledSchema<TEntity>, options: DbSetOptions, pipeline: Pipeline<SaveChangesContext<TEntity>, SaveChangesContext<TEntity>>) => TExtension): TExtension;
+    create<TExtension extends TDbSet = never>(extend?: (i: DbSetInstanceCreator<TEntity, TEnhancedPropertyNames, TComputedPropertyNames, TDbSet>, dbPlugin: IDbPlugin, schema: CompiledSchema<TEntity>, options: DbSetOptions, pipeline: Pipeline<SaveChangesContext<TEntity>, SaveChangesContext<TEntity>>) => TExtension) {
         if (extend == null) {
             const Instance = this._instanceCreator;
             const result = new Instance(this._dbPlugin, this._schema, {
                 stateful: this._isStateful
-            });
+            }, this._pipeline);
 
             this._onDbSetCreated(result);
 
@@ -67,7 +73,7 @@ export class DbSetBuilder<TEntity extends {}, TEnhancedPropertyNames extends str
         const Instance = this._instanceCreator;
         const extendedResult = extend(Instance, this._dbPlugin, this._schema, {
             stateful: this._isStateful
-        });
+        }, this._pipeline);
 
         this._onDbSetCreated(extendedResult);
 

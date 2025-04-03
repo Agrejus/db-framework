@@ -2,14 +2,16 @@ import { IdType, NonNullCreateEntity, CompiledSchema, IDbPlugin, HashType, toMap
 import { ChangeTrackingBase } from "./ChangeTrackingBase";
 import { IChangeTracker } from '../types';
 import { ChangeTrackingType } from "@agrejus/db-framework-core/dist/schema";
+import { Pipeline } from "../../DataContextPipeline";
+import { SaveChangesContext } from "../../types";
 
 export class IdentityKeyChangeTrackingBase<TKey extends IdType, TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never>
     extends ChangeTrackingBase<TKey, TEntity, TEnhancedPropertyNames, TComputedPropertyNames> implements IChangeTracker<TEntity, TEnhancedPropertyNames, TComputedPropertyNames> {
 
     protected additions: NonNullCreateEntity<TEntity>[] = [];
 
-    constructor(schema: CompiledSchema<TEntity>, dbPlugin: IDbPlugin, changeTrackingType: ChangeTrackingType) {
-        super(schema, dbPlugin, changeTrackingType);
+    constructor(schema: CompiledSchema<TEntity>, dbPlugin: IDbPlugin, changeTrackingType: ChangeTrackingType, pipeline: Pipeline<SaveChangesContext<TEntity>, SaveChangesContext<TEntity>>) {
+        super(schema, dbPlugin, changeTrackingType, pipeline);
     }
 
     protected override get additionsCount() {
@@ -28,7 +30,7 @@ export class IdentityKeyChangeTrackingBase<TKey extends IdType, TEntity extends 
         this.additions = [];
     }
 
-    protected override replaceAddition(existingEntity: NonNullCreateEntity<TEntity>, newEntity: NonNullCreateEntity<TEntity>) : boolean {
+    protected override replaceAddition(existingEntity: NonNullCreateEntity<TEntity>, newEntity: NonNullCreateEntity<TEntity>): boolean {
         const index = this.additions.findIndex(x => x === existingEntity);
 
         if (index === -1) {
