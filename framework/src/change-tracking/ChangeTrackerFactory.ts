@@ -3,8 +3,8 @@ import { IChangeTracker } from "./types";
 import { IdentityKeyChangeTrackingBase } from './base/IdentityKeyChangeTrackingBase';
 import { NonIdentityKeyChangeTrackingBase } from './base/NonIdentityKeyChangeTrackingBase';
 import { ChangeTrackingType } from "@agrejus/db-framework-core/dist/schema";
-import { Pipeline } from "../DataContextPipeline";
-import { SaveChangesContext } from "../types";
+import { TrampolinePipeline } from "../DataContextPipeline";
+import { SaveChangesContextStepOne } from "../types";
 
 export class ChangeTrackerFactory {
 
@@ -12,13 +12,14 @@ export class ChangeTrackerFactory {
         schema: CompiledSchema<TEntity>, 
         dbPlugin: IDbPlugin, 
         changeTrackingType: ChangeTrackingType,
-        pipeline: Pipeline<SaveChangesContext<TEntity>, SaveChangesContext<TEntity>>
+        pipeline: TrampolinePipeline<SaveChangesContextStepOne>,
+        abortController: AbortController
     ): IChangeTracker<TEntity, TEnhancedPropertyNames, TComputedPropertyNames> {
 
         if (schema.hasIdentityKeys === true) {
-            return new IdentityKeyChangeTrackingBase(schema, dbPlugin, changeTrackingType, pipeline)
+            return new IdentityKeyChangeTrackingBase(schema, dbPlugin, changeTrackingType, pipeline, abortController)
         }
 
-        return new NonIdentityKeyChangeTrackingBase(schema, dbPlugin, changeTrackingType, pipeline);
+        return new NonIdentityKeyChangeTrackingBase(schema, dbPlugin, changeTrackingType, pipeline, abortController);
     }
 }

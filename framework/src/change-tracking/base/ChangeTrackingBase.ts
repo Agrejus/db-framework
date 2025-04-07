@@ -1,10 +1,10 @@
-import { CompiledSchema, EntityModificationResult, IDbPlugin, IdType, NonNullCreateEntity, NonNullEntity, Query } from "@agrejus/db-framework-core";
+import { CompiledSchema, IDbPlugin, IdType, NonNullCreateEntity, NonNullEntity, Query } from "@agrejus/db-framework-core";
 import { ChangeTrackedEntity, EntityCallbackMany, SaveChangesContextStepFive, SaveChangesContextStepFour, SaveChangesContextStepOne, SaveChangesContextStepSix, SaveChangesContextStepThree, SaveChangesContextStepTwo } from "../../types";
 import { DataAccessManager } from "../../data-access/DataAccessManager";
 import { UniDirectionalSubscription } from '../../subscriptions/UniDirectionalSubscription';
 import { FetchOptions } from "../../data-access/types";
 import { ChangeTrackingType } from "@agrejus/db-framework-core/dist/schema";
-import { Pipeline } from "../../DataContextPipeline";
+import { TrampolinePipeline } from "../../DataContextPipeline";
 
 export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never> {
 
@@ -15,11 +15,20 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
     protected manager: DataAccessManager<TEntity>;
     protected unidirecitonalSubscription: UniDirectionalSubscription;
     readonly changeTrackingType: ChangeTrackingType;
+    private readonly _abortController: AbortController;
+    protected abstract prepareAdditions(data: SaveChangesContextStepTwo, done: (result: SaveChangesContextStepThree<TEntity>) => void): void;
 
-    constructor(schema: CompiledSchema<TEntity>, dbPlugin: IDbPlugin, changeTrackingType: ChangeTrackingType, pipeline: Pipeline<SaveChangesContextStepOne>) {
+    constructor(
+        schema: CompiledSchema<TEntity>, 
+        dbPlugin: IDbPlugin, 
+        changeTrackingType: ChangeTrackingType, 
+        pipeline: TrampolinePipeline<SaveChangesContextStepOne>,
+        abortController: AbortController
+    ) {
         this.schema = schema;
         this.manager = new DataAccessManager<TEntity>(schema, dbPlugin, this);
-        this.unidirecitonalSubscription = new UniDirectionalSubscription(schema.key);
+        this._abortController = abortController;
+        this.unidirecitonalSubscription = new UniDirectionalSubscription(schema.key, this._abortController);
         this.changeTrackingType = changeTrackingType;
 
         pipeline.add(this.checkForChangesStep.bind(this))
@@ -67,19 +76,6 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
         done(data);
     }
 
-    protected prepareAdditions(data: SaveChangesContextStepTwo, done: (result: SaveChangesContextStepThree<TEntity>) => void) {
-
-        if (data.hasChanges === false) {
-            done({ ...data, adds: [], find: () => undefined as any });
-            return;
-        }
-
-        const adds = this.getPreparedAdditions();
-        const find = () => undefined as any
-
-        done({ ...data, adds, find });
-    }
-
     protected prepareRemovals(data: SaveChangesContextStepThree<TEntity>, done: (result: SaveChangesContextStepFour<TEntity>) => void) {
 
         if (data.hasChanges === false) {
@@ -124,6 +120,8 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
             // Set here, if we never save we should never attach
             this.setAttachment(id, found as any)
         });
+
+        done(data);
     }
 
     protected postOpUpdates(data: SaveChangesContextStepSix<TEntity>, done: (result: SaveChangesContextStepSix<TEntity>, error?: any) => void) {
@@ -141,7 +139,9 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
 
             // Let's only map Ids and identities
             this.schema.merge(found as any, update as any); // merge needs to map children appropriately
-        })
+        });
+
+        done(data);
     }
 
     protected persist(data: SaveChangesContextStepFive<TEntity>, done: (result: SaveChangesContextStepSix<TEntity>, error?: any) => void) {
@@ -164,7 +164,6 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
     protected abstract replaceAddition(existingEntity: NonNullCreateEntity<TEntity>, newEntity: NonNullCreateEntity<TEntity>): boolean;
     protected abstract getPreparedAdditions(): NonNullCreateEntity<TEntity>[];
     protected abstract clearAdditions(): void;
-    abstract saveChanges(done: (result: number, error?: any) => void): void;
 
     protected forEachAttachment(callback: (entity: NonNullEntity<TEntity>) => boolean) {
         for (const [, doc] of this.attachments) {
@@ -288,7 +287,7 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
     }
 
     subscribe<U>(query: Query<TEntity>, shape: (data: TEntity[]) => U, done: (result: U, error?: any) => void) {
-        const subscription = new UniDirectionalSubscription(this.schema.key);
+        const subscription = new UniDirectionalSubscription(this.schema.key, this._abortController);
         subscription.onMessage(() => {
             this.manager.fetch(query, (r, e) => {
                 const shapedData = shape(r);
@@ -298,59 +297,4 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
 
         return () => subscription[Symbol.dispose]();
     };
-
-    private _resolveBulkOperationsResult(result: EntityModificationResult<TEntity>, findAddition: (entity: NonNullEntity<TEntity>) => NonNullCreateEntity<TEntity> | undefined): number {
-        const { adds, removedCount, updates } = result;
-        const response = removedCount + adds.length + updates.length;
-
-        // need to merge adds with data sent in
-        adds.forEach(add => {
-            const found = findAddition(add as any);
-
-            // Let's only map Ids and identities
-            this.schema.merge(found as any, add as any); // merge needs to map children appropriately
-
-            const id = this.schema.getId(add as any) as TKey;
-
-            // Set here, if we never save we should never attach
-            this.setAttachment(id, found as any)
-        });
-
-        // need to merge updates in case we have identity properties
-        updates.forEach(update => {
-            const id = this.schema.getId(update as any) as TKey;
-            const found = this.attachments.get(id);
-
-            // Let's only map Ids and identities
-            this.schema.merge(found as any, update as any); // merge needs to map children appropriately
-        })
-
-        return response;
-    }
-
-    protected bulkOperations(findAddition: (entity: NonNullEntity<TEntity>) => NonNullCreateEntity<TEntity> | undefined, done: (result: number, error?: any) => void) {
-
-        if (this.hasChanges() === false) {
-            done(0, null);
-            return;
-        }
-
-        this.manager.bulkOperations(this.schema, {
-            // prepare is responsible for creating a new clean object 
-            // with only properties that should be saved and run any serializers
-            adds: this.getPreparedAdditions(),
-            removes: this.removals.map(w => this.schema.prepare(w as any) as any),
-            updates: this.getAttachmentsChanges()
-        }, (result, error) => {
-
-            const response = this._resolveBulkOperationsResult(result, findAddition);
-
-            // run subscriptions
-            this.unidirecitonalSubscription.send();
-
-            this.clearAdditions();
-
-            done(response, error);
-        });
-    }
 }   

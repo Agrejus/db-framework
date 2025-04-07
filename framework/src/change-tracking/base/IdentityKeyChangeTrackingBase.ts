@@ -1,18 +1,13 @@
-import { IdType, NonNullCreateEntity, CompiledSchema, IDbPlugin, HashType, toMap } from "@agrejus/db-framework-core";
+import { IdType, NonNullCreateEntity, HashType, toMap } from "@agrejus/db-framework-core";
 import { ChangeTrackingBase } from "./ChangeTrackingBase";
 import { IChangeTracker } from '../types';
-import { ChangeTrackingType } from "@agrejus/db-framework-core/dist/schema";
-import { Pipeline } from "../../DataContextPipeline";
-import { SaveChangesContext } from "../../types";
+import { SaveChangesContextStepThree, SaveChangesContextStepTwo } from "../../types";
 
 export class IdentityKeyChangeTrackingBase<TKey extends IdType, TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never>
     extends ChangeTrackingBase<TKey, TEntity, TEnhancedPropertyNames, TComputedPropertyNames> implements IChangeTracker<TEntity, TEnhancedPropertyNames, TComputedPropertyNames> {
 
     protected additions: NonNullCreateEntity<TEntity>[] = [];
 
-    constructor(schema: CompiledSchema<TEntity>, dbPlugin: IDbPlugin, changeTrackingType: ChangeTrackingType, pipeline: Pipeline<SaveChangesContext<TEntity>, SaveChangesContext<TEntity>>) {
-        super(schema, dbPlugin, changeTrackingType, pipeline);
-    }
 
     protected override get additionsCount() {
         return this.additions.length;
@@ -42,12 +37,32 @@ export class IdentityKeyChangeTrackingBase<TKey extends IdType, TEntity extends 
         return true;
     }
 
-    override saveChanges(done: (result: number, error?: any) => void): void {
+    protected prepareAdditions(data: SaveChangesContextStepTwo, done: (result: SaveChangesContextStepThree<TEntity>) => void) {
+
+        if (data.hasChanges === false) {
+            done({ ...data, adds: [], find: () => undefined as any });
+            return;
+        }
+
+        const adds = this.getPreparedAdditions();
         const hashedAdds = toMap(this.additions, w => this.schema.hash(w, HashType.Object));
 
-        this.bulkOperations(entity => {
-            const hash = this.schema.hash(entity as any, HashType.Object);
-            return hashedAdds.get(hash);
-        }, done)
+        done({
+            ...data,
+            adds,
+            find: entity => {
+                const hash = this.schema.hash(entity as any, HashType.Object);
+                return hashedAdds.get(hash);
+            }
+        });
     }
+
+    // override saveChanges(done: (result: number, error?: any) => void): void {
+    //     const hashedAdds = toMap(this.additions, w => this.schema.hash(w, HashType.Object));
+
+    //     this.bulkOperations(entity => {
+    //         const hash = this.schema.hash(entity as any, HashType.Object);
+    //         return hashedAdds.get(hash);
+    //     }, done)
+    // }
 }

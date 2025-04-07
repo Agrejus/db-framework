@@ -10,7 +10,7 @@ export class UniDirectionalSubscription implements Disposable {
     private _id = createUUID();
     private _callback: (() => void) | null = null;
 
-    constructor(id: number) {
+    constructor(id: number, abortController: AbortController) {
         this._channel = new BroadcastChannel(`__db-framework-unidirectional-subscription-channel-${id}`);
         this._channel.onmessage = (event: any) => {
             const message = event.data as UniDirectionalSubscriptionPayload;
@@ -22,6 +22,10 @@ export class UniDirectionalSubscription implements Disposable {
                 this._callback();
             }
         };
+
+        abortController.signal.addEventListener("abort", () => {
+            this[Symbol.dispose]();
+        }, { once: true });
     }
 
     send() {
@@ -39,6 +43,7 @@ export class UniDirectionalSubscription implements Disposable {
     [Symbol.dispose](): void {
         this._channel.onmessage = null;
         this._channel.close();
+        this._channel = null;
     }
 
 }

@@ -71,6 +71,7 @@ export type DeepOptional<T> = {
 
 export type DbSetOptions = {
     stateful: boolean;
+    abortController: AbortController
 }
 
 export type SaveChangesContextStepOne = {

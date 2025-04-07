@@ -1,21 +1,23 @@
 import { CompiledSchema, IDbPlugin } from '@agrejus/db-framework-core';
 import { DbSet } from './db-sets/DbSet';
-import { forEach } from './utilities';
 import { DbSetBuilder } from './dbset-builder/DbSetBuilder';
-import { Pipeline } from './DataContextPipeline';
+import { TrampolinePipeline } from './DataContextPipeline';
 import { SaveChangesContextStepOne } from './types';
 
 
 
-export class DataContext {
+export class DataContext implements Disposable {
 
     private readonly _dbPlugin: IDbPlugin;
     private readonly _dbsets: Map<number, DbSet<any>>;
-    private readonly _saveChangesPipeline: Pipeline<SaveChangesContextStepOne> = Pipeline.create();
+    private readonly _saveChangesPipeline: TrampolinePipeline<SaveChangesContextStepOne>;
+    private readonly _abortController: AbortController;
 
     constructor(dbPlugin: IDbPlugin) {
         this._dbPlugin = dbPlugin;
         this._dbsets = new Map<number, DbSet<any>>();
+        this._saveChangesPipeline = new TrampolinePipeline<SaveChangesContextStepOne>();
+        this._abortController = new AbortController();
     }
 
     protected dbset<TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never>(schema: CompiledSchema<TEntity>) {
@@ -30,7 +32,8 @@ export class DataContext {
             isStateful: false,
             onDbSetCreated: onDbSetCreated.bind(this),
             schema,
-            pipeline: this._saveChangesPipeline as Pipeline<SaveChangesContextStepOne>
+            pipeline: this._saveChangesPipeline,
+            abortController: this._abortController
         });
     }
 
@@ -39,28 +42,9 @@ export class DataContext {
     // action.type -> "SaveChanges"
     saveChanges(done: (result: number, error?: any) => void) {
 
-        let success_count = 0;
-        const errors: any[] = [];
-        const dbSets = [...this._dbsets.values()];
+        const response = { count: 0 };
         
-        this._saveChangesPipeline.execute({ count: 0 }, (result, error) => {
-
-        })
-
-        // forEach(dbSets, (dbset, next) => {
-        //     dbset.changeTracker.saveChanges((r, e) => {
-
-        //         success_count += r;
-
-        //         if (e != null) {
-        //             errors.push(e);
-        //         }
-
-        //         next();
-        //     });
-        // }, () => {
-        //     done(success_count, errors.length == 0 ? null : errors);
-        // });
+        this._saveChangesPipeline.execute<SaveChangesContextStepOne>(response, (result, error) => done(result.count, error))
     }
 
     saveChangesAsync() {
@@ -92,5 +76,9 @@ export class DataContext {
 
     destroy(done: (error?: any) => void) {
         this._dbPlugin.destroy(done);
+    }
+
+    [Symbol.dispose]() {
+        this._abortController.abort();
     }
 }

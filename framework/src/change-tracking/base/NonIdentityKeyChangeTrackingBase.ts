@@ -1,18 +1,12 @@
-import { IdType, NonNullCreateEntity, CompiledSchema, IDbPlugin } from "@agrejus/db-framework-core";
+import { IdType, NonNullCreateEntity } from "@agrejus/db-framework-core";
 import { ChangeTrackingBase } from "./ChangeTrackingBase";
 import { IChangeTracker } from '../types';
-import { ChangeTrackingType } from "@agrejus/db-framework-core/dist/schema";
-import { Pipeline } from "../../DataContextPipeline";
-import { SaveChangesContext } from "../../types";
+import { SaveChangesContextStepThree, SaveChangesContextStepTwo } from "../../types";
 
 export class NonIdentityKeyChangeTrackingBase<TKey extends IdType, TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never>
     extends ChangeTrackingBase<TKey, TEntity, TEnhancedPropertyNames, TComputedPropertyNames> implements IChangeTracker<TEntity, TEnhancedPropertyNames, TComputedPropertyNames> {
 
     protected additions: Map<TKey, NonNullCreateEntity<TEntity>> = new Map<TKey, NonNullCreateEntity<TEntity>>();
-
-    constructor(schema: CompiledSchema<TEntity>, dbPlugin: IDbPlugin, changeTrackingType: ChangeTrackingType, pipeline: Pipeline<SaveChangesContext<TEntity>, SaveChangesContext<TEntity>>) {
-        super(schema, dbPlugin, changeTrackingType, pipeline);
-    }
 
     protected override get additionsCount() {
         return this.additions.size;
@@ -31,7 +25,7 @@ export class NonIdentityKeyChangeTrackingBase<TKey extends IdType, TEntity exten
         this.additions = new Map();
     }
 
-    protected override replaceAddition(existingEntity: NonNullCreateEntity<TEntity>, newEntity: NonNullCreateEntity<TEntity>) : boolean {
+    protected override replaceAddition(existingEntity: NonNullCreateEntity<TEntity>, newEntity: NonNullCreateEntity<TEntity>): boolean {
         for (const [key, document] of this.additions) {
 
             if (document === existingEntity) {
@@ -43,10 +37,22 @@ export class NonIdentityKeyChangeTrackingBase<TKey extends IdType, TEntity exten
         return false;
     }
 
-    override saveChanges(done: (result: number, error?: any) => void) {
-        this.bulkOperations(entity => {
-            const id = this.schema.getId(entity) as TKey;
-            return  this.additions.get(id)
-        }, done);
+    protected prepareAdditions(data: SaveChangesContextStepTwo, done: (result: SaveChangesContextStepThree<TEntity>) => void) {
+
+        if (data.hasChanges === false) {
+            done({ ...data, adds: [], find: () => undefined as any });
+            return;
+        }
+
+        const adds = this.getPreparedAdditions();
+
+        done({
+            ...data,
+            adds,
+            find: entity => {
+                const id = this.schema.getId(entity) as TKey;
+                return this.additions.get(id)
+            }
+        });
     }
 }

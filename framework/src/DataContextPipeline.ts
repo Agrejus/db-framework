@@ -3,78 +3,139 @@
  * TIn: The input data type.
  * TOut: The output data type (passed to the callback).
  */
-export type PipelineFilter<TIn, TOut> = (data: TIn, done: (result: TOut, error?: any) => void) => void;
+export type Processor<TIn, TOut> = (data: TIn, callback: (result: TOut, error?: any) => void) => void;
 
-/**
- * Composer class to build and execute a chain of asynchronous functions
- * by creating a nested function structure.
- * TInitial: The input type of the very first function in the chain.
- * TCurrent: The output type of the *last* function added to the chain.
- */
-export class Pipeline<TInitial, TCurrent = TInitial> {
-    // Stores the function composed so far.
-    private composed: PipelineFilter<TInitial, TCurrent>;
+// Return type for a step execution: Either the next step function or null if waiting/done.
+type StepResult<TData> = TrampolineStep<TData> | null;
+type TrampolineStep<TData> = () => StepResult<TData>;
 
-    // Private constructor: Use Composer.start() or add() to create instances.
-    private constructor(processor: PipelineFilter<TInitial, TCurrent>) {
-        this.composed = processor;
+export class TrampolinePipeline<TInitial, TCurrent = TInitial> {
+    private _list: Processor<any, any>[] = [];
+    private _hasErrored: boolean = false; // Flag to prevent calling done on error
+
+    add<TNext>(processor: Processor<TCurrent, TNext>) {
+        this._list.push(processor);
+        return this as unknown as TrampolinePipeline<TInitial, TNext>;
     }
 
-    /**
-     * Factory function to start the composition chain.
-     * TInitial: The initial input type for the first function.
-     * @returns A new Composer instance initialized with an identity function.
-     */
-    static create<TInitial>(): Pipeline<TInitial, TInitial> {
-        // Start with an identity function: (data, callback) => callback(data)
-        const identity: PipelineFilter<TInitial, TInitial> = (data, done) => done(data);
-        return new Pipeline<TInitial, TInitial>(identity);
-    }
+    execute<TFinal>(initialData: TInitial, done: (data: TFinal, error?: any) => void) {
 
-    /**
-     * Adds a new asynchronous function to the composition chain.
-     * TNext: The output type of the function being added.
-     * @param processor The AsyncFunc step to add.
-     * @returns A new Composer instance representing the chain extended with the new function.
-     */
-    add<TNext>(processor: PipelineFilter<TCurrent, TNext>): Pipeline<TInitial, TNext> {
-        const previous = this.composed;
+        this._hasErrored = false; // Reset error flag on new execution
+        if (this._list.length === 0) {
+            queueMicrotask(() => done(initialData as any as TFinal));
+            return;
+        }
 
-        // Create the new composed function by nesting the callbacks
-        const next: PipelineFilter<TInitial, TNext> = (initialData, finalCallback) => {
-            // Execute the previous chain
-            previous(initialData, (currentResult: TCurrent, currentError) => {
+        let index = 0;
+        let currentData: any = initialData;
+        let isRunning = false; // Guard against overlapping trampoline calls
 
-                if (currentError) {
-                    throw currentError
+        try {
+            // --- Revised Completion Logic --- (Moved up for clarity)
+            const finalStepSentinel = (): StepResult<any> => { // A special step function for the very end
+                // Only call done if no error has occurred
+                if (!this._hasErrored) {
+                    queueMicrotask(() => done(currentData as TFinal));
                 }
+                return null; // Stop the trampoline
+            };
 
-                // When the previous chain completes, execute the new function
-                processor(currentResult, (nextResult: TNext, nextError) => {
-               
+            const createStepRevised = (idx: number): TrampolineStep<any> => {
+                return () => {
+                    if (this._hasErrored) return null; // Stop if an error occurred elsewhere
 
-                    if (nextError) {
-                        throw nextError
+                    if (idx >= this._list.length) {
+                        return finalStepSentinel(); // Execute the dedicated final step
                     }
 
-                    // When the new function completes, call the final callback
-                    finalCallback(nextResult);
-                });
-            });
-        };
+                    const processor = this._list[idx];
+                    // Initialize syncCallbackResult to null to satisfy StepResult type
+                    let syncCallbackResult: StepResult<any> = null;
+                    let calledSync = false;
 
-        // Return a new composer holding the newly composed function
-        return new Pipeline<TInitial, TNext>(next);
-    }
+                    try {
+                        processor(currentData, (result, error) => {
+                            // --- Error Handling ---
+                            if (error) {
+                                console.error(`Error reported by processor at index ${idx}:`, error);
+                                this._hasErrored = true; // Set flag
+                                // Throw the error to be caught by outer try...catch blocks
+                                throw error;
+                            }
+                            // --- /Error Handling ---
 
-    /**
-     * Executes the fully composed chain of asynchronous functions.
-     * @param initialData The initial input data for the first function.
-     * @param done The callback to receive the final result.
-     */
-    execute(initialData: TInitial, done: (result: TCurrent, error?: any) => void): void {
-        // Execute the single, fully composed function.
-        // There's no loop or recursion here during execution.
-        this.composed(initialData, done);
+                            // If no error, proceed as before
+                            currentData = result;
+                            index = idx + 1; // Update index for the next step
+                            const nextStep = createStepRevised(index); // Use updated index
+
+                            if (isRunning) {
+                                // Callback was synchronous
+                                syncCallbackResult = nextStep; // Store next step function
+                                calledSync = true;
+                            } else {
+                                // Callback was asynchronous, restart trampoline
+                                trampoline(nextStep);
+                            }
+                        });
+                    } catch (error) {
+                        if (!this._hasErrored) { // Check flag to avoid double logging if error was from callback
+                            console.error(`Error thrown by processor at index ${idx} or its callback:`, error);
+                            this._hasErrored = true;
+                        }
+                        // Rethrow to be caught by the trampoline's catch block
+                        throw error;
+                    }
+
+                    if (calledSync) {
+                        // Return the next step function for the sync loop
+                        return syncCallbackResult;
+                    } else {
+                        // Pause trampoline for async, loop will stop as step returns null
+                        return null;
+                    }
+                };
+            };
+
+            // The trampoline loop
+            const trampoline = (step: TrampolineStep<any> | null) => {
+                if (isRunning) return;
+
+                isRunning = true;
+                let currentStep = step;
+
+                while (typeof currentStep === 'function') {
+                    try {
+                        // Stop immediately if an error was flagged elsewhere
+                        if (this._hasErrored) {
+                            currentStep = null;
+                            break;
+                        }
+                        currentStep = currentStep(); // Execute step, get next step or null
+                    } catch (trampolineError) {
+                        // Catch errors propagated from step execution (processor or callback errors)
+                        if (!this._hasErrored) { // Avoid double logging
+                            console.error("Error during trampoline step execution:", trampolineError);
+                            this._hasErrored = true;
+                        }
+                        currentStep = null; // Stop the loop
+                        // We don't call `done` here because an error occurred.
+                        // The application should handle the uncaught exception if desired.
+                        break; // Explicitly break loop on error
+                    }
+                }
+                // Loop ends when currentStep is null or loop is broken by error
+                isRunning = false;
+
+                // Completion check is now handled by finalStepSentinel ensuring `done` isn't called on error.
+            };
+
+            // --- Start the process ---
+            index = 0; // Reset index
+            currentData = initialData; // Reset data
+            trampoline(createStepRevised(0)); // Start with the revised step creator
+        } catch (error: any) {
+            done(currentData, error);
+        }
     }
 }

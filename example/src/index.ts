@@ -122,7 +122,7 @@ const r = async () => {
             name: "James"
         });
 
-        // await ctx.saveChangesAsync();
+        await ctx.saveChangesAsync();
         // const found = await ctx.immutable.firstOrUndefinedAsync(w => w.name === "James");
 
         // if (found != null) {
@@ -269,57 +269,57 @@ r();
 
 // run();
 
-const ctx = new Ctx();
+// const ctx = new Ctx();
 
-const profileExecution = async (iterations: number) => {
-    const data = [{ name: "James", year: 2024 }];
-    let totalTime = 0;
+// const profileExecution = async (iterations: number) => {
+//     const data = [{ name: "James", year: 2024 }];
+//     let totalTime = 0;
 
-    let low = 100;
-    let high = 0;
+//     let low = 100;
+//     let high = 0;
 
-    for (let i = 0; i < iterations; i++) {
-        const start = performance.now(); // Start time
-        await new Promise((resolve, reject) => {
-            ctx.test.add(data, (r, e) => {
-                if (e != null) {
-                    reject(e);
-                    return;
-                }
+//     for (let i = 0; i < iterations; i++) {
+//         const start = performance.now(); // Start time
+//         await new Promise((resolve, reject) => {
+//             ctx.test.add(data, (r, e) => {
+//                 if (e != null) {
+//                     reject(e);
+//                     return;
+//                 }
 
-                resolve(r);
-            });
-        });
-        const end = performance.now(); // End time
-        const total = end - start;
+//                 resolve(r);
+//             });
+//         });
+//         const end = performance.now(); // End time
+//         const total = end - start;
 
-        if (total > high) {
-            high = total;
-        }
+//         if (total > high) {
+//             high = total;
+//         }
 
-        if (total < low) {
-            low = total;
-        }
+//         if (total < low) {
+//             low = total;
+//         }
 
-        totalTime += total;
-    }
+//         totalTime += total;
+//     }
 
-    const averageTime = totalTime / iterations;
-    console.log(`Average execution time: ${averageTime.toFixed(4)}ms, Total execution time: ${totalTime.toFixed(4)}ms, H: ${high.toFixed(4)}, L: ${low.toFixed(4)}`);
+//     const averageTime = totalTime / iterations;
+//     console.log(`Average execution time: ${averageTime.toFixed(4)}ms, Total execution time: ${totalTime.toFixed(4)}ms, H: ${high.toFixed(4)}, L: ${low.toFixed(4)}`);
 
-    await new Promise((resolve, reject) => {
-        const saveStart = performance.now();
-        ctx.saveChanges((r, e) => {
-            if (e != null) {
-                reject(e);
-                return;
-            }
-            console.log(`Save execution time: ${(performance.now() - saveStart).toFixed(4)}ms`);
-            resolve(r);
-        });
-    });
+//     await new Promise((resolve, reject) => {
+//         const saveStart = performance.now();
+//         ctx.saveChanges((r, e) => {
+//             if (e != null) {
+//                 reject(e);
+//                 return;
+//             }
+//             console.log(`Save execution time: ${(performance.now() - saveStart).toFixed(4)}ms`);
+//             resolve(r);
+//         });
+//     });
 
-};
+// };
 
 // Run the profiler with the desired number of iterations
 // profileExecution(1000);
