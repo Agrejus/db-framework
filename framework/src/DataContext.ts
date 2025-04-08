@@ -1,10 +1,8 @@
 import { CompiledSchema, IDbPlugin } from '@agrejus/db-framework-core';
 import { DbSet } from './db-sets/DbSet';
 import { DbSetBuilder } from './dbset-builder/DbSetBuilder';
-import { TrampolinePipeline } from './DataContextPipeline';
+import { TrampolinePipeline } from './TrampolinePipeline';
 import { SaveChangesContextStepOne } from './types';
-
-
 
 export class DataContext implements Disposable {
 

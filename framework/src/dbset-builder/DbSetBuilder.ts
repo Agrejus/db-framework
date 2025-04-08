@@ -4,7 +4,7 @@ import { ImmutableDbSet } from '../db-sets/ImmutableDbSet';
 import { DbSetOptions, SaveChangesContextStepOne } from '../types';
 import { DbSetInstanceCreator } from './types';
 import { StatefulDbSet } from '../db-sets/StatefulDbSet';
-import { TrampolinePipeline } from '../DataContextPipeline';
+import { TrampolinePipeline } from '../TrampolinePipeline';
 
 type DbSetBuilderProps<TEntity extends {}, TEnhancedPropertyNames extends string, TComputedPropertyNames extends string, TDbSet extends DbSet<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>> = {
     onDbSetCreated: (dbset: DbSet<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>) => void;

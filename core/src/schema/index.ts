@@ -154,8 +154,6 @@ type ApplyArray<T, M> =
     ? T
     : ApplyTypeModifiers<T, M>;
 
-type IsNever<T> = [T] extends [never] ? true : false;
-
 type ApplyReadonly<T, M> = M extends "readonly" ? Readonly<T> : T;
 type ApplyNullable<T, M> = M extends "nullable" ? T | null : T;
 type ApplyUndefined<T, M> = M extends "optional" ? T | undefined : T;
@@ -202,3 +200,32 @@ export { SchemaString } from "./property/types/String";
 export { SchemaKey } from "./property/modifiers/Key";
 export { SchemaReadonly } from "./property/modifiers/Readonly";
 export { SchemaIdentity } from "./property/modifiers/Identity";
+
+
+type InferType2 = 
+T extends CompiledSchema<infer R> ?
+{ [K in keyof R]: { name: K; type: InferPrimitive<R[K]>; modifiers: GetModifiers<R[K]> } } :
+T extends SchemaDefinition<infer R> ? { [K in keyof R]: { name: K; type: InferPrimitive<R[K]>; modifiers: GetModifiers<R[K]> } } : never;
+
+/// TESTING
+
+const nested = s.define("MY_NESTED_TABLE", {
+    _id: s.string().key().identity(),
+    _rev: s.string().identity(),
+    order: s.number().default((d) => d.test, { test: 1 }),
+    name: s.string(),
+    child: s.object({
+        name: s.string(),
+        nested: s.object({
+            winner: s.number(),
+            more: s.object({
+                final: s.number(),
+                array: s.array<string>()
+            })
+        })
+    })
+}).modify(w => ({
+    documentType: w.computed((_, t) => t).tracked()
+})).compile();
+
+type Test = InferType<typeof nested>;

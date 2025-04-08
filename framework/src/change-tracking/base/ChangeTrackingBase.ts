@@ -4,7 +4,7 @@ import { DataAccessManager } from "../../data-access/DataAccessManager";
 import { UniDirectionalSubscription } from '../../subscriptions/UniDirectionalSubscription';
 import { FetchOptions } from "../../data-access/types";
 import { ChangeTrackingType } from "@agrejus/db-framework-core/dist/schema";
-import { TrampolinePipeline } from "../../DataContextPipeline";
+import { TrampolinePipeline } from "../../TrampolinePipeline";
 
 export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never> {
 
@@ -28,6 +28,8 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
         this.schema = schema;
         this.manager = new DataAccessManager<TEntity>(schema, dbPlugin, this);
         this._abortController = abortController;
+
+        // Something is off here, we have two listeners with the same key
         this.unidirecitonalSubscription = new UniDirectionalSubscription(schema.key, this._abortController);
         this.changeTrackingType = changeTrackingType;
 

@@ -39,7 +39,6 @@ export class UniDirectionalSubscription implements Disposable {
         this._callback = callback;
     }
 
-
     [Symbol.dispose](): void {
         this._channel.onmessage = null;
         this._channel.close();

@@ -56,13 +56,4 @@ export class IdentityKeyChangeTrackingBase<TKey extends IdType, TEntity extends 
             }
         });
     }
-
-    // override saveChanges(done: (result: number, error?: any) => void): void {
-    //     const hashedAdds = toMap(this.additions, w => this.schema.hash(w, HashType.Object));
-
-    //     this.bulkOperations(entity => {
-    //         const hash = this.schema.hash(entity as any, HashType.Object);
-    //         return hashedAdds.get(hash);
-    //     }, done)
-    // }
 }

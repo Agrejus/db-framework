@@ -1,5 +1,5 @@
 import { DataContext } from "@agrejus/db-framework";
-import { s, createUUID } from "@agrejus/db-framework-core";
+import { s, createUUID, InferType } from "@agrejus/db-framework-core";
 import { PouchDbPlugin } from "@agrejus/db-framework-plugin-pouchdb";
 import { performance } from 'perf_hooks'
 
@@ -33,6 +33,10 @@ const nested = s.define("MY_NESTED_TABLE", {
 }).modify(w => ({
     documentType: w.computed((_, t) => t).tracked()
 })).compile();
+
+type Test = InferType<typeof nested>;
+
+
 
 // const modelWithDate = s.define("MY_DATE_TABLE", {
 //     _id: s.string().key().identity(),

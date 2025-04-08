@@ -12,7 +12,7 @@ import { StatefulDataAccessManager } from "../data-access/StatefulDataAccessMana
 import { IDataAccessManager } from "../data-access/types";
 import { DataAccessInstanceCreator } from "../dbset-builder/types";
 import { ChangeTrackingType } from "@agrejus/db-framework-core/dist/schema";
-import { TrampolinePipeline } from "../DataContextPipeline";
+import { TrampolinePipeline } from "../TrampolinePipeline";
 
 
 export class DbSet<TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never> {

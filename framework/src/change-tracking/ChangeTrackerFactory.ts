@@ -3,7 +3,7 @@ import { IChangeTracker } from "./types";
 import { IdentityKeyChangeTrackingBase } from './base/IdentityKeyChangeTrackingBase';
 import { NonIdentityKeyChangeTrackingBase } from './base/NonIdentityKeyChangeTrackingBase';
 import { ChangeTrackingType } from "@agrejus/db-framework-core/dist/schema";
-import { TrampolinePipeline } from "../DataContextPipeline";
+import { TrampolinePipeline } from "../TrampolinePipeline";
 import { SaveChangesContextStepOne } from "../types";
 
 export class ChangeTrackerFactory {
