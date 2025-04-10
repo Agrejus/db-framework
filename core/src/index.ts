@@ -44,9 +44,7 @@ export {
 
 export {
     CompiledSchema,
-    InferSchema,
     InferType,
-    InferTypeFromSchema,
     NonNullCreateEntity,
     NonNullEntity,
     SchemaTypes,

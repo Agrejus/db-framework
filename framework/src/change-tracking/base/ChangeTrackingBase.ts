@@ -33,15 +33,15 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
         this.unidirecitonalSubscription = new UniDirectionalSubscription(schema.key, this._abortController);
         this.changeTrackingType = changeTrackingType;
 
-        pipeline.add(this.checkForChangesStep.bind(this))
-            .add(this.prepareAdditions.bind(this))
-            .add(this.prepareRemovals.bind(this))
-            .add(this.prepareUpdates.bind(this))
-            .add(this.persist.bind(this))
-            .add(this.postOpAdds.bind(this))
-            .add(this.postOpUpdates.bind(this))
-            .add(this.notifySubscribers.bind(this))
-            .add(this.cleanup.bind(this))
+        pipeline.pipe(this.checkForChangesStep.bind(this))
+            .pipe(this.prepareAdditions.bind(this))
+            .pipe(this.prepareRemovals.bind(this))
+            .pipe(this.prepareUpdates.bind(this))
+            .pipe(this.persist.bind(this))
+            .pipe(this.postOpAdds.bind(this))
+            .pipe(this.postOpUpdates.bind(this))
+            .pipe(this.notifySubscribers.bind(this))
+            .pipe(this.cleanup.bind(this))
     }
 
     protected cleanup(data: SaveChangesContextStepSix<TEntity>, done: (result: SaveChangesContextStepOne, error?: any) => void) {

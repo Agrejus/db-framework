@@ -13,12 +13,12 @@ export class TrampolinePipeline<TInitial, TCurrent = TInitial> {
     private _list: Processor<any, any>[] = [];
     private _hasErrored: boolean = false; // Flag to prevent calling done on error
 
-    add<TNext>(processor: Processor<TCurrent, TNext>) {
+    pipe<TNext>(processor: Processor<TCurrent, TNext>) {
         this._list.push(processor);
         return this as unknown as TrampolinePipeline<TInitial, TNext>;
     }
 
-    execute<TFinal>(initialData: TInitial, done: (data: TFinal, error?: any) => void) {
+    filter<TFinal>(initialData: TInitial, done: (data: TFinal, error?: any) => void) {
 
         this._hasErrored = false; // Reset error flag on new execution
         if (this._list.length === 0) {

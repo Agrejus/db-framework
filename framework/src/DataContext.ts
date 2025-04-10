@@ -42,7 +42,7 @@ export class DataContext implements Disposable {
 
         const response = { count: 0 };
         
-        this._saveChangesPipeline.execute<SaveChangesContextStepOne>(response, (result, error) => done(result.count, error))
+        this._saveChangesPipeline.filter<SaveChangesContextStepOne>(response, (result, error) => done(result.count, error))
     }
 
     saveChangesAsync() {
