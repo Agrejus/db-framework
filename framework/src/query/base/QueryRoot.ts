@@ -1,11 +1,13 @@
-import { QueryOptions, toExpression, Expression, combineExpressions, QueryField, Query, QuerySort, Filterable } from "@agrejus/db-framework-core";
+import { QueryOptions, toExpression, Expression, combineExpressions, QueryField, Query, Filterable } from "@agrejus/db-framework-core";
 import { EntityMap } from "../../types";
 import { QueryOrdering } from "../types";
-import { IDataAccessManager } from '../../data-access/types';
+import { DataBridge } from "../../data-access/DataBridge";
+import { ChangeTracker } from "../../change-tracking/ChangeTracker";
 
 export abstract class QueryRoot<T extends {}> {
 
-    protected readonly manager: IDataAccessManager<T>;
+    protected readonly dataBridge: DataBridge<T>;
+    protected readonly changeTracker: ChangeTracker<T>;
     protected filters: Filterable<T, any>[] = [];
     protected mapValue: EntityMap<T, T[keyof T] | Partial<T>> | null = null;
     protected takeValue: number | null = null;
@@ -19,25 +21,32 @@ export abstract class QueryRoot<T extends {}> {
     protected subscribeValue: boolean = false;
     private _compiledQuery: Query<T> | null = null;
 
-    constructor(queryable?: QueryRoot<T>, manager?: IDataAccessManager<T>) {
+    constructor(options: { queryable?: QueryRoot<T>, dataBridge: DataBridge<T>, changeTracker: ChangeTracker<T> }) {
 
-        if (manager != null) {
-            this.manager = manager;
+        if (options?.dataBridge != null) {
+            this.dataBridge = options.dataBridge;
         }
 
-        if (queryable != null) {
-            this.subscribeValue = queryable.subscribeValue;
-            this.manager = queryable.manager;
-            this.filters = queryable.filters;
-            this.takeValue = queryable.takeValue;
-            this.skipValue = queryable.skipValue;
-            this.mapValue = queryable.mapValue;
-            this.sorting = queryable.sorting;
-            this.minValue = queryable.minValue;
-            this.maxValue = queryable.maxValue;
-            this.countValue = queryable.countValue;
-            this.sumValue = queryable.sumValue;
-            this.distinctValue = queryable.distinctValue;
+        if (options?.changeTracker != null) {
+            this.changeTracker = options.changeTracker;
+        }
+
+        if (options?.queryable != null) {
+
+            this.dataBridge = options.queryable.dataBridge;
+            this.changeTracker = options.queryable.changeTracker;
+
+            this.subscribeValue = options.queryable.subscribeValue;
+            this.filters = options.queryable.filters;
+            this.takeValue = options.queryable.takeValue;
+            this.skipValue = options.queryable.skipValue;
+            this.mapValue = options.queryable.mapValue;
+            this.sorting = options.queryable.sorting;
+            this.minValue = options.queryable.minValue;
+            this.maxValue = options.queryable.maxValue;
+            this.countValue = options.queryable.countValue;
+            this.sumValue = options.queryable.sumValue;
+            this.distinctValue = options.queryable.distinctValue;
         }
     }
 
@@ -67,7 +76,7 @@ export abstract class QueryRoot<T extends {}> {
 
         const query = this.getOrCompileQuery();
 
-        return this.manager.subscribe(query, shape, done);
+        // return this.dataBridge.subscribe(query, shape, done);
     }
 
     private _getSorting(sorting: { direction: QueryOrdering, selector: EntityMap<T, T[keyof T]> }[]) {
@@ -133,11 +142,11 @@ export abstract class QueryRoot<T extends {}> {
     private _convertToExpression(filter: Filterable<T>) {
 
         if (filter.params != null) {
-            return toExpression(this.manager.schema, filter.filter, filter.params);
+            return toExpression(this.dataBridge.schema, filter.filter, filter.params);
         }
 
         try {
-            return toExpression(this.manager.schema, filter.filter, {});
+            return toExpression(this.dataBridge.schema, filter.filter, {});
         } catch (e) {
             console.warn(`[WARNING] - Failed to parse selector to expression, falling back to memory filtering.  Selector: ${filter.filter.toString()}, Params: ${JSON.stringify(filter.params ?? {})}`)
             return null; // fallback to memory filtering
@@ -152,7 +161,7 @@ export abstract class QueryRoot<T extends {}> {
 
         const expressions: Expression[] = [];
 
-        for (let i = 0; i < this.filters.length; i++) {
+        for (let i = 0, length = this.filters.length; i < length; i++) {
             const filter = this.filters[i];
             const expression = this._convertToExpression(filter);
 
@@ -176,7 +185,7 @@ export abstract class QueryRoot<T extends {}> {
         const options = this.getQueryOptions();
 
         this._compiledQuery = {
-            schema: this.manager.schema,
+            schema: this.dataBridge.schema,
             options,
             filters: this.filters
         }
@@ -192,6 +201,21 @@ export abstract class QueryRoot<T extends {}> {
 
         const query = this.getOrCompileQuery();
 
-        this.manager.fetch(query, done);
+        this.dataBridge.fetch(query, ({ result, shouldEnableChangeTracking }, error) => {
+
+            if (error != null) {
+                done(result, error)
+                return;
+            }
+
+            if (shouldEnableChangeTracking === true) {
+                const enriched = this.changeTracker.enrich(result as any);
+                const resolved = this.changeTracker.resolve(enriched);
+                done(resolved as any);
+                return;
+            }
+
+            done(result);
+        });
     }
 }   

@@ -2,9 +2,9 @@ import { NonNullEntity } from "@agrejus/db-framework-core";
 import { DbSet } from "./DbSet";
 import { ChangeTrackingType } from "@agrejus/db-framework-core/dist/schema";
 
-export class ImmutableDbSet<TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never> extends DbSet<TEntity, TEnhancedPropertyNames, TComputedPropertyNames> {
+export class ImmutableDbSet<TEntity extends {}> extends DbSet<TEntity> {
 
-    protected override getChangeTrackingType(): ChangeTrackingType {
+    protected override createChangeTrackerStrategy(): ChangeTrackingType {
         return "immutable";
     }
 
@@ -23,7 +23,7 @@ export class ImmutableDbSet<TEntity extends {}, TEnhancedPropertyNames extends s
         this.changeTracker.replace(entity, changeTrackedEntity);
 
         // clone the change tracked entity to remove change tracking
-        const untracked =  this.schema.clone(changeTrackedEntity);
+        const untracked = this.schema.clone(changeTrackedEntity);
 
         return this.schema.freeze(untracked);
     }

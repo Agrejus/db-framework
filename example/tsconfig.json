@@ -4,7 +4,7 @@
         "allowSyntheticDefaultImports": true,
         "module": "CommonJS",
         "lib": [
-            "ES2016"
+            "ESNext"
         ],
         "target": "es6",
         "declaration": true,

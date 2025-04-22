@@ -6,27 +6,27 @@ import { DbSetInstanceCreator } from './types';
 import { StatefulDbSet } from '../db-sets/StatefulDbSet';
 import { TrampolinePipeline } from '../TrampolinePipeline';
 
-type DbSetBuilderProps<TEntity extends {}, TEnhancedPropertyNames extends string, TComputedPropertyNames extends string, TDbSet extends DbSet<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>> = {
-    onDbSetCreated: (dbset: DbSet<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>) => void;
+type DbSetBuilderProps<TEntity extends {}, TDbSet extends DbSet<TEntity>> = {
+    onDbSetCreated: (dbset: DbSet<TEntity>) => void;
     schema: CompiledSchema<TEntity>;
     dbPlugin: IDbPlugin;
     isStateful: boolean;
-    instanceCreator: DbSetInstanceCreator<TEntity, TEnhancedPropertyNames, TComputedPropertyNames, TDbSet>;
+    instanceCreator: DbSetInstanceCreator<TEntity, TDbSet>;
     pipeline: TrampolinePipeline<SaveChangesContextStepOne>;
     abortController: AbortController;
 }
 
-export class DbSetBuilder<TEntity extends {}, TEnhancedPropertyNames extends string, TComputedPropertyNames extends string, TDbSet extends DbSet<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>> {
+export class DbSetBuilder<TEntity extends {}, TDbSet extends DbSet<TEntity>> {
 
-    private _onDbSetCreated: (dbset: DbSet<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>) => void;
+    private _onDbSetCreated: (dbset: DbSet<TEntity>) => void;
     private readonly _schema: CompiledSchema<TEntity>;
     private readonly _dbPlugin: IDbPlugin;
     private _isStateful: boolean = false;
-    private _instanceCreator: DbSetInstanceCreator<TEntity, TEnhancedPropertyNames, TComputedPropertyNames, TDbSet>;
+    private _instanceCreator: DbSetInstanceCreator<TEntity, TDbSet>;
     private _pipeline: TrampolinePipeline<SaveChangesContextStepOne>;
     private _abortController: AbortController;
 
-    constructor(props: DbSetBuilderProps<TEntity, TEnhancedPropertyNames, TComputedPropertyNames, TDbSet>) {
+    constructor(props: DbSetBuilderProps<TEntity, TDbSet>) {
         this._pipeline = props.pipeline;
         this._schema = props.schema;
         this._dbPlugin = props.dbPlugin;
@@ -37,7 +37,7 @@ export class DbSetBuilder<TEntity extends {}, TEnhancedPropertyNames extends str
 
     stateful() {
         this._isStateful = true;
-        return new DbSetBuilder<TEntity, TEnhancedPropertyNames, TComputedPropertyNames, StatefulDbSet<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>>({
+        return new DbSetBuilder<TEntity, StatefulDbSet<TEntity>>({
             dbPlugin: this._dbPlugin,
             isStateful: true,
             onDbSetCreated: this._onDbSetCreated,
@@ -49,7 +49,7 @@ export class DbSetBuilder<TEntity extends {}, TEnhancedPropertyNames extends str
     }
 
     immutable() {
-        return new DbSetBuilder<TEntity, TEnhancedPropertyNames, TComputedPropertyNames, ImmutableDbSet<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>>({
+        return new DbSetBuilder<TEntity, ImmutableDbSet<TEntity>>({
             dbPlugin: this._dbPlugin,
             isStateful: this._isStateful,
             onDbSetCreated: this._onDbSetCreated,
@@ -61,8 +61,8 @@ export class DbSetBuilder<TEntity extends {}, TEnhancedPropertyNames extends str
     }
 
     create(): TDbSet;
-    create<TExtension extends TDbSet>(extend: (i: DbSetInstanceCreator<TEntity, TEnhancedPropertyNames, TComputedPropertyNames, TDbSet>, dbPlugin: IDbPlugin, schema: CompiledSchema<TEntity>, options: DbSetOptions, pipeline: TrampolinePipeline<SaveChangesContextStepOne>) => TExtension): TExtension;
-    create<TExtension extends TDbSet = never>(extend?: (i: DbSetInstanceCreator<TEntity, TEnhancedPropertyNames, TComputedPropertyNames, TDbSet>, dbPlugin: IDbPlugin, schema: CompiledSchema<TEntity>, options: DbSetOptions, pipeline: TrampolinePipeline<SaveChangesContextStepOne>) => TExtension) {
+    create<TExtension extends TDbSet>(extend: (i: DbSetInstanceCreator<TEntity, TDbSet>, dbPlugin: IDbPlugin, schema: CompiledSchema<TEntity>, options: DbSetOptions, pipeline: TrampolinePipeline<SaveChangesContextStepOne>) => TExtension): TExtension;
+    create<TExtension extends TDbSet = never>(extend?: (i: DbSetInstanceCreator<TEntity, TDbSet>, dbPlugin: IDbPlugin, schema: CompiledSchema<TEntity>, options: DbSetOptions, pipeline: TrampolinePipeline<SaveChangesContextStepOne>) => TExtension) {
         if (extend == null) {
             const Instance = this._instanceCreator;
             const result = new Instance(this._dbPlugin, this._schema, {

@@ -9,8 +9,9 @@ import { SchemaString } from "./property/types/String";
 import { IdType } from "../types";
 import { PropertyInfo } from "../common/PropertyInfo";
 
-export type NonNullEntity<T extends {}> = NonNullable<InferType<SchemaDefinition<T>>>;
-export type NonNullCreateEntity<T extends {}, TOmit extends string = never> = NonNullable<Omit<InferType<SchemaDefinition<T>>, TOmit>>;
+// this non-null stuff can be removed
+export type NonNullEntity<T extends {}> = InferType<T>;
+export type NonNullCreateEntity<T extends {}> = InferCreateType<T>;
 
 export enum SchemaTypes {
     Array = "Array",
@@ -23,12 +24,6 @@ export enum SchemaTypes {
     Function = "Function",
     Computed = "Computed"
 }
-
-export type SchemaModifiers = "default" | "deserialize" |
-    "identity" | "key" |
-    "nullable" | "optional" |
-    "readonly" | "serialize" |
-    "unmapped" | "computed";
 
 export const s = {
     number: <T extends number = number>() => new SchemaNumber<T, never>(),
@@ -99,70 +94,6 @@ export type CompiledSchema<TEntity extends {}> = {
 export type PropertySerializer<T extends any> = (value: T) => string | number;
 export type PropertyDeserializer<T extends any> = (value: string | number) => T;
 
-// type GetModifiers<T> =
-//     T extends SchemaBase<any, infer ZZ> ? ZZ : // Extract the modifiers from SchemaBase
-//     T extends SchemaObject<any, infer Z> ? Z : // Extract the modifiers from SchemaObject
-//     never;
-
-// export type InferTypeFromSchema<T> = {
-//     [K in keyof T]: T[K] extends { type: infer U; modifiers: infer M }
-//     ? ApplyModifiers<InferSchemaPrimitive<U>, M>
-//     : never;
-// };
-
-// Read Type
-// export type InferType<T> = InferTypeFromSchema<InferSchema<T>>;
-
-// Create Type
-// export type InferCreateType<T> = InferTypeFromSchema<OmitUnmapped<OmitIdentities<OmitDefaults<InferSchema<T>>>>>;
-
-// export type InferSchemaPrimitive<T> =
-//     T extends (...args: any[]) => any
-//     ? T // Handle functions explicitly
-//     : T extends Date
-//     ? Date // Handle Date explicitly
-//     : T extends Array<infer U>
-//     ? InferSchemaPrimitive<U>[] // Handle arrays recursively
-//     : T extends object
-//     ? { [K in keyof T]: T[K] extends { type: infer U; modifiers: infer M } ? ApplyModifiers<InferSchemaPrimitive<U>, M> : never }
-//     : T; // Handle primitives
-
-// export type OmitDefaults<T> = {
-//     [K in keyof T as T[K] extends { modifiers: infer M }
-//     ? "default" extends M
-//     ? never
-//     : K
-//     : K]: T[K] extends { type: infer R; name: infer N; modifiers: infer M }
-//     ? { name: N; type: R extends Array<any> ? R : R extends Date ? R : (R extends object ? OmitDefaults<R> : R); modifiers: M }
-//     : never;
-// };
-
-// export type OmitIdentities<T> = {
-//     [K in keyof T as T[K] extends { modifiers: infer M }
-//     ? "identity" extends M
-//     ? never
-//     : K
-//     : K]: T[K] extends { type: infer R; name: infer N; modifiers: infer M }
-//     ? { name: N; type: R extends Array<any> ? R : R extends Date ? R : (R extends object ? OmitDefaults<R> : R); modifiers: M }
-//     : never;
-// };
-
-// export type OmitUnmapped<T> = {
-//     [K in keyof T as T[K] extends { modifiers: infer M }
-//     ? "unmapped" extends M
-//     ? never
-//     : K
-//     : K]: T[K] extends { type: infer R; name: infer N; modifiers: infer M }
-//     ? { name: N; type: R extends Array<any> ? R : R extends Date ? R : (R extends object ? OmitDefaults<R> : R); modifiers: M }
-//     : never;
-// };
-
-// export type InferSchema<T> =
-//     T extends CompiledSchema<infer R> ?
-//     { [K in keyof R]: { name: K; type: InferPrimitive<R[K]>; modifiers: GetModifiers<R[K]> } } :
-//     T extends SchemaDefinition<infer R> ? { [K in keyof R]: { name: K; type: InferPrimitive<R[K]>; modifiers: GetModifiers<R[K]> } } : never;
-
-
 export { SchemaArray } from "./property/types/Array";
 export { SchemaBase } from "./property/base/Base";
 export { SchemaBoolean } from "./property/types/Boolean";
@@ -175,41 +106,11 @@ export { SchemaKey } from "./property/modifiers/Key";
 export { SchemaReadonly } from "./property/modifiers/Readonly";
 export { SchemaIdentity } from "./property/modifiers/Identity";
 
-// type ApplyTypeModifiers<T, M> = ApplyReadonly<ApplyNullable<ApplyUndefined<T, M>, M>, M>;
-
-// type ApplyModifiers<T, M> =
-//     T extends (...args: any[]) => any ?
-//     T
-//     :
-//     T extends Array<infer U> ?
-//     T
-//     :
-//     T extends Date ?
-//     T
-//     :
-//     T extends object ?
-//     { [K in keyof T]: T[K] }
-//     :
-//     [M] extends [never] ?
-//     T
-//     :
-//     ApplyTypeModifiers<T, M>;
-
-// type ApplyReadonly<T, M> = M extends "readonly" ? Readonly<T> : T;
-// type ApplyNullable<T, M> = M extends "nullable" ? T | null : T;
-// type ApplyUndefined<T, M> = M extends "optional" ? T | undefined : T;
-
-// export type InferType<T> =
-//     T extends CompiledSchema<infer R> ?
-//     A<{ [K in keyof R]: InferPrimitive<R[K]> }, R> :
-//     T extends SchemaDefinition<infer R> ? { [K in keyof R]: InferPrimitive<R[K]> } : never;
-
-// type A<T, K> = K extends SchemaBase<infer X, infer M> ? M : { [X in keyof T]: T[X] };
-
-type ExtractPrimitive<T, M> =
-    [M] extends [never] // Use a non-distributive conditional check
-    ? T
-    : T;
+export type SchemaModifiers = "default" | "deserialize" |
+    "identity" | "key" |
+    "nullable" | "optional" |
+    "readonly" | "serialize" |
+    "unmapped" | "computed";
 
 type InferPrimitive<T> =
     T extends SchemaObject<infer Obj, infer _> ?
@@ -222,7 +123,7 @@ const nested = s.define("MY_NESTED_TABLE", {
     _id: s.string().key().identity(),
     _rev: s.string().identity(),
     test: s.string().optional(),
-    updatedAt: s.date().optional(),
+    updatedAt: s.date().nullable(),
     order: s.number().default((d) => d.test, { test: 1 }),
     name: s.string().readonly(),
     child: s.object({
@@ -239,22 +140,61 @@ const nested = s.define("MY_NESTED_TABLE", {
     documentType: w.computed((_, t) => t).tracked()
 })).compile();
 
-export type InferType<T> = T extends CompiledSchema<infer R> ? InferCompiledSchema<R> : unknown;
+export type InferType<T> = T extends CompiledSchema<infer R> ? InferCompiledSchema<R> : T extends {} ? InferCompiledSchema<T> : unknown;
+export type InferCreateType<T> = T extends CompiledSchema<infer R> ? InferCompiledCreateSchema<R> : T extends {} ? InferCompiledCreateSchema<T> : unknown;
 
 type HasModifier<T, K extends keyof T, M extends SchemaModifiers> =
     T[K] extends SchemaBase<any, infer Mods> ?
     M extends Mods ? true : false :
     false;
 
-type HasAnyModifier<T, K extends keyof T> =
-    [HasModifier<T, K, "readonly">, HasModifier<T, K, "optional">] extends [false, false] ? true : false;
+type IsPlainProperty<T, K extends keyof T> =
+    [
+        HasModifier<T, K, "readonly">,
+        HasModifier<T, K, "optional">,
+        HasModifier<T, K, "nullable">
+    ] extends [
+        false,
+        false,
+        false
+    ] ? true : false;
 
-type InferCompiledSchema<T> = {
-    [K in keyof T as HasAnyModifier<T, K> extends true ? K : never]: InferPrimitive<T[K]>
-} & {
-    readonly [K in keyof T as HasModifier<T, K, "readonly"> extends true ? K : never]: InferPrimitive<T[K]>
-} & {
-    [K in keyof T as HasModifier<T, K, "optional"> extends true ? K : never]?: InferPrimitive<T[K]>
-};
+type IsPlainCreateProperty<T, K extends keyof T> =
+    [
+        HasModifier<T, K, "identity">,
+        HasModifier<T, K, "default">,
+        HasModifier<T, K, "computed">,
+        HasModifier<T, K, "unmapped">,
+        HasModifier<T, K, "optional">,
+        HasModifier<T, K, "nullable">
+    ] extends [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+    ] ? true : false;
 
-type Test = InferType<typeof nested>;
+type InferCompiledSchema<T> = CoalesceEmpty<{
+    [K in keyof T as IsPlainProperty<T, K> extends true ? K : never]: InferPrimitive<T[K]>
+}, {
+        readonly [K in keyof T as HasModifier<T, K, "readonly"> extends true ? K : never]: InferPrimitive<T[K]>
+    }, {
+        [K in keyof T as HasModifier<T, K, "optional"> extends true ? K : never]?: InferPrimitive<T[K]>
+    }, {
+        [K in keyof T as HasModifier<T, K, "nullable"> extends true ? K : never]: null | InferPrimitive<T[K]>
+    }>;
+
+type InferCompiledCreateSchema<T> = CoalesceEmpty<{
+    [K in keyof T as IsPlainCreateProperty<T, K> extends true ? K : never]: InferPrimitive<T[K]>
+}, {
+        [K in keyof T as HasModifier<T, K, "optional"> extends true ? K : never]?: InferPrimitive<T[K]>
+    }, {
+        [K in keyof T as HasModifier<T, K, "default"> extends true ? K : never]?: InferPrimitive<T[K]>
+    }, {
+        [K in keyof T as HasModifier<T, K, "nullable"> extends true ? K : never]: null | InferPrimitive<T[K]>
+    }>;
+
+type IsEmptyObject<T> = keyof T extends never ? true : false;
+type CoalesceEmpty<T1 extends {}, T2 extends {}, T3 extends {}, T4 extends {}> = (IsEmptyObject<T1> extends true ? {} : T1) & (IsEmptyObject<T2> extends true ? {} : T2) & (IsEmptyObject<T3> extends true ? {} : T3) & (IsEmptyObject<T4> extends true ? {} : T4);

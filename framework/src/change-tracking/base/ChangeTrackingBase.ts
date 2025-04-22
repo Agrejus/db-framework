@@ -6,7 +6,7 @@ import { FetchOptions } from "../../data-access/types";
 import { ChangeTrackingType } from "@agrejus/db-framework-core/dist/schema";
 import { TrampolinePipeline } from "../../TrampolinePipeline";
 
-export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never> {
+export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}> {
 
     protected removals: NonNullEntity<TEntity>[] = [];
     protected attachments: Map<TKey, NonNullEntity<TEntity>> = new Map<TKey, NonNullEntity<TEntity>>();
@@ -19,9 +19,9 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
     protected abstract prepareAdditions(data: SaveChangesContextStepTwo, done: (result: SaveChangesContextStepThree<TEntity>) => void): void;
 
     constructor(
-        schema: CompiledSchema<TEntity>, 
-        dbPlugin: IDbPlugin, 
-        changeTrackingType: ChangeTrackingType, 
+        schema: CompiledSchema<TEntity>,
+        dbPlugin: IDbPlugin,
+        changeTrackingType: ChangeTrackingType,
         pipeline: TrampolinePipeline<SaveChangesContextStepOne>,
         abortController: AbortController
     ) {
@@ -226,6 +226,7 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
         return this.additionsCount > 0 || this.removals.length > 0 || this.hasAttachmentsChanges() === true;
     }
 
+    // Checks to see if the item is already attached, if so we merge, if not we attach and return each result
     resolve(entities: NonNullEntity<TEntity>[], options?: FetchOptions) {
 
         const result = entities.map(entity => {
@@ -234,7 +235,6 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
             const existing = this.getAttachment(key);
 
             if (existing != null) {
-                console.log({ existing, entity });
                 if (options?.mergeResponse === true) {
                     this.schema.merge(existing, entity); // merge needs to map children appropriately
                 }
@@ -268,7 +268,7 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
         }
     }
 
-    add(entities: NonNullCreateEntity<TEntity, TEnhancedPropertyNames | TComputedPropertyNames>[], done: EntityCallbackMany<TEntity>) {
+    add(entities: NonNullCreateEntity<TEntity>[], done: EntityCallbackMany<TEntity>) {
 
         try {
 
@@ -276,8 +276,6 @@ export abstract class ChangeTrackingBase<TKey extends IdType, TEntity extends {}
                 const enriched: NonNullCreateEntity<TEntity> = this.schema.enrich(entity as any, this.changeTrackingType) as any;
 
                 this.setAddition(enriched);
-
-                // result.push(enriched as any);
 
                 return enriched as NonNullEntity<TEntity>;
             });

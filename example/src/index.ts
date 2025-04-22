@@ -55,7 +55,7 @@ class Ctx extends DataContext {
     }
 
     // test = this.dbset(model).create();
-    nested = this.dbset(nested).stateful().create();
+    nested = this.dbset(nested).create();
     immutable = this.dbset(nested).immutable().create();
     // date = this.dbset(modelWithDate).create();
 }
@@ -73,7 +73,7 @@ const r = async () => {
         // });
 
         // await ctx.saveChangesAsync();
-        
+
         // await ctx.nested.addAsync({
         //     child: {
         //         name: "Child Name",
@@ -90,7 +90,7 @@ const r = async () => {
 
         // await ctx.saveChangesAsync();
         // const s1 = performance.now();
-            // const r = await ctx.nested.where(w => w.name == "James").firstOrUndefinedAsync();
+        // const r = await ctx.nested.where(w => w.name == "James").firstOrUndefinedAsync();
         // console.log('DONE 5', performance.now() - s1, r);
 
         // const s2 = performance.now();
@@ -112,18 +112,19 @@ const r = async () => {
         //     console.log('DONE 3', performance.now() - s3, r, e)
         // });
 
-        await ctx.immutable.addAsync({
+        const [result] = await ctx.immutable.addAsync({
+            name: "",
+            order: 1,
             child: {
-                name: "Child Name",
+                name: "",
                 nested: {
                     more: {
-                        array: ["test"],
+                        array: [],
                         final: 1
                     },
-                    winner: 100
+                    winner: 1
                 }
-            },
-            name: "James"
+            }
         });
 
         await ctx.saveChangesAsync();
@@ -170,11 +171,11 @@ const r = async () => {
         // debugger;
 
         // looks like PDB always returns 1 document when limit is 1... wtf?
-        
-        
+
+
         // const x9 = await ctx.nested.toArrayAsync();
-        
-        
+
+
         // const x = await ctx.nested.firstOrUndefinedAsync(w => w.child.name == "test");
         // debugger;
         // const x1 = await ctx.nested.where(w => w.child.name.startsWith("other")).toArrayAsync();

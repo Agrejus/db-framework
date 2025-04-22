@@ -8,3 +8,8 @@ export interface IDataAccessManager<T extends {}> {
 }
 
 export type FetchOptions = { mergeResponse?: boolean }
+
+export interface IDataAccessStrategy<T extends {}> {
+    bulkOperations(schema: CompiledSchema<T>, operations: EntityChanges<T>, done: (result: EntityModificationResult<T>, error?: any) => void): void;
+    fetch(query: Query<T>, done: (response: { result: T[], shouldEnableChangeTracking: boolean }, error?: any) => void): void;
+}

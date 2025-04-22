@@ -8,13 +8,13 @@ import { SaveChangesContextStepOne } from "../types";
 
 export class ChangeTrackerFactory {
 
-    static create<TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never>(
+    static create<TEntity extends {}>(
         schema: CompiledSchema<TEntity>, 
         dbPlugin: IDbPlugin, 
         changeTrackingType: ChangeTrackingType,
         pipeline: TrampolinePipeline<SaveChangesContextStepOne>,
         abortController: AbortController
-    ): IChangeTracker<TEntity, TEnhancedPropertyNames, TComputedPropertyNames> {
+    ): IChangeTracker<TEntity> {
 
         if (schema.hasIdentityKeys === true) {
             return new IdentityKeyChangeTrackingBase(schema, dbPlugin, changeTrackingType, pipeline, abortController)

@@ -18,21 +18,25 @@ export class DataContext implements Disposable {
         this._abortController = new AbortController();
     }
 
-    protected dbset<TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never>(schema: CompiledSchema<TEntity>) {
+    protected dbset<TEntity extends {}>(schema: CompiledSchema<TEntity>) {
 
-        const onDbSetCreated = (dbset: DbSet<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>) => {
-            this._dbsets.set(schema.key, dbset)
+        const onDbSetCreated = (dbset: DbSet<TEntity>) => {
+            this._dbsets.set(schema.key, dbset as any)
         };
 
-        return new DbSetBuilder<TEntity, TEnhancedPropertyNames, TComputedPropertyNames, DbSet<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>>({
+        return new DbSetBuilder<TEntity, DbSet<TEntity>>({
             dbPlugin: this._dbPlugin,
-            instanceCreator: DbSet<TEntity, TEnhancedPropertyNames, TComputedPropertyNames>,
+            instanceCreator: DbSet<TEntity>,
             isStateful: false,
             onDbSetCreated: onDbSetCreated.bind(this),
             schema,
             pipeline: this._saveChangesPipeline,
             abortController: this._abortController
         });
+    }
+
+    addEventListener(event: "", cb: () => void) {
+
     }
 
     // Can we borrow from redux and create a way to inject middleware?
@@ -42,7 +46,7 @@ export class DataContext implements Disposable {
 
         const response = { count: 0 };
         
-        this._saveChangesPipeline.filter<SaveChangesContextStepOne>(response, (result, error) => done(result.count, error))
+        this._saveChangesPipeline.filter<SaveChangesContextStepOne>(response, (result, error) => done(result.count, error));
     }
 
     saveChangesAsync() {
@@ -63,13 +67,13 @@ export class DataContext implements Disposable {
     }
 
     hasChanges() {
-        for (const [, dbset] of this._dbsets) {
-            if (dbset.changeTracker.hasChanges() === true) {
-                return true;
-            }
-        }
+        // for (const [, dbset] of this._dbsets) {
+        //     if (dbset.changeTracker.hasChanges() === true) {
+        //         return true;
+        //     }
+        // }
 
-        return false;
+        // return false;
     }
 
     destroy(done: (error?: any) => void) {
@@ -80,3 +84,9 @@ export class DataContext implements Disposable {
         this._abortController.abort();
     }
 }
+
+
+/**
+ * Events
+ *  Need a way to update stateful sets
+ */

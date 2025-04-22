@@ -3,8 +3,8 @@ import { ChangeTrackingBase } from "./ChangeTrackingBase";
 import { IChangeTracker } from '../types';
 import { SaveChangesContextStepThree, SaveChangesContextStepTwo } from "../../types";
 
-export class IdentityKeyChangeTrackingBase<TKey extends IdType, TEntity extends {}, TEnhancedPropertyNames extends string = never, TComputedPropertyNames extends string = never>
-    extends ChangeTrackingBase<TKey, TEntity, TEnhancedPropertyNames, TComputedPropertyNames> implements IChangeTracker<TEntity, TEnhancedPropertyNames, TComputedPropertyNames> {
+export class IdentityKeyChangeTrackingBase<TKey extends IdType, TEntity extends {}>
+    extends ChangeTrackingBase<TKey, TEntity> implements IChangeTracker<TEntity> {
 
     protected additions: NonNullCreateEntity<TEntity>[] = [];
 
