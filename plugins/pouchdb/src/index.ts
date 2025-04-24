@@ -1,7 +1,5 @@
-// @ts-nocheck
-
 import PouchDB from 'pouchdb';
-import { CompiledSchema, DbOperation, EntityChanges, EntityModificationResult, IDbPlugin, IdType, NonNullEntity, Query, ReadOperation, SyncronousQueue, SyncronousUnitOfWork, toMap, UpsertOperation } from '@agrejus/db-framework-core';
+import { CompiledSchema, EntityChanges, EntityModificationResult, IDbPlugin, InferType, Query, SyncronousQueue, SyncronousUnitOfWork, toMap } from '@agrejus/db-framework-core';
 import { setQueryOptions, toMango } from './expression/resolver';
 import findAdapter from 'pouchdb-find';
 
@@ -207,7 +205,7 @@ export class PouchDbPlugin implements IDbPlugin {
         queue.enqueue(unitOfWork.bind(this));
     }
 
-    query<TEntity extends {}>(query: Query<TEntity>, done: (entities: NonNullEntity<TEntity>[], error?: any) => void): void {
+    query<TEntity extends {}>(query: Query<TEntity>, done: (entities: InferType<TEntity>[], error?: any) => void): void {
 
         const unitOfWork: SyncronousUnitOfWork = (d) => this._query(query, (r, e) => {
             d();
@@ -217,7 +215,7 @@ export class PouchDbPlugin implements IDbPlugin {
         queue.enqueue(unitOfWork.bind(this));
     }
 
-    private _query<TEntity extends {}>(query: Query<TEntity>, done: (entities: NonNullEntity<TEntity>[], error?: any) => void): void {
+    private _query<TEntity extends {}>(query: Query<TEntity>, done: (entities: InferType<TEntity>[], error?: any) => void): void {
 
         const request: PouchDB.Find.FindRequest<unknown> = {
             selector: {}

@@ -4,6 +4,6 @@ export class LimitedQueryable<T extends {}, U = void> extends SelectionQueryable
 
     skip(amount: number) {
         this.skipValue = amount;
-        return new SelectionQueryable<T, U>(this);
+        return new SelectionQueryable<T, U>({ queryable: this });
     }
 }

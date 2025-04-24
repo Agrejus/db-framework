@@ -10,8 +10,8 @@ import { IdType } from "../types";
 import { PropertyInfo } from "../common/PropertyInfo";
 
 // this non-null stuff can be removed
-export type NonNullEntity<T extends {}> = InferType<T>;
-export type NonNullCreateEntity<T extends {}> = InferCreateType<T>;
+// export type InferType<T extends {}> = InferType<T>;
+// export type InferCreateType<T extends {}> = InferCreateType<T>;
 
 export enum SchemaTypes {
     Array = "Array",
@@ -57,38 +57,38 @@ export enum HashType {
 }
 
 export type HashFunction<TEntity extends {}> = {
-    (entity: NonNullCreateEntity<TEntity>, type: HashType.Object): string;
-    (entity: NonNullEntity<TEntity>, type: HashType.Ids): string;
+    (entity: InferCreateType<TEntity>, type: HashType.Object): string;
+    (entity: InferType<TEntity>, type: HashType.Ids): string;
 }
 
 export type GetHashTypeFunction<TEntity extends {}> = {
-    (entity: NonNullCreateEntity<TEntity>): HashType.Object;
-    (entity: NonNullEntity<TEntity>): HashType.Ids;
+    (entity: InferCreateType<TEntity>): HashType.Object;
+    (entity: InferType<TEntity>): HashType.Ids;
 }
 
 export type ChangeTrackingType = "entity" | "immutable";
 
 export type CompiledSchema<TEntity extends {}> = {
-    getId: (entity: NonNullEntity<TEntity>) => IdType;
-    clone: (entity: NonNullEntity<TEntity>) => NonNullEntity<TEntity>;
-    strip: (entity: NonNullEntity<TEntity>) => NonNullEntity<TEntity>;
-    prepare: (entity: NonNullCreateEntity<TEntity>) => NonNullCreateEntity<TEntity>;
-    merge: (destination: NonNullEntity<TEntity>, source: NonNullEntity<TEntity>) => NonNullEntity<TEntity>;
+    getId: (entity: InferType<TEntity>) => IdType;
+    clone: (entity: InferType<TEntity>) => InferType<TEntity>;
+    strip: (entity: InferType<TEntity>) => InferType<TEntity>;
+    prepare: (entity: InferCreateType<TEntity>) => InferCreateType<TEntity>;
+    merge: (destination: InferType<TEntity>, source: InferType<TEntity>) => InferType<TEntity>;
     hasIdentities: boolean;
     idPropertyNames: string[];
     properties: PropertyInfo<TEntity>[],
     hashType: HashType;
     hash: HashFunction<TEntity>;
     getHashType: GetHashTypeFunction<TEntity>;
-    compare: (a: NonNullEntity<TEntity>, fromDb: NonNullEntity<TEntity>) => boolean;
-    deserialize: (entity: NonNullEntity<TEntity>) => NonNullEntity<TEntity>;
+    compare: (a: InferType<TEntity>, fromDb: InferType<TEntity>) => boolean;
+    deserialize: (entity: InferType<TEntity>) => InferType<TEntity>;
     key: number,
     tableName: string;
-    getIds: (entity: NonNullEntity<TEntity>) => [IdType];
-    enrich: (entity: NonNullEntity<TEntity>, changeTrackingType: ChangeTrackingType) => NonNullEntity<TEntity>;
+    getIds: (entity: InferType<TEntity>) => [IdType];
+    enrich: (entity: InferType<TEntity>, changeTrackingType: ChangeTrackingType) => InferType<TEntity>;
     hasIdentityKeys: boolean;
-    freeze: (entity: NonNullEntity<TEntity>) => NonNullEntity<TEntity>;
-    enableChangeTracking: (entity: NonNullEntity<TEntity>) => NonNullEntity<TEntity>;
+    freeze: (entity: InferType<TEntity>) => InferType<TEntity>;
+    enableChangeTracking: (entity: InferType<TEntity>) => InferType<TEntity>;
 }
 
 export type PropertySerializer<T extends any> = (value: T) => string | number;

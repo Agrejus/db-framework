@@ -1,16 +1,16 @@
-import { NonNullEntity } from "@agrejus/db-framework-core";
+import { InferType } from "@agrejus/db-framework-core";
 import { DbSet } from "./DbSet";
 import { ChangeTrackingType } from "@agrejus/db-framework-core/dist/schema";
 
 export class ImmutableDbSet<TEntity extends {}> extends DbSet<TEntity> {
 
-    protected override createChangeTrackerStrategy(): ChangeTrackingType {
+    protected get changeTrackingType(): ChangeTrackingType {
         return "immutable";
     }
 
     // We know changes are made if the attached entity is a proxy, means we altered it
     // Immutable sets deal with frozen objects
-    mutate(entity: NonNullEntity<TEntity>, mutator: (draft: NonNullEntity<TEntity>) => void): NonNullEntity<TEntity> {
+    mutate(entity: InferType<TEntity>, mutator: (draft: InferType<TEntity>) => void): InferType<TEntity> {
 
         const clone = this.schema.clone(entity);
 

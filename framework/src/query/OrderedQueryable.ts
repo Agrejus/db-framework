@@ -7,16 +7,16 @@ export class OrderedQueryable<T extends {}, U = void> extends SelectionQueryable
 
     sort(selector: EntityMap<T, T[keyof T]>) {
         this.sorting.push({ selector, direction: QueryOrdering.Ascending });
-        return new OrderedQueryable<T, U>(this);
+        return new OrderedQueryable<T, U>({ queryable: this });
     }
 
     sortDescending(selector: EntityMap<T, T[keyof T]>) {
         this.sorting.push({ selector, direction: QueryOrdering.Descending });
-        return new OrderedQueryable<T, U>(this);
+        return new OrderedQueryable<T, U>({ queryable: this });
     }
 
     map<R extends T[keyof T] | Partial<T>>(expression: EntityMap<T, R>) {
         this.mapValue = expression;
-        return new ShapedQueryable<R, U>(this as any);
+        return new ShapedQueryable<R, U>({ queryable: this } as any);
     }
 }

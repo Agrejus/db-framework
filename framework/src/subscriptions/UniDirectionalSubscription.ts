@@ -1,41 +1,46 @@
-import { createUUID } from "@agrejus/db-framework-core";
+import { createUUID, InferType } from "@agrejus/db-framework-core";
 
-type UniDirectionalSubscriptionPayload = {
+type UniDirectionalSubscriptionPayload<T extends {}> = {
     id: string;
+    changes: InferType<T>[];
 }
 
-export class UniDirectionalSubscription implements Disposable {
+// This is intented to run the "OnMessage" event whenever we "send".  For context
+// when we make a change, we query to see if we have any changes.  We need to run a fetch because we could have 
+// many db sets
+export class UniDirectionalSubscription<T extends {}> implements Disposable {
 
     private _channel;
     private _id = createUUID();
-    private _callback: (() => void) | null = null;
+    private _callback: ((changes: InferType<T>[]) => void) | null = null;
 
-    constructor(id: number, abortController: AbortController) {
+    constructor(id: number, signal: AbortSignal) {
         this._channel = new BroadcastChannel(`__db-framework-unidirectional-subscription-channel-${id}`);
         this._channel.onmessage = (event: any) => {
-            const message = event.data as UniDirectionalSubscriptionPayload;
+            const message = event.data as UniDirectionalSubscriptionPayload<T>;
             if (message.id === this._id) {
                 return;
             }
 
             if (this._callback != null) {
-                this._callback();
+                this._callback(message.changes);
             }
         };
 
-        abortController.signal.addEventListener("abort", () => {
+        signal.addEventListener("abort", () => {
             this[Symbol.dispose]();
         }, { once: true });
     }
 
-    send() {
-        const message: UniDirectionalSubscriptionPayload = {
+    send(changes: InferType<T>[]) {
+        const message: UniDirectionalSubscriptionPayload<T> = {
             id: this._id,
+            changes
         }
         this._channel.postMessage(message)
     }
 
-    onMessage(callback: () => void) {
+    onMessage(callback: (changes: InferType<T>[]) => void) {
         this._callback = callback;
     }
 
@@ -44,5 +49,4 @@ export class UniDirectionalSubscription implements Disposable {
         this._channel.close();
         this._channel = null;
     }
-
 }

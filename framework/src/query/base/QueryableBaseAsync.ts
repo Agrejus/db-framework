@@ -10,26 +10,26 @@ export class QueryableBaseAsync<T extends {}> extends SelectionQueryableAsync<T>
 
     map<R extends T[keyof T] | Partial<T>>(expression: EntityMap<T, R>) {
         this.mapValue = expression;
-        return new ShapedQueryableAsync<R>(this as any);
+        return new ShapedQueryableAsync<R>({ queryable: this as any });
     }
 
     skip(amount: number) {
         this.skipValue = amount;
-        return new SkippedQueryableAsync<T>(this);
+        return new SkippedQueryableAsync<T>({ queryable: this });
     }
 
     take(amount: number) {
         this.takeValue = amount;
-        return new LimitedQueryableAsync<T>(this)
+        return new LimitedQueryableAsync<T>({ queryable: this })
     }
 
     order(expression: EntityMap<T, T[keyof T]>) {
         this.sorting.push({ selector: expression, direction: QueryOrdering.Ascending });
-        return new OrderedQueryableAsync<T>(this);
+        return new OrderedQueryableAsync<T>({ queryable: this });
     }
 
     orderDescending(expression: EntityMap<T, T[keyof T]>) {
         this.sorting.push({ selector: expression, direction: QueryOrdering.Descending });
-        return new OrderedQueryableAsync<T>(this);
+        return new OrderedQueryableAsync<T>({ queryable: this });
     }
 }

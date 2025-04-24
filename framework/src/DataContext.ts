@@ -2,26 +2,29 @@ import { CompiledSchema, IDbPlugin } from '@agrejus/db-framework-core';
 import { DbSet } from './db-sets/DbSet';
 import { DbSetBuilder } from './dbset-builder/DbSetBuilder';
 import { TrampolinePipeline } from './TrampolinePipeline';
-import { SaveChangesContextStepOne } from './types';
+import { DbSetPipelines, SaveChangesContextStepOne } from './types';
 
 export class DataContext implements Disposable {
 
     private readonly _dbPlugin: IDbPlugin;
     private readonly _dbsets: Map<number, DbSet<any>>;
-    private readonly _saveChangesPipeline: TrampolinePipeline<SaveChangesContextStepOne>;
+    private readonly _dbSetPipelines: DbSetPipelines;
     private readonly _abortController: AbortController;
 
     constructor(dbPlugin: IDbPlugin) {
+        this._abortController = new AbortController();
         this._dbPlugin = dbPlugin;
         this._dbsets = new Map<number, DbSet<any>>();
-        this._saveChangesPipeline = new TrampolinePipeline<SaveChangesContextStepOne>();
-        this._abortController = new AbortController();
+        this._dbSetPipelines = {
+            save: new TrampolinePipeline<SaveChangesContextStepOne>(),
+            hasChanges: new TrampolinePipeline<{ hasChanges: boolean }>()
+        };
     }
 
     protected dbset<TEntity extends {}>(schema: CompiledSchema<TEntity>) {
 
         const onDbSetCreated = (dbset: DbSet<TEntity>) => {
-            this._dbsets.set(schema.key, dbset as any)
+            this._dbsets.set(schema.key, dbset)
         };
 
         return new DbSetBuilder<TEntity, DbSet<TEntity>>({
@@ -30,8 +33,8 @@ export class DataContext implements Disposable {
             isStateful: false,
             onDbSetCreated: onDbSetCreated.bind(this),
             schema,
-            pipeline: this._saveChangesPipeline,
-            abortController: this._abortController
+            pipelines: this._dbSetPipelines,
+            signal: this._abortController.signal
         });
     }
 
@@ -45,8 +48,10 @@ export class DataContext implements Disposable {
     saveChanges(done: (result: number, error?: any) => void) {
 
         const response = { count: 0 };
-        
-        this._saveChangesPipeline.filter<SaveChangesContextStepOne>(response, (result, error) => done(result.count, error));
+
+        this._dbSetPipelines.save.filter<SaveChangesContextStepOne>(response, (result, error) => {
+            done(result.count, error);
+        });
     }
 
     saveChangesAsync() {
@@ -66,18 +71,44 @@ export class DataContext implements Disposable {
 
     }
 
-    hasChanges() {
-        // for (const [, dbset] of this._dbsets) {
-        //     if (dbset.changeTracker.hasChanges() === true) {
-        //         return true;
-        //     }
-        // }
+    hasChanges(done: (result: boolean, error?: any) => void) {
+        const payload = {
+            hasChanges: false
+        }
 
-        // return false;
+        this._dbSetPipelines.hasChanges.filter<{ hasChanges: false }>(payload, (r, e) => {
+            done(r.hasChanges, e);
+        })
+    }
+
+    hasChangesAsync() {
+        return new Promise<boolean>((resolve, reject) => {
+            this.hasChanges((r, e) => {
+                if (e != null) {
+                    reject(e);
+                    return;
+                }
+
+                resolve(r);
+            })
+        });
     }
 
     destroy(done: (error?: any) => void) {
         this._dbPlugin.destroy(done);
+    }
+
+    destroyAsync() {
+        return new Promise<void>((resolve, reject) => {
+            this.destroy((e) => {
+                if (e != null) {
+                    reject(e);
+                    return;
+                }
+
+                resolve();
+            })
+        });
     }
 
     [Symbol.dispose]() {

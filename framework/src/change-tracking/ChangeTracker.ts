@@ -1,4 +1,4 @@
-import { CompiledSchema, EntityModificationResult, NonNullCreateEntity, NonNullEntity } from "@agrejus/db-framework-core";
+import { CompiledSchema, EntityModificationResult, InferCreateType, InferType } from "@agrejus/db-framework-core";
 import { FetchOptions } from "../data-access/types";
 import { EntityCallbackMany } from "../types";
 import { AdditionsPackage, IChangeTrackerStrategy } from "./types";
@@ -13,15 +13,15 @@ export class ChangeTracker<T extends {}> {
         this._strategy = strategy;
     }
 
-    add(entities: NonNullCreateEntity<T>[], done: EntityCallbackMany<T>) {
+    add(entities: InferCreateType<T>[], done: EntityCallbackMany<T>) {
         return this._strategy.add(entities, done);
     }
 
-    remove(entities: NonNullEntity<T>[], done: EntityCallbackMany<T>) {
+    remove(entities: InferType<T>[], done: EntityCallbackMany<T>) {
         return this._strategy.remove(entities, done);
     }
 
-    resolve(entities: NonNullEntity<T>[], options?: FetchOptions) {
+    resolve(entities: InferType<T>[], options?: FetchOptions) {
         return this._strategy.resolve(entities, options);
     }
 
@@ -29,11 +29,11 @@ export class ChangeTracker<T extends {}> {
         return this._strategy.hasChanges();
     }
 
-    replace(existingEntity: NonNullEntity<T> | NonNullCreateEntity<T>, newEntity: NonNullEntity<T> | NonNullCreateEntity<T>) {
+    replace(existingEntity: InferType<T> | InferCreateType<T>, newEntity: InferType<T> | InferCreateType<T>) {
         return this._strategy.replace(existingEntity, newEntity);
     }
 
-    enrich(entities: NonNullEntity<T>[]): NonNullEntity<T>[] {
+    enrich(entities: InferType<T>[]): InferType<T>[] {
         return this._strategy.enrich(entities);
     }
 

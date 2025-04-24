@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { CompiledSchema, IDbPlugin, EntityModificationResult, NonNullEntity } from '@agrejus/db-framework-core';
+import { CompiledSchema, IDbPlugin, EntityModificationResult, InferType } from '@agrejus/db-framework-core';
 import { DataContext } from './DataContext';
 import { DbSet } from './DbSet';
 
@@ -37,15 +37,15 @@ const mockSchema: CompiledSchema<any> = {
 // Mock DB Plugin
 class MockDbPlugin implements IDbPlugin {
 
-    query<TEntity extends {}>(schema: CompiledSchema<TEntity>, expression: any, done: (entities: NonNullEntity<TEntity>[], error?: any) => void): void {
+    query<TEntity extends {}>(schema: CompiledSchema<TEntity>, expression: any, done: (entities: InferType<TEntity>[], error?: any) => void): void {
         done([], null);
     }
 
-    all<TEntity extends {}>(schema: CompiledSchema<TEntity>, done: (entities: NonNullEntity<TEntity>[], error?: any) => void): void {
+    all<TEntity extends {}>(schema: CompiledSchema<TEntity>, done: (entities: InferType<TEntity>[], error?: any) => void): void {
         done([], null);
     }
 
-    get<TEntity extends {}>(schema: CompiledSchema<TEntity>, ids: string[], done: (entities: NonNullEntity<TEntity>[], error?: any) => void): void {
+    get<TEntity extends {}>(schema: CompiledSchema<TEntity>, ids: string[], done: (entities: InferType<TEntity>[], error?: any) => void): void {
         done([], null);
     }
 

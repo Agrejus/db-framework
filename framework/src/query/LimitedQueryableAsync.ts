@@ -4,6 +4,6 @@ export class LimitedQueryableAsync<T extends {}> extends SelectionQueryableAsync
 
     skip(amount: number) {
         this.skipValue = amount;
-        return new SelectionQueryableAsync<T>(this);
+        return new SelectionQueryableAsync<T>({ queryable: this });
     }
 }

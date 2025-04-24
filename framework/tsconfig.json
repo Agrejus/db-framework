@@ -4,7 +4,8 @@
         "allowSyntheticDefaultImports": true,
         "module": "commonjs",
         "lib": [
-            "ESNext"
+            "ESNext",
+            "ESNext.disposable"
         ],
         "target": "ESNext",
         "declaration": true,

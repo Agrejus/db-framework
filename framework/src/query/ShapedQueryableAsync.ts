@@ -10,46 +10,46 @@ export class ShapedQueryableAsync<T extends {}> extends SelectionQueryableAsync<
 
     skip(amount: number) {
         this.skipValue = amount;
-        return new SkippedQueryableAsync<T>(this);
+        return new SkippedQueryableAsync<T>({ queryable: this });
     }
 
     take(amount: number) {
         this.takeValue = amount;
-        return new LimitedQueryableAsync<T>(this)
+        return new LimitedQueryableAsync<T>({ queryable: this })
     }
 
     min() {
         this.minValue = true;
-        return new AggregateQueryableAsync<T>(this);
+        return new AggregateQueryableAsync<T>({ queryable: this });
     }
 
     max() {
         this.maxValue = true;
-        return new AggregateQueryableAsync<T>(this);
+        return new AggregateQueryableAsync<T>({ queryable: this });
     }
 
     sum() {
         this.sumValue = true;
-        return new AggregateQueryableAsync<T>(this);
+        return new AggregateQueryableAsync<T>({ queryable: this });
     }
 
     count() {
         this.countValue = true;
-        return new AggregateQueryableAsync<T>(this);
+        return new AggregateQueryableAsync<T>({ queryable: this });
     }
 
     distinct() {
         this.distinctValue = true;
-        return new AggregateQueryableAsync<T>(this);
+        return new AggregateQueryableAsync<T>({ queryable: this });
     }
 
     order(selector: EntityMap<T, T[keyof T]>) {
         this.sorting.push({ selector, direction: QueryOrdering.Ascending });
-        return new OrderedQueryableAsync<T>(this);
+        return new OrderedQueryableAsync<T>({ queryable: this });
     }
 
     orderDescending(selector: EntityMap<T, T[keyof T]>) {
         this.sorting.push({ selector, direction: QueryOrdering.Descending });
-        return new OrderedQueryableAsync<T>(this);
+        return new OrderedQueryableAsync<T>({ queryable: this });
     }
 }

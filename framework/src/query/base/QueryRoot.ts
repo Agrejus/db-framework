@@ -21,7 +21,7 @@ export abstract class QueryRoot<T extends {}> {
     protected subscribeValue: boolean = false;
     private _compiledQuery: Query<T> | null = null;
 
-    constructor(options: { queryable?: QueryRoot<T>, dataBridge: DataBridge<T>, changeTracker: ChangeTracker<T> }) {
+    constructor(options: { queryable?: QueryRoot<T>, dataBridge?: DataBridge<T>, changeTracker?: ChangeTracker<T> }) {
 
         if (options?.dataBridge != null) {
             this.dataBridge = options.dataBridge;
@@ -71,12 +71,24 @@ export abstract class QueryRoot<T extends {}> {
     protected subscribeQuery<U>(shape: (data: T[]) => U, done: (result: U, error?: any) => void) {
 
         if (this.subscribeValue === false) {
-            return;
+            return () => { };
         }
 
         const query = this.getOrCompileQuery();
 
-        // return this.dataBridge.subscribe(query, shape, done);
+        return this.dataBridge.subscribe(query, shape, (r, e) => {
+
+            const { data, shouldEnableChangeTracking } = r;
+
+            if (shouldEnableChangeTracking === true) {
+                const enriched = this.changeTracker.enrich(data as any);
+                const resolved = this.changeTracker.resolve(enriched, { mergeResponse: true });
+                done(resolved as U, e);
+                return;
+            }
+
+            done(data, e);
+        });
     }
 
     private _getSorting(sorting: { direction: QueryOrdering, selector: EntityMap<T, T[keyof T]> }[]) {

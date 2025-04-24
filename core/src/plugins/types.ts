@@ -1,22 +1,22 @@
-import { CompiledSchema, DeepPartial, Expression, IdType, NonNullCreateEntity, NonNullEntity } from "..";
+import { CompiledSchema, DeepPartial, Expression, IdType, InferCreateType, InferType } from "..";
 import { Filterable } from "../expressions/types";
 
 export interface IDbPlugin {
-    query<TEntity extends {}>(query: Query<TEntity>, done: (entities: NonNullEntity<TEntity>[], error?: any) => void): void;
+    query<TEntity extends {}>(query: Query<TEntity>, done: (entities: InferType<TEntity>[], error?: any) => void): void;
     destroy(done: (error?: any) => void): void;
     bulkOperations<TEntity extends {}>(schema: CompiledSchema<TEntity>, operations: EntityChanges<TEntity>, done: (result: EntityModificationResult<TEntity>, error?: any) => void): void;
 }
 
 export type EntityChanges<T extends {}> = {
-    adds: NonNullCreateEntity<T>[];
-    removes: NonNullEntity<T>[];
-    updates: Map<IdType, { doc: NonNullEntity<T>, delta: { [key: string]: string | number | Date } }>;
+    adds: InferCreateType<T>[];
+    removes: InferType<T>[];
+    updates: Map<IdType, { doc: InferType<T>, delta: { [key: string]: string | number | Date } }>;
 }
 
 export type EntityModificationResult<T extends {}> = {
-    adds: DeepPartial<NonNullCreateEntity<T>>[];
+    adds: DeepPartial<InferCreateType<T>>[];
     removedCount: number;
-    updates: NonNullEntity<T>[];
+    updates: InferType<T>[];
 }
 
 export type QueryOptions = {

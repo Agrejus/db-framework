@@ -99,7 +99,10 @@ export class TrampolinePipeline<TInitial, TCurrent = TInitial> {
 
             // The trampoline loop
             const trampoline = (step: TrampolineStep<any> | null) => {
-                if (isRunning) return;
+
+                if (isRunning) {
+                    return;
+                }
 
                 isRunning = true;
                 let currentStep = step;

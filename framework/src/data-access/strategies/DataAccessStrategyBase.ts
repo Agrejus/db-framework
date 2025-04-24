@@ -1,4 +1,4 @@
-import { CompiledSchema, EntityChanges, EntityModificationResult, Filter, Filterable, IDbPlugin, ParamsFilter, Query } from "@agrejus/db-framework-core";
+import { CompiledSchema, EntityChanges, EntityModificationResult, Filter, Filterable, IDbPlugin, InferType, ParamsFilter, Query } from "@agrejus/db-framework-core";
 
 export class DataAccessStrategyBase<T extends {}> {
 
@@ -29,7 +29,36 @@ export class DataAccessStrategyBase<T extends {}> {
         });
     }
 
+    filter(query: Query<T>, data: InferType<T>[]): InferType<T>[] {
+
+        if (query.filters.length === 0) {
+            return data;
+        }
+
+        const result: InferType<T>[] = [];
+
+        for (let i = 0, length = query.filters.length; i < length; i++) {
+
+            const filter = query.filters[i];
+            if (filter.params == null) {
+                // standard filtering
+                const selector = filter.filter as Filter<InferType<T>>;
+                result.push(...data.filter(selector));
+                continue;
+            }
+
+            // params filtering
+            const selector = filter.filter as ParamsFilter<InferType<T>, any>
+            result.push(...data.filter(w => selector([w, filter.params])));
+        }
+
+        return data;
+    }
+
     protected _shouldEnableChangeTracking(query: Query<T>) {
+
+        // we can only enable change tracking when we do not change (reduce/aggregate) the response
+        // from the database
         return query.options.fields?.length == null || query.options.fields.length === 0;
     }
 

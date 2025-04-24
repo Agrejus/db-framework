@@ -1,9 +1,5 @@
 import { CompiledSchema, IDbPlugin } from "@agrejus/db-framework-core";
 import { DbSet } from "../db-sets/DbSet";
-import { DbSetOptions, SaveChangesContextStepOne } from "../types";
-import { IChangeTracker } from "../change-tracking/types";
-import { IDataAccessManager } from "../data-access/types";
-import { TrampolinePipeline } from "../TrampolinePipeline";
+import { DbSetOptions, DbSetPipelines } from "../types";
 
-export type DbSetInstanceCreator<TEntity extends {}, TDbSet extends DbSet<TEntity>> = new (dbPlugin: IDbPlugin, schema: CompiledSchema<TEntity>, options: DbSetOptions, pipeline: TrampolinePipeline<SaveChangesContextStepOne>) => TDbSet;
-export type DataAccessInstanceCreator<TEntity extends {}> = new (schema: CompiledSchema<TEntity>, dbPlugin: IDbPlugin, changeTracker: IChangeTracker<TEntity>) => IDataAccessManager<TEntity>;
+export type DbSetInstanceCreator<TEntity extends {}, TDbSet extends DbSet<TEntity>> = new (dbPlugin: IDbPlugin, schema: CompiledSchema<TEntity>, options: DbSetOptions, pipelines: DbSetPipelines) => TDbSet;

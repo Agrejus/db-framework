@@ -1,11 +1,10 @@
-import { CompiledSchema, GetHashTypeFunction, HashFunction, HashType, InferType, NonNullCreateEntity, NonNullEntity, SchemaTypes } from ".";
+import { CompiledSchema, GetHashTypeFunction, HashFunction, HashType, InferCreateType, InferType, SchemaTypes } from ".";
 import { SchemaFunction } from './table/Function';
 import { SchemaComputed } from './table/Computed';
 import { SchemaBase } from "./property/base/Base";
-import { createUUID, hash } from "../utilities";
+import { hash } from "../utilities";
 import { PropertyInfo } from '../common/PropertyInfo';
-import { CodeBuilder, ContainerBlock, ObjectBuilder, Insert, FunctionFactoryBuilder, SlotBlock, AssignmentBuilder } from '../common/CodeBlock';
-import { SlotPath } from '../common/SlotPath';
+import { CodeBuilder } from '../common/CodeBlock';
 import { EnrichmentHandlerBuilder } from '../handlers/EnrichmentHandlerBuilder';
 import { MergeHandlerBuilder } from '../handlers/MergeHandlerBuilder';
 import { PrepareHandlerBuilder } from '../handlers/PrepareHandlerBuilder';
@@ -406,40 +405,40 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
             freezeHandler.handle(property, freezeCodeBuilder);
         });
 
-        console.log(prepareCodeBuilder.toString());
-        console.log(stripCodeBuilder.toString());
-        console.log(cloneCodeBuilder.toString());
-        console.log(compareCodeBuilder.toString());
-        console.log(deserializeCodeBuilder.toString());
-        console.log(hashTypeCodeBuilder.toString());
-        console.log(idSelectorCodeBuilder.toString());
-        console.log(enricherCodeBuilder.toString());
-        console.log(mergeCodeBuilder.toString());
-        console.log(changeTrackingCodeBuilder.toString());
-        console.log(freezeCodeBuilder.toString());
+        // console.log(prepareCodeBuilder.toString());
+        // console.log(stripCodeBuilder.toString());
+        // console.log(cloneCodeBuilder.toString());
+        // console.log(compareCodeBuilder.toString());
+        // console.log(deserializeCodeBuilder.toString());
+        // console.log(hashTypeCodeBuilder.toString());
+        // console.log(idSelectorCodeBuilder.toString());
+        // console.log(enricherCodeBuilder.toString());
+        // console.log(mergeCodeBuilder.toString());
+        // console.log(changeTrackingCodeBuilder.toString());
+        // console.log(freezeCodeBuilder.toString());
 
         const enrichParams = enricherFunctionRoot.getParameters()
         const mergeParams = mergeFunctionRoot.getParameters()
         const enrichGenerator = Function(`return ${enricherCodeBuilder.toString()}`);
         const mergeGenerator = Function(`return ${mergeCodeBuilder.toString()}`);
 
-        const getIdsFunction = Function("entity", idSelectorCodeBuilder.toString()) as (entity: NonNullEntity<T>) => [IdType];
+        const getIdsFunction = Function("entity", idSelectorCodeBuilder.toString()) as (entity: InferType<T>) => [IdType];
         const getHashTypeFunction = Function("entity", hashTypeCodeBuilder.toString()) as GetHashTypeFunction<T>;
-        const prepareFunction = Function("entity", prepareCodeBuilder.toString()) as (entity: NonNullCreateEntity<T>) => NonNullCreateEntity<T>;
-        const cloneFunction = Function("entity", cloneCodeBuilder.toString()) as (entity: NonNullEntity<T>) => NonNullEntity<T>;
-        const deserializeFunction = Function("entity", deserializeCodeBuilder.toString()) as (entity: NonNullEntity<T>) => NonNullEntity<T>;
-        const compareFunction = Function("a", "b", compareCodeBuilder.toString()) as (a: NonNullEntity<T>, fromDb: NonNullEntity<T>) => boolean;;
-        const stripFunction = Function("entity", stripCodeBuilder.toString()) as (entity: NonNullEntity<T>) => NonNullEntity<T>;
+        const prepareFunction = Function("entity", prepareCodeBuilder.toString()) as (entity: InferCreateType<T>) => InferCreateType<T>;
+        const cloneFunction = Function("entity", cloneCodeBuilder.toString()) as (entity: InferType<T>) => InferType<T>;
+        const deserializeFunction = Function("entity", deserializeCodeBuilder.toString()) as (entity: InferType<T>) => InferType<T>;
+        const compareFunction = Function("a", "b", compareCodeBuilder.toString()) as (a: InferType<T>, fromDb: InferType<T>) => boolean;;
+        const stripFunction = Function("entity", stripCodeBuilder.toString()) as (entity: InferType<T>) => InferType<T>;
         const hashFunction = Function("entity", "type", hashCodeBuilder.toString()) as HashFunction<T>;
-        const enableChangeTrackingFunction = Function("entity", changeTrackingCodeBuilder.toString()) as (entity: NonNullEntity<T>) => NonNullEntity<T>;
-        const freezeFunction = Function("entity", freezeCodeBuilder.toString()) as (entity: NonNullEntity<T>) => NonNullEntity<T>;
+        const enableChangeTrackingFunction = Function("entity", changeTrackingCodeBuilder.toString()) as (entity: InferType<T>) => InferType<T>;
+        const freezeFunction = Function("entity", freezeCodeBuilder.toString()) as (entity: InferType<T>) => InferType<T>;
 
         const enricherFactoryFunction = enrichGenerator();
         const mergeFactoryFunction = mergeGenerator();
         const enricherFunction = enricherFactoryFunction(...enrichParams.map(w => w.value));
         const mergeFunction = mergeFactoryFunction(...mergeParams.map(w => w.value));
 
-        const getId = (entity: NonNullEntity<T>) => {
+        const getId = (entity: InferType<T>) => {
             if (idPropertyNames.length > 1) {
                 return hashFunction(entity, HashType.Ids) as IdType;
             }

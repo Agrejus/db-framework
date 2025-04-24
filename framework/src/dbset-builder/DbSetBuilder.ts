@@ -1,10 +1,8 @@
 import { CompiledSchema, IDbPlugin } from '@agrejus/db-framework-core';
 import { DbSet } from '../db-sets/DbSet';
-import { ImmutableDbSet } from '../db-sets/ImmutableDbSet';
-import { DbSetOptions, SaveChangesContextStepOne } from '../types';
+import { DbSetOptions, DbSetPipelines } from '../types';
 import { DbSetInstanceCreator } from './types';
 import { StatefulDbSet } from '../db-sets/StatefulDbSet';
-import { TrampolinePipeline } from '../TrampolinePipeline';
 
 type DbSetBuilderProps<TEntity extends {}, TDbSet extends DbSet<TEntity>> = {
     onDbSetCreated: (dbset: DbSet<TEntity>) => void;
@@ -12,8 +10,8 @@ type DbSetBuilderProps<TEntity extends {}, TDbSet extends DbSet<TEntity>> = {
     dbPlugin: IDbPlugin;
     isStateful: boolean;
     instanceCreator: DbSetInstanceCreator<TEntity, TDbSet>;
-    pipeline: TrampolinePipeline<SaveChangesContextStepOne>;
-    abortController: AbortController;
+    pipelines: DbSetPipelines;
+    signal: AbortSignal;
 }
 
 export class DbSetBuilder<TEntity extends {}, TDbSet extends DbSet<TEntity>> {
@@ -23,16 +21,17 @@ export class DbSetBuilder<TEntity extends {}, TDbSet extends DbSet<TEntity>> {
     private readonly _dbPlugin: IDbPlugin;
     private _isStateful: boolean = false;
     private _instanceCreator: DbSetInstanceCreator<TEntity, TDbSet>;
-    private _pipeline: TrampolinePipeline<SaveChangesContextStepOne>;
-    private _abortController: AbortController;
+    private _pipelines: DbSetPipelines;
+    private _signal: AbortSignal;
 
     constructor(props: DbSetBuilderProps<TEntity, TDbSet>) {
-        this._pipeline = props.pipeline;
+        this._pipelines = props.pipelines;
         this._schema = props.schema;
         this._dbPlugin = props.dbPlugin;
         this._onDbSetCreated = props.onDbSetCreated;
         this._isStateful = props.isStateful;
         this._instanceCreator = props.instanceCreator;
+        this._signal = props.signal;
     }
 
     stateful() {
@@ -43,32 +42,20 @@ export class DbSetBuilder<TEntity extends {}, TDbSet extends DbSet<TEntity>> {
             onDbSetCreated: this._onDbSetCreated,
             schema: this._schema,
             instanceCreator: StatefulDbSet,
-            pipeline: this._pipeline,
-            abortController: this._abortController
-        });
-    }
-
-    immutable() {
-        return new DbSetBuilder<TEntity, ImmutableDbSet<TEntity>>({
-            dbPlugin: this._dbPlugin,
-            isStateful: this._isStateful,
-            onDbSetCreated: this._onDbSetCreated,
-            schema: this._schema,
-            instanceCreator: ImmutableDbSet,
-            pipeline: this._pipeline,
-            abortController: this._abortController
+            pipelines: this._pipelines,
+            signal: this._signal
         });
     }
 
     create(): TDbSet;
-    create<TExtension extends TDbSet>(extend: (i: DbSetInstanceCreator<TEntity, TDbSet>, dbPlugin: IDbPlugin, schema: CompiledSchema<TEntity>, options: DbSetOptions, pipeline: TrampolinePipeline<SaveChangesContextStepOne>) => TExtension): TExtension;
-    create<TExtension extends TDbSet = never>(extend?: (i: DbSetInstanceCreator<TEntity, TDbSet>, dbPlugin: IDbPlugin, schema: CompiledSchema<TEntity>, options: DbSetOptions, pipeline: TrampolinePipeline<SaveChangesContextStepOne>) => TExtension) {
+    create<TExtension extends TDbSet>(extend: (i: DbSetInstanceCreator<TEntity, TDbSet>, dbPlugin: IDbPlugin, schema: CompiledSchema<TEntity>, options: DbSetOptions, pipelines: DbSetPipelines) => TExtension): TExtension;
+    create<TExtension extends TDbSet = never>(extend?: (i: DbSetInstanceCreator<TEntity, TDbSet>, dbPlugin: IDbPlugin, schema: CompiledSchema<TEntity>, options: DbSetOptions, pipelines: DbSetPipelines) => TExtension) {
         if (extend == null) {
             const Instance = this._instanceCreator;
             const result = new Instance(this._dbPlugin, this._schema, {
                 stateful: this._isStateful,
-                abortController: this._abortController
-            }, this._pipeline);
+                signal: this._signal
+            }, this._pipelines);
 
             this._onDbSetCreated(result);
 
@@ -78,8 +65,8 @@ export class DbSetBuilder<TEntity extends {}, TDbSet extends DbSet<TEntity>> {
         const Instance = this._instanceCreator;
         const extendedResult = extend(Instance, this._dbPlugin, this._schema, {
             stateful: this._isStateful,
-            abortController: this._abortController
-        }, this._pipeline);
+            signal: this._signal
+        }, this._pipelines);
 
         this._onDbSetCreated(extendedResult);
 

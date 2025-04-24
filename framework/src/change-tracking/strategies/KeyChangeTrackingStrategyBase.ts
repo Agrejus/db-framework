@@ -1,4 +1,4 @@
-import { CompiledSchema, EntityModificationResult, IdType, NonNullCreateEntity, NonNullEntity } from "@agrejus/db-framework-core";
+import { CompiledSchema, EntityModificationResult, IdType, InferCreateType, InferType } from "@agrejus/db-framework-core";
 import { ChangeTrackedEntity, EntityCallbackMany } from "../../types";
 import { FetchOptions } from "../../data-access/types";
 import { ChangeTrackingType } from "@agrejus/db-framework-core/dist/schema";
@@ -6,10 +6,10 @@ import { AdditionsPackage } from "../types";
 
 export abstract class KeyChangeTrackingStrategyBase<TKey extends IdType, TEntity extends {}> {
 
-    protected removals: NonNullEntity<TEntity>[] = [];
-    protected attachments: Map<TKey, NonNullEntity<TEntity>> = new Map<TKey, NonNullEntity<TEntity>>();
+    protected removals: InferType<TEntity>[] = [];
+    protected attachments: Map<TKey, InferType<TEntity>> = new Map<TKey, InferType<TEntity>>();
     protected schema: CompiledSchema<TEntity>;
-    protected abstract setAddition(enriched: NonNullCreateEntity<TEntity>): void;
+    protected abstract setAddition(enriched: InferCreateType<TEntity>): void;
 
     constructor(
         schema: CompiledSchema<TEntity>,
@@ -60,7 +60,7 @@ export abstract class KeyChangeTrackingStrategyBase<TKey extends IdType, TEntity
     }
 
     prepareRemovals() {
-        const result: NonNullEntity<TEntity>[] = [];
+        const result: InferType<TEntity>[] = [];
         for (let i = 0, length = this.removals.length; i < length; i++) {
             result.push(this.schema.prepare(this.removals[i] as any) as any);
         }
@@ -68,7 +68,7 @@ export abstract class KeyChangeTrackingStrategyBase<TKey extends IdType, TEntity
     }
 
     getAttachmentsChanges() {
-        const result = new Map<IdType, { doc: NonNullEntity<TEntity>, delta: { [key: string]: string | number | Date } }>();
+        const result = new Map<IdType, { doc: InferType<TEntity>, delta: { [key: string]: string | number | Date } }>();
 
         for (const [, doc] of this.attachments) {
             const changeTrackedDoc: ChangeTrackedEntity<{}> = doc as any;
@@ -85,9 +85,9 @@ export abstract class KeyChangeTrackingStrategyBase<TKey extends IdType, TEntity
     }
 
     // Checks to see if the item is already attached, if so we merge, if not we attach and return each result
-    resolve(entities: NonNullEntity<TEntity>[], options?: FetchOptions) {
+    resolve(entities: InferType<TEntity>[], options?: FetchOptions) {
 
-        const result: NonNullEntity<TEntity>[] = [];
+        const result: InferType<TEntity>[] = [];
         for (let i = 0, length = entities.length; i < length; ++i) {
             const entity = entities[i];
             const key = this.schema.getId(entity) as TKey;
@@ -109,34 +109,34 @@ export abstract class KeyChangeTrackingStrategyBase<TKey extends IdType, TEntity
         return result;
     }
 
-    remove(entities: NonNullEntity<TEntity>[], done: EntityCallbackMany<TEntity>) {
+    remove(entities: InferType<TEntity>[], done: EntityCallbackMany<TEntity>) {
         this.removals.push(...entities);
         done(entities);
     }
 
-    replaceAttachment(existingEntity: NonNullEntity<TEntity> | NonNullCreateEntity<TEntity>, newEntity: NonNullEntity<TEntity> | NonNullCreateEntity<TEntity>) {
+    replaceAttachment(existingEntity: InferType<TEntity> | InferCreateType<TEntity>, newEntity: InferType<TEntity> | InferCreateType<TEntity>) {
         for (const [key, document] of this.attachments) {
 
             if (document === existingEntity) {
-                this.attachments.set(key, newEntity as NonNullEntity<TEntity>);
+                this.attachments.set(key, newEntity as InferType<TEntity>);
                 return;
             }
         }
     }
 
-    protected _add(entities: NonNullCreateEntity<TEntity>[], changeTrackingType: ChangeTrackingType, done: EntityCallbackMany<TEntity>) {
+    protected _add(entities: InferCreateType<TEntity>[], changeTrackingType: ChangeTrackingType, done: EntityCallbackMany<TEntity>) {
 
         try {
 
-            const result: NonNullEntity<TEntity>[] = [];
+            const result: InferType<TEntity>[] = [];
 
             for (let i = 0, length = entities.length; i < length; ++i) {
                 const entity = entities[i];
-                const enriched: NonNullCreateEntity<TEntity> = this.schema.enrich(entity as any, changeTrackingType) as any;
+                const enriched: InferCreateType<TEntity> = this.schema.enrich(entity as any, changeTrackingType) as any;
 
                 this.setAddition(enriched);
 
-                result.push(enriched as NonNullEntity<TEntity>);
+                result.push(enriched as InferType<TEntity>);
             }
 
             done(result);
@@ -145,7 +145,7 @@ export abstract class KeyChangeTrackingStrategyBase<TKey extends IdType, TEntity
         }
     }
 
-    enrich(entities: NonNullEntity<TEntity>[]) {
+    enrich(entities: InferType<TEntity>[]) {
         const result = [];
 
         for (let i = 0, length = entities.length; i < length; i++) {

@@ -9,17 +9,17 @@ export class Queryable<T extends {}, U = void> extends QueryableBase<T, U> {
     where<P extends {} = never>(selector: ParamsFilter<T, P> | Filter<T>, params?: P) {
         if (params == null) {
             this.filters.push({ filter: selector as Filter<T> });
-            return new Queryable<T, U>(this);
+            return new Queryable<T, U>({ queryable: this });
         }
 
         this.filters.push({ params, filter: selector as ParamsFilter<T, P> });
 
-        return new ParamsQueryable<T, U>(this);
+        return new ParamsQueryable<T, U>({ queryable: this });
     }
 
     subscribe() {
         this.subscribeValue = true;
-        return new Queryable<T, () => void>(this);
+        return new Queryable<T, () => void>({ queryable: this });
     }
 }
 
