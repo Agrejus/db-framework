@@ -39,7 +39,7 @@ export {
 
 export {
     toMap,
-    createUUID
+
 } from './utilities';
 
 export {
@@ -53,6 +53,20 @@ export {
 } from './schema';
 
 export {
+    uuid,
+    uuidv4
+} from './utilities/uuid';
+
+export {
     SyncronousQueue,
     SyncronousUnitOfWork
 } from './common/SyncronousQueue';
+
+export {
+    TrampolinePipeline,
+    Processor
+} from './common/TrampolinePipeline';
+
+export {
+    DbPluginReplicator
+} from './plugins/replication';

@@ -1,0 +1,33 @@
+{
+    "name": "@agrejus/db-framework-integration-tests",
+    "version": "1.0.0",
+    "scripts": {
+        "test": "test"
+    },
+    "sideEffects": false,
+    "author": "James DeMeuse <james.demeuse@gmail.com>",
+    "license": "MIT",
+    "repository": "Agrejus/db-framework",
+    "keywords": [
+        "orm",
+        "typescript",
+        "web",
+        "indexeddb",
+        "electron",
+        "data access layer",
+        "entities",
+        "entity framework",
+        "database"
+    ],
+    "description": "Integration Tests",
+    "devDependencies": {
+        "@agrejus/db-framework-core": "file://../core",
+        "@agrejus/db-framework": "file://../framework",
+        "@rspack/cli": "^1.1.8",
+        "@rspack/core": "^1.1.8",
+        "ts-loader": "^9.5.2",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.6.3",
+        "vitest": "^2.1.8"
+    }
+}

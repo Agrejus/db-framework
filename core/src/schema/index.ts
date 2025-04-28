@@ -75,7 +75,7 @@ export type CompiledSchema<TEntity extends {}> = {
     prepare: (entity: InferCreateType<TEntity>) => InferCreateType<TEntity>;
     merge: (destination: InferType<TEntity>, source: InferType<TEntity>) => InferType<TEntity>;
     hasIdentities: boolean;
-    idPropertyNames: string[];
+    idProperties: PropertyInfo<TEntity>[];
     properties: PropertyInfo<TEntity>[],
     hashType: HashType;
     hash: HashFunction<TEntity>;

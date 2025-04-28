@@ -1,4 +1,4 @@
-import { createUUID } from "../utilities";
+import { uuid } from "../utilities/uuid";
 
 type Line = string | Block;
 
@@ -15,7 +15,7 @@ export abstract class Block {
     protected _parent?: Block;
 
     constructor(name?: string, parentIndent: string = "", parent?: Block) {
-        this.name = name != null ? name : createUUID();
+        this.name = name != null ? name : uuid();
         this._indent = parentIndent;
         this._parent = parent;
     }

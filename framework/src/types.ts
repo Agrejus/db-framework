@@ -1,5 +1,4 @@
-import { EntityChanges, EntityModificationResult, GenericFunction, IdType, InferCreateType, InferType } from "@agrejus/db-framework-core";
-import { TrampolinePipeline } from "./TrampolinePipeline";
+import { EntityChanges, EntityModificationResult, GenericFunction, IdType, InferCreateType, InferType, TrampolinePipeline } from "@agrejus/db-framework-core";
 
 export type QueryResult<T> = (value: T, error?: any) => void;
 export type EntityMap<T extends {}, R> = GenericFunction<T, R>;

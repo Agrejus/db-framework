@@ -1,7 +1,7 @@
 import { AssignmentBuilder, CodeBuilder, ContainerBlock, Insert, ObjectBuilder, SlotBlock } from '../common/CodeBlock';
 import { PropertyInfo } from '../common/PropertyInfo';
 import { SlotPath } from '../common/SlotPath';
-import { createUUID } from '../utilities';
+import { uuid } from '../utilities/uuid';
 
 export interface IHandler {
     setNext(handler: IHandler): IHandler;
@@ -72,7 +72,7 @@ export abstract class PropertyInfoHandler implements IHandler {
     }
 
     protected toNamedFunction(stringifiedFunction: string, parent: ContainerBlock) {
-        const name = createUUID()
+        const name = uuid()
 
         const builder = parent.function(name);
 

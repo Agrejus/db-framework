@@ -360,7 +360,7 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         const stringifier = new CodeBuilder();
         const returnObject = stringifier.object();
 
-        const idPropertyNames: string[] = [];
+        const idProperties: PropertyInfo<any>[] = [];
         const allPropertyNamesAndPaths: string[] = [];
         let hashType: HashType = HashType.Ids;
         let hasIdentities = false;
@@ -384,7 +384,7 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
             }
 
             if (property.isKey === true) {
-                idPropertyNames.push(property.name);
+                idProperties.push(property);
             }
 
             if (property.isKey === true && property.isIdentity === true) {
@@ -438,6 +438,7 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         const enricherFunction = enricherFactoryFunction(...enrichParams.map(w => w.value));
         const mergeFunction = mergeFactoryFunction(...mergeParams.map(w => w.value));
 
+        const idPropertyNames = idProperties.map(w => w.name);
         const getId = (entity: InferType<T>) => {
             if (idPropertyNames.length > 1) {
                 return hashFunction(entity, HashType.Ids) as IdType;
@@ -449,7 +450,7 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         return {
             getId,
             properties,
-            idPropertyNames,
+            idProperties,
             hasIdentities,
             hashType,
             getHashType: getHashTypeFunction,

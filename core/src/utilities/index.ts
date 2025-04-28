@@ -11,16 +11,6 @@ export const toMap = <T extends {}>(data: T[], keySelector: (item: T) => T[keyof
     return result;
 }
 
-export const createUUID = (length: number = 16) => {
-    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'; // Base64 character set
-    let result = '';
-    for (let i = 0; i < length; i++) {
-        const randomIndex = Math.floor(Math.random() * characters.length);
-        result += characters[randomIndex];
-    }
-    return result;
-}
-
 export const hash = (value: string, seed: number = 0) => {
     // From Stack Overflow
     // https://stackoverflow.com/a/52171480/3329760

@@ -1,5 +1,5 @@
 import { DataContext } from "@agrejus/db-framework";
-import { s, createUUID, InferType } from "@agrejus/db-framework-core";
+import { s, uuid, InferType } from "@agrejus/db-framework-core";
 import { PouchDbPlugin } from "@agrejus/db-framework-plugin-pouchdb";
 import { performance } from 'perf_hooks'
 

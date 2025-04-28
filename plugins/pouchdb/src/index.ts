@@ -113,7 +113,7 @@ export class PouchDbPlugin implements IDbPlugin {
         operations: EntityChanges<TEntity>,
         done: (result: EntityModificationResult<TEntity>, error?: any) => void) {
 
-        if (schema.idPropertyNames.length > 1) {
+        if (schema.idProperties.length > 1) {
             throw new Error("PouchDB cannot have more than one key per document.  Only '_id' is allowed to be the key")
         }
 

@@ -7,6 +7,11 @@ export interface IDbPlugin {
     bulkOperations<TEntity extends {}>(schema: CompiledSchema<TEntity>, operations: EntityChanges<TEntity>, done: (result: EntityModificationResult<TEntity>, error?: any) => void): void;
 }
 
+export type IdbPluginCollection = {
+    source: IDbPlugin;
+    replicas: IDbPlugin[];
+}
+
 export type EntityChanges<T extends {}> = {
     adds: InferCreateType<T>[];
     removes: InferType<T>[];

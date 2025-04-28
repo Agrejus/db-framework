@@ -1,4 +1,4 @@
-import { createUUID, InferType } from "@agrejus/db-framework-core";
+import { uuid, InferType } from "@agrejus/db-framework-core";
 
 type UniDirectionalSubscriptionPayload<T extends {}> = {
     id: string;
@@ -11,7 +11,7 @@ type UniDirectionalSubscriptionPayload<T extends {}> = {
 export class UniDirectionalSubscription<T extends {}> implements Disposable {
 
     private _channel;
-    private _id = createUUID();
+    private _id = uuid();
     private _callback: ((changes: InferType<T>[]) => void) | null = null;
 
     constructor(id: number, signal: AbortSignal) {
