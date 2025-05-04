@@ -142,7 +142,7 @@ export class DbSet<TEntity extends {}> {
             return;
         }
 
-        this.changeTracker.mergeChanges(data.result, { find: data.find, adds: [] })
+        this.changeTracker.mergeChanges(data.result, { find: data.find, adds: data.adds })
 
         done(data);
     }
@@ -176,7 +176,7 @@ export class DbSet<TEntity extends {}> {
     }
 
     add(entities: InferCreateType<TEntity>[], done: EntityCallbackMany<TEntity>) {
-        this.changeTracker.add(entities, done);
+        return this.changeTracker.add(entities, done);
     }
 
     addAsync(...entities: InferCreateType<TEntity>[]) {

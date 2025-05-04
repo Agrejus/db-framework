@@ -17,7 +17,7 @@
 // // Mock schema
 // const mockSchema: CompiledSchema<any> = {
 //     key: 1,
-//     tableName: 'test',
+//     collectionName: 'test',
 //     hasIdentities: false,
 //     idPropertyNames: [],
 //     hashType: 'Object' as any,

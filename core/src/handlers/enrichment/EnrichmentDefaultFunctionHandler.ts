@@ -6,7 +6,7 @@ export class EnrichmentDefaultFunctionHandler extends PropertyInfoHandler {
 
     override handle(property: PropertyInfo<any>, builder: CodeBuilder): CodeBuilder | null {
 
-        if (property.defaultValue != null && typeof property.defaultValue !== "function") {
+        if (property.defaultValue != null && typeof property.defaultValue === "function") {
 
             this.setEnrichedProperty(property, builder);
 

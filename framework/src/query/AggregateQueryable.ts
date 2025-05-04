@@ -18,9 +18,28 @@ export class AggregateQueryable<T extends {}, U = void> extends QueryRoot<T> {
         return;
     }
 
+    // we will want to handle this better with SQL, that will return just a number, not items
     count(done: QueryResult<number>): U {
         this.countValue = true;
-        return;
+
+        this.getData((r, e) => {
+            if (e) {
+                done(0, e);
+                return;
+            };
+
+            const shapedData = shaper(r);
+            done(shapedData)
+        });
+
+        return this.subscribeQuery(shaper, (r, e) => {
+            if (r == null) {
+                done(0, new Error("Could not find entity in query"))
+                return;
+            }
+
+            done(r, e);
+        }) as U;
     }
 
     distinct(done: QueryResult<T>): U {

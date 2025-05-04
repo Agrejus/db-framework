@@ -16,11 +16,11 @@ export class StatefulDataAccessStrategy<T extends {}> extends DataAccessStrategy
         queue.enqueue(unitOfWork.bind(this));
     }
 
-    fetch(query: Query<T>, done: (response: { result: T[], shouldEnableChangeTracking: boolean }, error?: any) => void) {
+    fetch<TShape>(query: Query<TShape, T>, done: (response: { result: TShape, shouldEnableChangeTracking: boolean }, error?: any) => void) {
         // if we have no data in memory, then no matter the first query we need to automatically select all, then run memory queries
         if (state.size === 0) {
             // hydrate by selecting everything
-            this.dbPlugin.query<T>({
+            this.dbPlugin.query<TShape>({
                 filters: [],
                 options: {},
                 schema: this.schema

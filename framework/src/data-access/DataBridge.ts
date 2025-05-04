@@ -35,15 +35,15 @@ export class DataBridge<T extends {}> {
         this.strategy.bulkOperations(schema, operations, done);
     }
 
-    fetch(query: Query<T>, done: (response: { result: T[], shouldEnableChangeTracking: boolean }, error?: any) => void) {
+    fetch<TShape>(query: Query<TShape, T>, done: (response: { result: TShape, shouldEnableChangeTracking: boolean }, error?: any) => void) {
         this.strategy.fetch(query, done);
     }
 
-    filter(query: Query<T>, data: InferType<T>[]) {
+    filter<TShape>(query: Query<TShape, T>, data: InferType<T>[]) {
         return this.strategy.filter(query, data);
     }
 
-    subscribe<U>(query: Query<T>, shape: (data: T[]) => U, done: (result: { data: U, shouldEnableChangeTracking: boolean }, error?: any) => void) {
+    subscribe<TShape, U>(query: Query<TShape, T>, shape: (data: T[]) => U, done: (result: { data: U, shouldEnableChangeTracking: boolean }, error?: any) => void) {
         const subscription = new UniDirectionalSubscription<T>(this.schema.key, this.signal);
         subscription.onMessage((changes) => {
 

@@ -9,7 +9,7 @@ export class EnrichmentComputedValueHandler extends PropertyInfoHandler {
 
         if (property.functionBody != null && property.type === SchemaTypes.Computed) {
 
-            const parameterNames: string[] = ["enriched", "tableName"];
+            const parameterNames: string[] = ["enriched", "collectionName"];
 
             if (property.injected != null) {
 

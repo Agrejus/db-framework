@@ -8,7 +8,7 @@ export class DatabaseDataAccessStrategy<T extends {}> extends DataAccessStrategy
         super._bulkOperations(schema, operations, done);
     }
 
-    fetch(query: Query<T>, done: (response: { result: T[], shouldEnableChangeTracking: boolean }, error?: any) => void) {
+    fetch<TShape>(query: Query<TShape, T>, done: (response: { result: TShape, shouldEnableChangeTracking: boolean }, error?: any) => void) {
         super._fetch(query, done);
     }
 }

@@ -4,7 +4,7 @@ import { queryArray } from './expression/resolver';
 let data: Record<string, Map<IdType, Record<string, unknown>>> = {};
 const numericalIds: Record<string, number> = {};
 
-export class PouchDbPlugin implements IDbPlugin {
+export class MemoryPlugin implements IDbPlugin {
 
     destroy(done: (error?: any) => void): void {
         data = {};
@@ -39,7 +39,7 @@ export class PouchDbPlugin implements IDbPlugin {
     }
 
     private _processAdds<TEntity extends {}>(schema: CompiledSchema<TEntity>, adds: InferCreateType<TEntity>[]) {
-        const tableName = schema.tableName;
+        const collectionName = schema.collectionName;
         const result: DeepPartial<InferCreateType<TEntity>>[] = [];
 
         for (let i = 0, length = adds.length; i < length; i++) {
@@ -51,38 +51,57 @@ export class PouchDbPlugin implements IDbPlugin {
                     const property = schema.idProperties[j];
 
                     if (add[property.name] != null) {
+
+                        this._addToMemoryCollection(schema, add);
+                        result.push(add as DeepPartial<InferCreateType<TEntity>>);
                         continue;
                     }
 
                     if (property.type === SchemaTypes.String) {
                         add[property.name] = uuidv4();
+
+                        this._addToMemoryCollection(schema, add);
+                        result.push(add as DeepPartial<InferCreateType<TEntity>>);
                         continue;
                     }
 
                     if (property.type === SchemaTypes.Number) {
 
-                        if (numericalIds[tableName] == null) {
-                            numericalIds[tableName] = 0;
+                        if (numericalIds[collectionName] == null) {
+                            numericalIds[collectionName] = 0;
                         }
 
-                        numericalIds[tableName]++;
+                        numericalIds[collectionName]++;
 
-                        add[property.name] = numericalIds[tableName];
+                        add[property.name] = numericalIds[collectionName];
+
+                        this._addToMemoryCollection(schema, add);
+                        result.push(add as DeepPartial<InferCreateType<TEntity>>);
                         continue;
                     }
 
                     throw new Error(`Id Property '${property.name}' must be string or number, found '${property.type}'`)
                 }
 
-                return;
+                continue;
             }
 
-            const id = schema.getId(add as InferType<TEntity>);
-            data[tableName].set(id, add);
+            // add non identity
+            this._addToMemoryCollection(schema, add);
             result.push(add as DeepPartial<InferCreateType<TEntity>>);
         }
 
         return result;
+    }
+
+    private _addToMemoryCollection<TEntity extends {}>(schema: CompiledSchema<TEntity>, add: Record<string, unknown>) {
+        const id = schema.getId(add as InferType<TEntity>);
+
+        if (data[schema.collectionName] == null) {
+            data[schema.collectionName] = new Map();
+        }
+
+        data[schema.collectionName].set(id, add);
     }
 
     private _processUpdates<TEntity extends {}>(schema: CompiledSchema<TEntity>, updates: Map<IdType, {
@@ -92,11 +111,11 @@ export class PouchDbPlugin implements IDbPlugin {
         };
     }>) {
         const result: InferType<TEntity>[] = [];
-        const tableName = schema.tableName;
+        const collectionName = schema.collectionName;
 
         for (const [, { doc }] of updates) {
             const id = schema.getId(doc);
-            data[tableName].set(id, doc);
+            data[collectionName].set(id, doc);
             result.push(doc);
         }
 
@@ -104,11 +123,11 @@ export class PouchDbPlugin implements IDbPlugin {
     }
 
     private _processRemovals<TEntity extends {}>(schema: CompiledSchema<TEntity>, removes: InferType<TEntity>[]) {
-        const tableName = schema.tableName;
+        const collectionName = schema.collectionName;
         for (let i = 0, length = removes.length; i < length; i++) {
             const removal = removes[i];
             const id = schema.getId(removal);
-            data[tableName].delete(id);
+            data[collectionName].delete(id);
         }
 
         return removes.length;
@@ -117,9 +136,17 @@ export class PouchDbPlugin implements IDbPlugin {
     query<TEntity extends {}>(query: Query<TEntity>, done: (entities: InferType<TEntity>[], error?: any) => void): void {
 
         try {
-            const collection = [...data[query.schema.tableName].values()];
+            const collection = [...data[query.schema.collectionName].values()];
             const result = queryArray<InferType<TEntity>>(collection as InferType<TEntity>[]);
-            done(result);
+
+            if (query.options.count === true) {
+                done(result.length);
+                return;
+            }
+
+            if (query.options.max)
+
+                done(result);
         } catch (e) {
             done([], e);
         }

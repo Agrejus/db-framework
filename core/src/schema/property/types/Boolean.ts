@@ -1,4 +1,4 @@
-import { PropertyDeserializer, PropertySerializer, SchemaModifiers, SchemaTypes } from "../..";
+import { PropertyDeserializer, PropertySerializer, SchemaArray, SchemaModifiers, SchemaTypes } from "../..";
 import { DefaultValue } from "../../../types";
 import { SchemaBase } from "../base/Base";
 import { SchemaDefault } from "../modifiers/Default";
@@ -13,7 +13,7 @@ export class SchemaBoolean<T extends boolean, TModifiers extends SchemaModifiers
     instance: T;
     type = SchemaTypes.Boolean;
     private _schemaBoolean = true;
-    
+
     optional() {
         return new SchemaOptional<T, TModifiers | "optional">(this);
     }
@@ -36,5 +36,9 @@ export class SchemaBoolean<T extends boolean, TModifiers extends SchemaModifiers
 
     serialize(serializer: PropertySerializer<T>) {
         return new SchemaSerialize<T, TModifiers | "serialize">(serializer, this);
+    }
+
+    array() {
+        return new SchemaArray<typeof this, TModifiers>(this as any);
     }
 }

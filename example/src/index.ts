@@ -17,6 +17,10 @@ import { performance } from 'perf_hooks'
 
 const nested = s.define("MY_NESTED_TABLE", {
     _id: s.string().key().identity(),
+    more: s.object({
+        one: s.string(),
+        two: s.string()
+    }),
     _rev: s.string().identity(),
     order: s.number().default((d) => d.test, { test: 1 }),
     name: s.string(),
@@ -26,7 +30,7 @@ const nested = s.define("MY_NESTED_TABLE", {
             winner: s.number(),
             more: s.object({
                 final: s.number(),
-                array: s.array<string>()
+                array: s.array(s.string())
             })
         })
     })
@@ -85,7 +89,11 @@ const r = async () => {
                     winner: 100
                 }
             },
-            name: "James"
+            name: "James",
+            more: {
+                one: "one",
+                two: "two"
+            }
         });
 
         await ctx.saveChangesAsync();
@@ -124,6 +132,10 @@ const r = async () => {
                     },
                     winner: 1
                 }
+            },
+            more: {
+                one: "one",
+                two: "two"
             }
         });
 
@@ -147,6 +159,10 @@ const r = async () => {
                         },
                         winner: i
                     }
+                },
+                more: {
+                    one: "one",
+                    two: "two"
                 }
             });
         }

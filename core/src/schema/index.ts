@@ -9,10 +9,6 @@ import { SchemaString } from "./property/types/String";
 import { IdType } from "../types";
 import { PropertyInfo } from "../common/PropertyInfo";
 
-// this non-null stuff can be removed
-// export type InferType<T extends {}> = InferType<T>;
-// export type InferCreateType<T extends {}> = InferCreateType<T>;
-
 export enum SchemaTypes {
     Array = "Array",
     Boolean = "Boolean",
@@ -25,14 +21,16 @@ export enum SchemaTypes {
     Computed = "Computed"
 }
 
+export type ArrayShape = string | number | Date | {};
+
 export const s = {
-    number: <T extends number = number>() => new SchemaNumber<T, never>(),
-    string: <T extends string = string>() => new SchemaString<T, never>(),
+    number: <T extends number[] = number[]>(...literals: T) => new SchemaNumber<T[number] extends never ? number : T[number], never>(),
+    string: <T extends string[] = string[]>(...literals: T) => new SchemaString<T[number] extends never ? string : T[number], never>(),
     boolean: <T extends boolean = boolean>() => new SchemaBoolean<T, never>(),
     date: <T extends Date = Date>() => new SchemaDate<T, never>(),
-    array: <T extends any>() => new SchemaArray<T, never>(),
+    array: <T extends any>(schema: SchemaBase<T, never>) => new SchemaArray<SchemaBase<T, never>, never>(),
     object: <T extends {} = {}>(schema: T) => new SchemaObject<T, never>(schema),
-    define: <T extends {}>(tableName: string, schema: T) => new SchemaDefinition<T>(tableName, schema)
+    define: <T extends {}>(collectionName: string, schema: T) => new SchemaDefinition<T>(collectionName, schema)
 }
 
 export type ExpandedProperty = ExpandedChildProperty & {
@@ -83,7 +81,7 @@ export type CompiledSchema<TEntity extends {}> = {
     compare: (a: InferType<TEntity>, fromDb: InferType<TEntity>) => boolean;
     deserialize: (entity: InferType<TEntity>) => InferType<TEntity>;
     key: number,
-    tableName: string;
+    collectionName: string;
     getIds: (entity: InferType<TEntity>) => [IdType];
     enrich: (entity: InferType<TEntity>, changeTrackingType: ChangeTrackingType) => InferType<TEntity>;
     hasIdentityKeys: boolean;
@@ -112,33 +110,20 @@ export type SchemaModifiers = "default" | "deserialize" |
     "readonly" | "serialize" |
     "unmapped" | "computed";
 
+// type InferPrimitive<T> =
+//     T extends SchemaObject<infer Obj, infer _> ?
+//     { [K in keyof Obj]: InferPrimitive<Obj[K]> } : // Process nested objects
+//     T extends SchemaBase<infer X, infer _> ?
+//     X : // Extract the primitive type
+//     never;
+
 type InferPrimitive<T> =
-    T extends SchemaObject<infer Obj, infer _> ?
+    T extends SchemaArray<infer Y, infer __> ? InferPrimitive<Y>[]
+    : T extends SchemaObject<infer Obj, infer _> ?
     { [K in keyof Obj]: InferPrimitive<Obj[K]> } : // Process nested objects
     T extends SchemaBase<infer X, infer _> ?
     X : // Extract the primitive type
     never;
-
-const nested = s.define("MY_NESTED_TABLE", {
-    _id: s.string().key().identity(),
-    _rev: s.string().identity(),
-    test: s.string().optional(),
-    updatedAt: s.date().nullable(),
-    order: s.number().default((d) => d.test, { test: 1 }),
-    name: s.string().readonly(),
-    child: s.object({
-        name: s.string(),
-        nested: s.object({
-            winner: s.number(),
-            more: s.object({
-                final: s.number(),
-                array: s.array<string>()
-            })
-        })
-    })
-}).modify(w => ({
-    documentType: w.computed((_, t) => t).tracked()
-})).compile();
 
 export type InferType<T> = T extends CompiledSchema<infer R> ? InferCompiledSchema<R> : T extends {} ? InferCompiledSchema<T> : unknown;
 export type InferCreateType<T> = T extends CompiledSchema<infer R> ? InferCompiledCreateSchema<R> : T extends {} ? InferCompiledCreateSchema<T> : unknown;

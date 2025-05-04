@@ -1,6 +1,7 @@
 import { AssignmentBuilder, CodeBuilder, ContainerBlock, Insert, ObjectBuilder, SlotBlock } from '../common/CodeBlock';
 import { PropertyInfo } from '../common/PropertyInfo';
 import { SlotPath } from '../common/SlotPath';
+import { SchemaError } from '../errors/SchemaError';
 import { uuid } from '../utilities/uuid';
 
 export interface IHandler {
@@ -20,11 +21,15 @@ export abstract class PropertyInfoHandler implements IHandler {
     }
 
     handle(property: PropertyInfo<any>, builder: CodeBuilder): CodeBuilder | null {
-        if (this._next) {
-            return this._next.handle(property, builder);
-        }
+        try {
+            if (this._next) {
+                return this._next.handle(property, builder);
+            }
 
-        return null;
+            return null;
+        } catch (e: any) {
+            throw new SchemaError(e, `Error handling property: ${property.name}`);
+        }
     }
 
     protected buildSlotPath(property: PropertyInfo<any>, path: SlotPath) {

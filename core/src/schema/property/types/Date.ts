@@ -1,4 +1,4 @@
-import { PropertyDeserializer, PropertySerializer, SchemaModifiers, SchemaTypes } from "../..";
+import { PropertyDeserializer, PropertySerializer, SchemaArray, SchemaModifiers, SchemaTypes } from "../..";
 import { DefaultValue } from "../../../types";
 import { SchemaBase } from "../base/Base";
 import { SchemaDefault } from "../modifiers/Default";
@@ -35,5 +35,9 @@ export class SchemaDate<T extends Date, TModifiers extends SchemaModifiers> exte
 
     serialize(serializer: PropertySerializer<T>) {
         return new SchemaSerialize<T, TModifiers | "serialize">(serializer, this);
+    }
+
+    array() {
+        return new SchemaArray<typeof this, TModifiers>(this as any);
     }
 }

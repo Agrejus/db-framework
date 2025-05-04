@@ -1,4 +1,4 @@
-import { PropertyDeserializer, PropertySerializer, SchemaIdentity, SchemaModifiers, SchemaTypes } from "../..";
+import { PropertyDeserializer, PropertySerializer, SchemaArray, SchemaIdentity, SchemaModifiers, SchemaTypes } from "../..";
 import { DefaultValue } from "../../../types";
 import { SchemaBase } from "../base/Base";
 import { SchemaDefault } from "../modifiers/Default";
@@ -24,7 +24,7 @@ export class SchemaNumber<T extends number, TModifiers extends SchemaModifiers> 
     }
 
     key() {
-        return new SchemaKey<T, TModifiers | "key">(this);
+        return new SchemaKey<T, TModifiers | "key" | "readonly">(this);
     }
 
     default<I = never>(value: DefaultValue<T, I>, injected?: I) {
@@ -45,5 +45,9 @@ export class SchemaNumber<T extends number, TModifiers extends SchemaModifiers> 
 
     identity() {
         return new SchemaIdentity<T, TModifiers | "identity">(this);
+    }
+
+    array() {
+        return new SchemaArray<typeof this, TModifiers>(this as any);
     }
 }

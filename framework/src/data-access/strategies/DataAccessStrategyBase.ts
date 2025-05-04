@@ -14,22 +14,22 @@ export class DataAccessStrategyBase<T extends {}> {
         this.dbPlugin.bulkOperations(schema, operations, done);
     }
 
-    protected _fetch(query: Query<T>, done: (response: { result: T[], shouldEnableChangeTracking: boolean }, error?: any) => void) {
-        this.dbPlugin.query<T>(query, (r, e) => {
+    protected _fetch<TShape>(query: Query<TShape, T>, done: (response: { result: TShape | null, shouldEnableChangeTracking: boolean }, error?: any) => void) {
+        this.dbPlugin.query<TShape>(query, (r, e) => {
 
             if (!e) {
-                const result = this._applyQueryExpressionAndFiltering(r as T[], query);
+                const result = this._applyQueryExpressionAndFiltering(r, query);
                 const shouldEnableChangeTracking = this._shouldEnableChangeTracking(query);
 
                 done({ result, shouldEnableChangeTracking });
                 return;
             }
 
-            done({ result: [], shouldEnableChangeTracking: false }, e);
+            done({ result: null, shouldEnableChangeTracking: false }, e);
         });
     }
 
-    filter(query: Query<T>, data: InferType<T>[]): InferType<T>[] {
+    filter<TShape>(query: Query<TShape, T>, data: InferType<T>[]): InferType<T>[] {
 
         if (query.filters.length === 0) {
             return data;
@@ -55,33 +55,38 @@ export class DataAccessStrategyBase<T extends {}> {
         return data;
     }
 
-    protected _shouldEnableChangeTracking(query: Query<T>) {
+    protected _shouldEnableChangeTracking<TShape>(query: Query<TShape, T>) {
 
         // we can only enable change tracking when we do not change (reduce/aggregate) the response
         // from the database
         return query.options.fields?.length == null || query.options.fields.length === 0;
     }
 
-    protected _applyFiltering(data: T[], filters: Filterable<T, any>[]) {
-        let result = data;
+    protected _applyFiltering<TShape>(data: TShape, filters: Filterable<TShape, any>[]): TShape {
 
-        filters.forEach(filter => {
-            if (filter.params == null) {
-                // standard filtering
-                const selector = filter.filter as Filter<T>
-                result = data.filter(selector);
-                return;
+        if (Array.isArray(data)) {
+            let result: any[] = data;
+
+            for (let i = 0, length = filters.length; i < length; i++) {
+                if (filters[i].params == null) {
+                    // standard filtering
+                    const selector = filters[i].filter as Filter<TShape>
+                    result = data.filter(selector);
+                    return;
+                }
+
+                // params filtering
+                const selector = filters[i].filter as ParamsFilter<T, any>
+                result = data.filter(w => selector([w, filters[i].params]));
             }
 
-            // params filtering
-            const selector = filter.filter as ParamsFilter<T, any>
-            result = data.filter(w => selector([w, filter.params]));
-        })
+            return result as TShape;
+        }
 
-        return result;
+        return data;
     }
 
-    protected _applyQueryExpressionAndFiltering(data: T[], query: Query<T>) {
+    protected _applyQueryExpressionAndFiltering<TShape>(data: TShape, query: Query<TShape, T>): TShape {
 
         // Memory Filtering Fallback
         if (query.expression == null && query.filters.length > 0) {

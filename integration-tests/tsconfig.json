@@ -16,7 +16,11 @@
         "esModuleInterop": true,
         "skipLibCheck": true,
         "baseUrl": "dist",
-        "resolveJsonModule": true
+        "resolveJsonModule": true,
+        "types": [
+            "node",
+            "vitest/globals"
+        ]
     },
     "include": [
         "./src/index.ts"

@@ -1,4 +1,4 @@
-import { SchemaIdentity, SchemaModifiers, SchemaTypes } from "../..";
+import { SchemaArray, SchemaIdentity, SchemaModifiers, SchemaTypes } from "../..";
 import { DefaultValue } from "../../../types";
 import { SchemaBase } from "../base/Base";
 import { SchemaDefault } from "../modifiers/Default";
@@ -30,5 +30,9 @@ export class SchemaObject<T extends {}, TModifiers extends SchemaModifiers> exte
 
     identity() {
         return new SchemaIdentity<T, TModifiers | "identity">(this);
+    }
+
+    array() {
+        return new SchemaArray<typeof this, TModifiers>(this as any);
     }
 }

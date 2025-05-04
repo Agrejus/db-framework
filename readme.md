@@ -11,6 +11,7 @@ class Ctx extends DataContext {
 
 const { mutate } = context.nested;
 
+// Cannot do immutable, we have no way to assign identity properties after save
 const item = await context.nested.first(w => w.id === 1);
 
 const newItem = mutate(mutate, {
@@ -100,3 +101,11 @@ pipeline
 const initialContext: Context = { requestId: "123" };
 const result = pipeline.run(initialContext);
 console.log(result);
+
+
+// TODO
+- Fix s.array()
+  - s.array<{ id: string }>() => s.array({ id: s.string() })
+- Need a way to replace this in string/number
+  - s.string<"one" | "two">()
+    - can we use s.string().narrow("one", "two") => translates to s.string<"one" | "two">()

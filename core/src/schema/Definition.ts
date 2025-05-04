@@ -18,39 +18,35 @@ import { HashHandlerBuilder } from '../handlers/HashHandlerBuilder';
 import { EnableChangeTrackingHandlerBuilder } from '../handlers/EnableChangeTrackingHandlerBuilder';
 import { FreezeHanderBuilder } from '../handlers/FreezeHandlerBuilder';
 import { IdType } from "../types";
+import { SchemaError } from '../errors/SchemaError';
 
 export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
 
     instance: T;
     type = SchemaTypes.Definition;
-    tableName: string;
+    collectionName: string;
 
-    constructor(tableName: string, schema: T) {
+    constructor(collectionName: string, schema: T) {
         super();
-        this.tableName = tableName;
+        this.collectionName = collectionName;
         this.instance = schema;
         this.isNullable = false;
         this.isOptional = false;
     }
 
     modify<R>(builder: (d: {
-        function: <UU, I = never>(fn: (entity: InferType<SchemaDefinition<T>>, tableName: string, injected: I) => UU, injected?: I) => SchemaFunction<UU, I, "unmapped">;
-        computed: <UU, I = never>(fn: (entity: InferType<SchemaDefinition<T>>, tableName: string, injected: I) => UU, injected?: I) => SchemaComputed<UU, I, "unmapped">;
+        function: <UU, I = never>(fn: (entity: InferType<CompiledSchema<T>>, collectionName: string, injected: I) => UU, injected?: I) => SchemaFunction<UU, I, "unmapped">;
+        computed: <UU, I = never>(fn: (entity: InferType<CompiledSchema<T>>, collectionName: string, injected: I) => UU, injected?: I) => SchemaComputed<UU, I, "unmapped">;
     }) => R) {
 
         const b = {
-            function: <UU, I = never>(fn: (entity: InferType<SchemaDefinition<T>>, tableName: string, injected: I) => UU, injected?: I) => new SchemaFunction<UU, I, "unmapped">(fn as any, injected, this.instance as any),
-            computed: <UU, I = never>(fn: (entity: InferType<SchemaDefinition<T>>, tableName: string, injected: I) => UU, injected?: I) => new SchemaComputed<UU, I, "unmapped">(fn as any, injected, this.instance as any)
+            function: <UU, I = never>(fn: (entity: InferType<CompiledSchema<T>>, collectionName: string, injected: I) => UU, injected?: I) => new SchemaFunction<UU, I, "unmapped">(fn as any, injected, this.instance as any),
+            computed: <UU, I = never>(fn: (entity: InferType<CompiledSchema<T>>, collectionName: string, injected: I) => UU, injected?: I) => new SchemaComputed<UU, I, "unmapped">(fn as any, injected, this.instance as any)
         }
 
         const r = builder(b)
 
-        return new SchemaDefinition<R & T>(this.tableName, { ...this.instance, ...r });
-    }
-
-    onAfterSave(callback: (entity: InferType<T>) => void) {
-
-        return this;
+        return new SchemaDefinition<R & T>(this.collectionName, { ...this.instance, ...r });
     }
 
     private _iterate(
@@ -232,242 +228,256 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
 
     compile(): CompiledSchema<T> {
 
-        const schema = this;
-        const properties: PropertyInfo<T>[] = [];
+        try {
 
-        const enrichmentHandlerBuilder = new EnrichmentHandlerBuilder();
-        const mergeHandlerFactory = new MergeHandlerBuilder();
-        const prepareHandlerBuilder = new PrepareHandlerBuilder();
-        const stripHandlerBuilder = new StripHandlerBuilder();
-        const cloneHandlerBuilder = new CloneHandlerBuilder();
-        const compareHandlerBuilder = new CompareHandlerBuilder();
-        const deserializeHandlerBuilder = new DeserializeHandlerBuilder();
-        const hashTypeHandlerBuilder = new HashTypeHandlerBuilder();
-        const idSelectorHandlerBuilder = new IdSelectorHandlerBuilder();
-        const hashHandlerBuilder = new HashHandlerBuilder();
-        const enableChangeTrackingHandlerBuilder = new EnableChangeTrackingHandlerBuilder();
-        const freezeHandlerBuilder = new FreezeHanderBuilder();
 
-        const enricher = enrichmentHandlerBuilder.build();
-        const merge = mergeHandlerFactory.build();
-        const prepare = prepareHandlerBuilder.build();
-        const strip = stripHandlerBuilder.build();
-        const clone = cloneHandlerBuilder.build();
-        const compare = compareHandlerBuilder.build();
-        const deserialize = deserializeHandlerBuilder.build();
-        const hashTypeHandler = hashTypeHandlerBuilder.build();
-        const idSelectorHandler = idSelectorHandlerBuilder.build();
-        const hashHandler = hashHandlerBuilder.build();
-        const enableChangeTrackingHandler = enableChangeTrackingHandlerBuilder.build();
-        const freezeHandler = freezeHandlerBuilder.build();
+            const schema = this;
+            const properties: PropertyInfo<T>[] = [];
 
-        const changeTrackingCodeBuilder = new CodeBuilder();
-        changeTrackingCodeBuilder.raw(`function ${this.createChangeTracker.toString()}`);
-        changeTrackingCodeBuilder.slot("declarations").variable("enableChangeTracking").value('createChangeTracker()');
-        changeTrackingCodeBuilder.slot("assignment");
-        changeTrackingCodeBuilder.slot("return").raw('\treturn enableChangeTracking(entity);');
+            const enrichmentHandlerBuilder = new EnrichmentHandlerBuilder();
+            const mergeHandlerFactory = new MergeHandlerBuilder();
+            const prepareHandlerBuilder = new PrepareHandlerBuilder();
+            const stripHandlerBuilder = new StripHandlerBuilder();
+            const cloneHandlerBuilder = new CloneHandlerBuilder();
+            const compareHandlerBuilder = new CompareHandlerBuilder();
+            const deserializeHandlerBuilder = new DeserializeHandlerBuilder();
+            const hashTypeHandlerBuilder = new HashTypeHandlerBuilder();
+            const idSelectorHandlerBuilder = new IdSelectorHandlerBuilder();
+            const hashHandlerBuilder = new HashHandlerBuilder();
+            const enableChangeTrackingHandlerBuilder = new EnableChangeTrackingHandlerBuilder();
+            const freezeHandlerBuilder = new FreezeHanderBuilder();
 
-        const freezeCodeBuilder = new CodeBuilder();
-        freezeCodeBuilder.slot("assignment");
-        freezeCodeBuilder.slot("return").raw('\treturn Object.freeze(entity);');
+            const enricher = enrichmentHandlerBuilder.build();
+            const merge = mergeHandlerFactory.build();
+            const prepare = prepareHandlerBuilder.build();
+            const strip = stripHandlerBuilder.build();
+            const clone = cloneHandlerBuilder.build();
+            const compare = compareHandlerBuilder.build();
+            const deserialize = deserializeHandlerBuilder.build();
+            const hashTypeHandler = hashTypeHandlerBuilder.build();
+            const idSelectorHandler = idSelectorHandlerBuilder.build();
+            const hashHandler = hashHandlerBuilder.build();
+            const enableChangeTrackingHandler = enableChangeTrackingHandlerBuilder.build();
+            const freezeHandler = freezeHandlerBuilder.build();
 
-        const enricherCodeBuilder = new CodeBuilder();
-        const enricherFunctionRoot = enricherCodeBuilder.factory("factory", { name: "factory" }).parameters({ name: "tableName", value: this.tableName });
-        const enricherFunctionBody = enricherFunctionRoot.function(undefined, { name: "function" }).parameters("entity", "changeTrackingType").return();
+            const changeTrackingCodeBuilder = new CodeBuilder();
+            changeTrackingCodeBuilder.raw(`function ${this.createChangeTracker.toString()}`);
+            changeTrackingCodeBuilder.slot("declarations").variable("enableChangeTracking").value('createChangeTracker()');
+            changeTrackingCodeBuilder.slot("assignment");
+            changeTrackingCodeBuilder.slot("return").raw('\treturn enableChangeTracking(entity);');
 
-        enricherFunctionBody.raw(`function ${this.createChangeTracker.toString()}`);
-        enricherFunctionBody.variable("enableChangeTracking").value('changeTrackingType === "entity" ? createChangeTracker() : e => e');
+            const freezeCodeBuilder = new CodeBuilder();
+            freezeCodeBuilder.slot("assignment");
+            freezeCodeBuilder.slot("return").raw('\treturn Object.freeze(entity);');
 
-        enricherFunctionBody.slot("enriched");
-        enricherFunctionBody.slot("declarations");
-        enricherFunctionBody.slot("ifs");
-        enricherFunctionBody.slot("assignment");
-        enricherFunctionBody.slot("tracking").if('changeTrackingType === "immutable"', { name: "freeze" });
-        enricherFunctionBody.raw('\treturn enableChangeTracking(enriched);');
+            const enricherCodeBuilder = new CodeBuilder();
+            const enricherFunctionRoot = enricherCodeBuilder.factory("factory", { name: "factory" }).parameters({ name: "collectionName", value: this.collectionName });
+            const enricherFunctionBody = enricherFunctionRoot.function(undefined, { name: "function" }).parameters("entity", "changeTrackingType").return();
 
-        const mergeCodeBuilder = new CodeBuilder();
+            enricherFunctionBody.raw(`function ${this.createChangeTracker.toString()}`);
+            enricherFunctionBody.variable("enableChangeTracking").value('changeTrackingType === "entity" ? createChangeTracker() : e => e');
 
-        const mergeFunctionRoot = mergeCodeBuilder.factory("factory", { name: "factory" }).parameters({ name: "tableName", value: this.tableName });
-        const mergeFunctionBody = mergeFunctionRoot.function(undefined, { name: "function" }).parameters("destination", "source").return();
+            enricherFunctionBody.slot("enriched");
+            enricherFunctionBody.slot("declarations");
+            enricherFunctionBody.slot("ifs");
+            enricherFunctionBody.slot("assignment");
+            enricherFunctionBody.slot("tracking").if('changeTrackingType === "immutable"', { name: "freeze" });
+            enricherFunctionBody.raw('\treturn enableChangeTracking(enriched);');
 
-        mergeFunctionBody.function("pause")
-            .appendBody("// initiate change tracking if needed")
-            .if("destination.__tracking__ == null")
-            .appendBody("destination.__tracking__ = {};")
-            .appendBody("destination.__tracking__.isPaused = true;");
+            const mergeCodeBuilder = new CodeBuilder();
 
-        mergeFunctionBody.function("unpause")
-            .appendBody("destination.__tracking__.isPaused  = false;");
+            const mergeFunctionRoot = mergeCodeBuilder.factory("factory", { name: "factory" }).parameters({ name: "collectionName", value: this.collectionName });
+            const mergeFunctionBody = mergeFunctionRoot.function(undefined, { name: "function" }).parameters("destination", "source").return();
 
-        mergeFunctionBody.slot("header").raw(`pause()`);
-        mergeFunctionBody.slot("assignments");
-        mergeFunctionBody.slot("ifs");
-        mergeFunctionBody.slot("return").raw(`
+            mergeFunctionBody.function("pause")
+                .appendBody("// initiate change tracking if needed")
+                .if("destination.__tracking__ == null")
+                .appendBody("destination.__tracking__ = {};")
+                .appendBody("destination.__tracking__.isPaused = true;");
+
+            mergeFunctionBody.function("unpause")
+                .appendBody("destination.__tracking__.isPaused  = false;");
+
+            mergeFunctionBody.slot("header").raw(`pause()`);
+            mergeFunctionBody.slot("assignments");
+            mergeFunctionBody.slot("ifs");
+            mergeFunctionBody.slot("return").raw(`
     unpause();
 
     return destination;`);
 
-        const prepareCodeBuilder = new CodeBuilder();
-        prepareCodeBuilder.slot("result");
-        prepareCodeBuilder.slot("assignments");
-        prepareCodeBuilder.slot("return").raw(`     return result;`);
+            const prepareCodeBuilder = new CodeBuilder();
+            prepareCodeBuilder.slot("result");
+            prepareCodeBuilder.slot("assignments");
+            prepareCodeBuilder.slot("return").raw(`     return result;`);
 
-        const stripCodeBuilder = new CodeBuilder();
-        stripCodeBuilder.slot("result");
-        stripCodeBuilder.slot("return").raw(`     return result;`);
+            const stripCodeBuilder = new CodeBuilder();
+            stripCodeBuilder.slot("result");
+            stripCodeBuilder.slot("return").raw(`     return result;`);
 
-        const cloneCodeBuilder = new CodeBuilder();
-        cloneCodeBuilder.slot("result");
-        cloneCodeBuilder.slot("return").raw(`     return result;`);
+            const cloneCodeBuilder = new CodeBuilder();
+            cloneCodeBuilder.slot("result");
+            cloneCodeBuilder.slot("return").raw(`     return result;`);
 
-        const compareCodeBuilder = new CodeBuilder();
-        compareCodeBuilder.slot("result");
-        compareCodeBuilder.slot("return").raw(`     return result;`);
+            const compareCodeBuilder = new CodeBuilder();
+            compareCodeBuilder.slot("result");
+            compareCodeBuilder.slot("return").raw(`     return result;`);
 
-        const deserializeCodeBuilder = new CodeBuilder();
-        deserializeCodeBuilder.slot("result");
-        deserializeCodeBuilder.slot("return").raw(`     return result;`);
+            const deserializeCodeBuilder = new CodeBuilder();
+            deserializeCodeBuilder.slot("result");
+            deserializeCodeBuilder.slot("return").raw(`     return result;`);
 
-        const idSelectorCodeBuilder = new CodeBuilder();
-        idSelectorCodeBuilder.slot("result");
-        idSelectorCodeBuilder.slot("return").raw(`     return result;`);
+            const idSelectorCodeBuilder = new CodeBuilder();
+            idSelectorCodeBuilder.slot("result");
+            idSelectorCodeBuilder.slot("return").raw(`     return result;`);
 
-        const hashTypeCodeBuilder = new CodeBuilder();
-        hashTypeCodeBuilder.slot("ifs");
-        hashTypeCodeBuilder.slot("return").raw(`     return "Ids";`);
+            const hashTypeCodeBuilder = new CodeBuilder();
+            hashTypeCodeBuilder.slot("ifs");
+            hashTypeCodeBuilder.slot("return").raw(`     return "Ids";`);
 
-        const hashCodeBuilder = new CodeBuilder();
-        hashCodeBuilder.slot("functions").raw(`
+            const hashCodeBuilder = new CodeBuilder();
+            hashCodeBuilder.slot("functions").raw(`
     function stringifyDate(d) {
+
+        if (d == null) {
+            return "";
+        }
 
         if (typeof d === "string") {
             return d;
         }
 
-        if ("toISOString" in d) {
+        if (d.toISOString != null) {
             return d.toISOString();
         }
 
         return d.toString();
     } 
 `);
-        const hashCodeBuilderIfBlock = hashCodeBuilder.if(`type === "Ids"`, { name: "hash-id-if" });
-        hashCodeBuilderIfBlock.slot("if-body");
-        hashCodeBuilderIfBlock.appendBody("return result");
-        hashCodeBuilder.slot("hash-object-return");
-        hashCodeBuilder.raw(`   return result;`)
+            const hashCodeBuilderIfBlock = hashCodeBuilder.if(`type === "Ids"`, { name: "hash-id-if" });
+            hashCodeBuilderIfBlock.slot("if-body");
+            hashCodeBuilderIfBlock.appendBody("return result");
+            hashCodeBuilder.slot("hash-object-return");
+            hashCodeBuilder.raw(`   return result;`)
 
-        const stringifier = new CodeBuilder();
-        const returnObject = stringifier.object();
+            const stringifier = new CodeBuilder();
+            const returnObject = stringifier.object();
 
-        const idProperties: PropertyInfo<any>[] = [];
-        const allPropertyNamesAndPaths: string[] = [];
-        let hashType: HashType = HashType.Ids;
-        let hasIdentities = false;
-        let hasIdentityKeys = false;
+            const idProperties: PropertyInfo<any>[] = [];
+            const allPropertyNamesAndPaths: string[] = [];
+            let hashType: HashType = HashType.Ids;
+            let hasIdentities = false;
+            let hasIdentityKeys = false;
 
-        this._iterate(schema, (property) => {
+            this._iterate(schema, (property) => {
 
-            properties.push(property);
-            allPropertyNamesAndPaths.push(property.getSelectrorPath({ parent: "entity" }));
+                properties.push(property);
+                allPropertyNamesAndPaths.push(property.getSelectrorPath({ parent: "entity" }));
 
-            // Check if the property or any parent is nullable/optional
-            const isParentNullableOrOptional = property.hasNullableParents;
-            const isPropertyNullableOrOptional = property.isNullable || property.isOptional || isParentNullableOrOptional;
+                // Check if the property or any parent is nullable/optional
+                const isParentNullableOrOptional = property.hasNullableParents;
+                const isPropertyNullableOrOptional = property.isNullable || property.isOptional || isParentNullableOrOptional;
 
-            // Construct the selector path with or without null-safe operators
-            const selectorPath = property.getSelectrorPath({ parent: "entity" });
-            const name = property.name;
+                // Construct the selector path with or without null-safe operators
+                const selectorPath = property.getSelectrorPath({ parent: "entity" });
+                const name = property.name;
 
-            if (property.isIdentity === true) {
-                hasIdentities = true;
+                if (property.isIdentity === true) {
+                    hasIdentities = true;
+                }
+
+                if (property.isKey === true) {
+                    idProperties.push(property);
+                }
+
+                if (property.isKey === true && property.isIdentity === true) {
+                    hasIdentityKeys = true;
+                }
+
+                enricher.handle(property, enricherCodeBuilder);
+                merge.handle(property, mergeCodeBuilder);
+                prepare.handle(property, prepareCodeBuilder);
+                strip.handle(property, stripCodeBuilder);
+                clone.handle(property, cloneCodeBuilder);
+                compare.handle(property, compareCodeBuilder);
+                deserialize.handle(property, deserializeCodeBuilder);
+                hashTypeHandler.handle(property, hashTypeCodeBuilder);
+                idSelectorHandler.handle(property, idSelectorCodeBuilder);
+                hashHandler.handle(property, hashCodeBuilder);
+                enableChangeTrackingHandler.handle(property, changeTrackingCodeBuilder);
+                freezeHandler.handle(property, freezeCodeBuilder);
+            });
+
+            // console.log(prepareCodeBuilder.toString());
+            // console.log(stripCodeBuilder.toString());
+            // console.log(cloneCodeBuilder.toString());
+            // console.log(compareCodeBuilder.toString());
+            // console.log(deserializeCodeBuilder.toString());
+            // console.log(hashTypeCodeBuilder.toString());
+            // console.log(idSelectorCodeBuilder.toString());
+            // console.log(enricherCodeBuilder.toString());
+            // console.log(mergeCodeBuilder.toString());
+            // console.log(changeTrackingCodeBuilder.toString());
+            // console.log(freezeCodeBuilder.toString());
+
+            if (idProperties.length === 0) {
+                throw new Error(`Schema must have a key.  Use .key() to mark a property as a key.  Collection Name: ${this.collectionName}`)
             }
 
-            if (property.isKey === true) {
-                idProperties.push(property);
+            const enrichParams = enricherFunctionRoot.getParameters()
+            const mergeParams = mergeFunctionRoot.getParameters()
+            const enrichGenerator = Function(`return ${enricherCodeBuilder.toString()}`);
+            const mergeGenerator = Function(`return ${mergeCodeBuilder.toString()}`);
+
+            const getIdsFunction = Function("entity", idSelectorCodeBuilder.toString()) as (entity: InferType<T>) => [IdType];
+            const getHashTypeFunction = Function("entity", hashTypeCodeBuilder.toString()) as GetHashTypeFunction<T>;
+            const prepareFunction = Function("entity", prepareCodeBuilder.toString()) as (entity: InferCreateType<T>) => InferCreateType<T>;
+            const cloneFunction = Function("entity", cloneCodeBuilder.toString()) as (entity: InferType<T>) => InferType<T>;
+            const deserializeFunction = Function("entity", deserializeCodeBuilder.toString()) as (entity: InferType<T>) => InferType<T>;
+            const compareFunction = Function("a", "b", compareCodeBuilder.toString()) as (a: InferType<T>, fromDb: InferType<T>) => boolean;;
+            const stripFunction = Function("entity", stripCodeBuilder.toString()) as (entity: InferType<T>) => InferType<T>;
+            const hashFunction = Function("entity", "type", hashCodeBuilder.toString()) as HashFunction<T>;
+            const enableChangeTrackingFunction = Function("entity", changeTrackingCodeBuilder.toString()) as (entity: InferType<T>) => InferType<T>;
+            const freezeFunction = Function("entity", freezeCodeBuilder.toString()) as (entity: InferType<T>) => InferType<T>;
+
+            const enricherFactoryFunction = enrichGenerator();
+            const mergeFactoryFunction = mergeGenerator();
+            const enricherFunction = enricherFactoryFunction(...enrichParams.map(w => w.value));
+            const mergeFunction = mergeFactoryFunction(...mergeParams.map(w => w.value));
+
+            const idPropertyNames = idProperties.map(w => w.name);
+            const getId = (entity: InferType<T>) => {
+                if (idPropertyNames.length > 1) {
+                    return hashFunction(entity, HashType.Ids) as IdType;
+                }
+
+                return getIdsFunction(entity as any)[0] as IdType;
             }
 
-            if (property.isKey === true && property.isIdentity === true) {
-                hasIdentityKeys = true;
+            return {
+                getId,
+                properties,
+                idProperties,
+                hasIdentities,
+                hashType,
+                getHashType: getHashTypeFunction,
+                merge: mergeFunction,
+                prepare: prepareFunction,
+                clone: cloneFunction,
+                deserialize: deserializeFunction,
+                compare: compareFunction,
+                strip: stripFunction,
+                hash: hashFunction,
+                key: hash([...allPropertyNamesAndPaths, this.collectionName].join(",")),
+                getIds: getIdsFunction,
+                enrich: enricherFunction,
+                collectionName: this.collectionName,
+                hasIdentityKeys,
+                freeze: freezeFunction,
+                enableChangeTracking: enableChangeTrackingFunction,
             }
-
-            enricher.handle(property, enricherCodeBuilder);
-            merge.handle(property, mergeCodeBuilder);
-            prepare.handle(property, prepareCodeBuilder);
-            strip.handle(property, stripCodeBuilder);
-            clone.handle(property, cloneCodeBuilder);
-            compare.handle(property, compareCodeBuilder);
-            deserialize.handle(property, deserializeCodeBuilder);
-            hashTypeHandler.handle(property, hashTypeCodeBuilder);
-            idSelectorHandler.handle(property, idSelectorCodeBuilder);
-            hashHandler.handle(property, hashCodeBuilder);
-            enableChangeTrackingHandler.handle(property, changeTrackingCodeBuilder);
-            freezeHandler.handle(property, freezeCodeBuilder);
-        });
-
-        // console.log(prepareCodeBuilder.toString());
-        // console.log(stripCodeBuilder.toString());
-        // console.log(cloneCodeBuilder.toString());
-        // console.log(compareCodeBuilder.toString());
-        // console.log(deserializeCodeBuilder.toString());
-        // console.log(hashTypeCodeBuilder.toString());
-        // console.log(idSelectorCodeBuilder.toString());
-        // console.log(enricherCodeBuilder.toString());
-        // console.log(mergeCodeBuilder.toString());
-        // console.log(changeTrackingCodeBuilder.toString());
-        // console.log(freezeCodeBuilder.toString());
-
-        const enrichParams = enricherFunctionRoot.getParameters()
-        const mergeParams = mergeFunctionRoot.getParameters()
-        const enrichGenerator = Function(`return ${enricherCodeBuilder.toString()}`);
-        const mergeGenerator = Function(`return ${mergeCodeBuilder.toString()}`);
-
-        const getIdsFunction = Function("entity", idSelectorCodeBuilder.toString()) as (entity: InferType<T>) => [IdType];
-        const getHashTypeFunction = Function("entity", hashTypeCodeBuilder.toString()) as GetHashTypeFunction<T>;
-        const prepareFunction = Function("entity", prepareCodeBuilder.toString()) as (entity: InferCreateType<T>) => InferCreateType<T>;
-        const cloneFunction = Function("entity", cloneCodeBuilder.toString()) as (entity: InferType<T>) => InferType<T>;
-        const deserializeFunction = Function("entity", deserializeCodeBuilder.toString()) as (entity: InferType<T>) => InferType<T>;
-        const compareFunction = Function("a", "b", compareCodeBuilder.toString()) as (a: InferType<T>, fromDb: InferType<T>) => boolean;;
-        const stripFunction = Function("entity", stripCodeBuilder.toString()) as (entity: InferType<T>) => InferType<T>;
-        const hashFunction = Function("entity", "type", hashCodeBuilder.toString()) as HashFunction<T>;
-        const enableChangeTrackingFunction = Function("entity", changeTrackingCodeBuilder.toString()) as (entity: InferType<T>) => InferType<T>;
-        const freezeFunction = Function("entity", freezeCodeBuilder.toString()) as (entity: InferType<T>) => InferType<T>;
-
-        const enricherFactoryFunction = enrichGenerator();
-        const mergeFactoryFunction = mergeGenerator();
-        const enricherFunction = enricherFactoryFunction(...enrichParams.map(w => w.value));
-        const mergeFunction = mergeFactoryFunction(...mergeParams.map(w => w.value));
-
-        const idPropertyNames = idProperties.map(w => w.name);
-        const getId = (entity: InferType<T>) => {
-            if (idPropertyNames.length > 1) {
-                return hashFunction(entity, HashType.Ids) as IdType;
-            }
-
-            return getIdsFunction(entity as any)[0] as IdType;
-        }
-
-        return {
-            getId,
-            properties,
-            idProperties,
-            hasIdentities,
-            hashType,
-            getHashType: getHashTypeFunction,
-            merge: mergeFunction,
-            prepare: prepareFunction,
-            clone: cloneFunction,
-            deserialize: deserializeFunction,
-            compare: compareFunction,
-            strip: stripFunction,
-            hash: hashFunction,
-            key: hash([...allPropertyNamesAndPaths, this.tableName].join(",")),
-            getIds: getIdsFunction,
-            enrich: enricherFunction,
-            tableName: this.tableName,
-            hasIdentityKeys,
-            freeze: freezeFunction,
-            enableChangeTracking: enableChangeTrackingFunction,
+        } catch (e) {
+            throw new SchemaError(e, `Error compiling schema for collection: ${this.collectionName}`);
         }
     }
 }

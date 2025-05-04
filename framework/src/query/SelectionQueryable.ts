@@ -1,8 +1,8 @@
 import { Filter, ParamsFilter } from "@agrejus/db-framework-core";
 import { QueryResult } from "../types";
-import { AggregateQueryable } from "./AggregateQueryable";
+import { AggregateQueryableAsync } from "./AggregateQueryableAsync";
 
-export class SelectionQueryable<T extends {}, U = void> extends AggregateQueryable<T> {
+export class SelectionQueryable<T extends {}, U = void> extends AggregateQueryableAsync<T> {
 
     toArray(done: QueryResult<T[]>): U {
         this.getData(done);

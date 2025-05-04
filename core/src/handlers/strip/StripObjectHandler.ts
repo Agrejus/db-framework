@@ -1,4 +1,4 @@
-import { CodeBuilder, ObjectBuilder } from "../../common/CodeBlock";
+import { CodeBuilder, ObjectBuilder, SlotBlock } from "../../common/CodeBlock";
 import { PropertyInfo } from "../../common/PropertyInfo";
 import { SlotPath } from "../../common/SlotPath";
 import { SchemaTypes } from "../../schema";
@@ -10,7 +10,13 @@ export class StripObjectHandler extends PropertyInfoHandler {
 
         if (property.type === SchemaTypes.Object) {
             const slotPath = new SlotPath("result.variable.object");
-            let objectBuilder = builder.get<ObjectBuilder>(slotPath.get());
+            let objectBuilder = builder.getOrDefault<ObjectBuilder>(slotPath.get());
+
+            if (objectBuilder == null) {
+                objectBuilder = builder.get<SlotBlock>("result")
+                    .assign("const result", { name: "variable" })
+                    .object({ name: "object" });
+            }
 
             if (property.parent == null) {
                 objectBuilder.nested(property.name, property.name)
@@ -18,7 +24,7 @@ export class StripObjectHandler extends PropertyInfoHandler {
                 return builder;
             }
 
-            slotPath.push( ...property.getParentPathArray());
+            slotPath.push(...property.getParentPathArray());
             const nestedObjectBuilder = builder.get<ObjectBuilder>(slotPath.get());
             nestedObjectBuilder.nested(property.name, property.name)
 

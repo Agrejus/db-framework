@@ -12,6 +12,9 @@ export class StripValueHandler extends PropertyInfoHandler {
             let objectBuilder = builder.getOrDefault<ObjectBuilder>("result.variable.object");
             const entitySelectorPath = property.getAssignmentPath({ parent: "entity" });
 
+            // There is a chance this is the first property we handle,
+            // if that is the case, the main result variable will not be
+            // constructed yet
             if (objectBuilder == null) {
                 objectBuilder = builder.get<SlotBlock>("result")
                     .assign("const result", { name: "variable" })

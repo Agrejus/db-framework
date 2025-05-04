@@ -1,0 +1,12 @@
+---
+description: 
+globs: *.test.*
+alwaysApply: false
+---
+- Always use arrange/act/assert for a test
+- Always assert your expectations
+- Please refer to the @schemas folder to find all schemas
+- Types are all infered from the schema
+- If types are needed, use the exported CompiledSchema and infer it's type.  See [blogPost.ts](mdc:integration-tests/src/schemas/blogPost.ts) for how a schema is constructed.  Use `InferType<typeof blogPost>` to get the infered type.
+- If the key of a schema is a string always verify the type, not the value.  `expect(myModel.id).toStrictEqua(expect.any(String))`
+- Refer to the @schema folder for all of the different options avalable to a schema

@@ -4,5 +4,5 @@ export type DeepPartial<T> = T extends object ? {
 } : T;
 
 export type DefaultValue<T, I = never> = T | ((injected: I) => T);
-export type FunctionBody<TEntity, TResult> = (entity: TEntity, tableName: string) => TResult;
+export type FunctionBody<TEntity, TResult> = (entity: TEntity, collectionName: string) => TResult;
 export type GenericFunction<T, R> = (value: T) => R;

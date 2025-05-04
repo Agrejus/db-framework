@@ -8,7 +8,7 @@ export class MergeComputedValueHandler extends PropertyInfoHandler {
     override handle(property: PropertyInfo<any>, builder: CodeBuilder): CodeBuilder | null {
 
         if (property.functionBody != null && property.type === SchemaTypes.Computed) {
-            const parameterNames: string[] = ["source", "tableName"];
+            const parameterNames: string[] = ["source", "collectionName"];
 
             if (property.injected != null) {
 
