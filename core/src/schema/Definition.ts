@@ -475,6 +475,9 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
                 hasIdentityKeys,
                 freeze: freezeFunction,
                 enableChangeTracking: enableChangeTrackingFunction,
+                // getProperty: (path: string) => {
+
+                // }
             }
         } catch (e) {
             throw new SchemaError(e, `Error compiling schema for collection: ${this.collectionName}`);

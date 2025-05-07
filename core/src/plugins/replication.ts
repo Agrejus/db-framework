@@ -1,6 +1,6 @@
 import { TrampolinePipeline } from '../common/TrampolinePipeline';
 import { CompiledSchema, InferCreateType, InferType } from '../schema';
-import { EntityChanges, EntityModificationResult, IDbPlugin, IdbPluginCollection, Query } from './types';
+import { EntityChanges, EntityModificationResult, IDbPlugin, IdbPluginCollection, IQuery } from './types';
 
 type OperationsPayload = {
     plugins: IDbPlugin[];
@@ -36,11 +36,11 @@ export class DbPluginReplicator implements IDbPlugin {
         });
     }
 
-    query<TEntity extends {}>(query: Query<TEntity>, done: (entities: InferType<TEntity>[], error?: any) => void): void {
+    query<TEntity extends {}, TShape extends any = TEntity>(query: IQuery<TEntity, TShape>, done: (result: TShape, error?: any) => void): void {
         try {
             this._plugins.source.query(query, done);
         } catch (e: any) {
-            done([], e);
+            done(null, e);
         }
     }
 
@@ -178,7 +178,7 @@ export class DbPluginReplicator implements IDbPlugin {
             });
 
         } catch (e: any) {
-            done(e);
+            done(null, e);
         }
     }
 }

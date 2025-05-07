@@ -30,7 +30,7 @@ export {
     EntityModificationResult,
     QueryOptions,
     QueryField,
-    Query,
+    IQuery as IQuery,
     QuerySort,
     DbOperation,
     ReadOperation,
@@ -38,8 +38,23 @@ export {
 } from './plugins/types';
 
 export {
-    toMap,
+    DataTranslator
+} from './plugins/translators/DataTranslator';
 
+export {
+    JsonTranslator
+} from './plugins/translators/JsonTranslator';
+
+export {
+    SqlTranslator
+} from './plugins/translators/SqlTranslator';
+
+export { Query } from './plugins/Query';
+
+export {
+    toMap,
+    isDate,
+    assertDate
 } from './utilities';
 
 export {

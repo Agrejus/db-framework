@@ -103,9 +103,5 @@ const result = pipeline.run(initialContext);
 console.log(result);
 
 
-// TODO
-- Fix s.array()
-  - s.array<{ id: string }>() => s.array({ id: s.string() })
-- Need a way to replace this in string/number
-  - s.string<"one" | "two">()
-    - can we use s.string().narrow("one", "two") => translates to s.string<"one" | "two">()
+# TODO
+- Stateful queries should always return an array of data, how can we make that work?

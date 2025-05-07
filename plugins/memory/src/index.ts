@@ -1,5 +1,4 @@
-import { CompiledSchema, DeepPartial, EntityChanges, EntityModificationResult, IDbPlugin, IdType, InferCreateType, InferType, Query, SchemaTypes, SyncronousUnitOfWork, toMap, uuidv4 } from '@agrejus/db-framework-core';
-import { queryArray } from './expression/resolver';
+import { CompiledSchema, DeepPartial, EntityChanges, EntityModificationResult, IDbPlugin, IdType, InferCreateType, InferType, IQuery, SchemaTypes, uuidv4, JsonTranslator } from '@agrejus/db-framework-core';
 
 let data: Record<string, Map<IdType, Record<string, unknown>>> = {};
 const numericalIds: Record<string, number> = {};
@@ -133,22 +132,21 @@ export class MemoryPlugin implements IDbPlugin {
         return removes.length;
     }
 
-    query<TEntity extends {}>(query: Query<TEntity>, done: (entities: InferType<TEntity>[], error?: any) => void): void {
+    query<TEntity extends {}, TShape extends any = TEntity>(query: IQuery<TEntity, TShape>, done: (result: TShape, error?: any) => void): void {
 
         try {
+            const translator = new JsonTranslator<TEntity, TShape>(query);
             const collection = [...data[query.schema.collectionName].values()];
-            const result = queryArray<InferType<TEntity>>(collection as InferType<TEntity>[]);
 
-            if (query.options.count === true) {
-                done(result.length);
-                return;
-            }
+            // Filter our where clauses
+            const result = query.filter(collection as TShape);
 
-            if (query.options.max)
+            // translate if we are doing any operations like count/sum/min/max/skip/take
+            const translated = translator.translate(result, query);
+            done(translated);
 
-                done(result);
         } catch (e) {
-            done([], e);
+            done(null, e);
         }
     }
 }

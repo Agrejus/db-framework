@@ -32,10 +32,10 @@ export type ExpressionType = "operator" | "comparator" | "property" | "value";
 export type Comparator = "equals" | "starts-with" | "includes" | "ends-with";
 export type Operator = "&&" | "||";
 
-export type Filter<T extends {}> = GenericFunction<T, boolean>;
-export type ParamsFilter<T extends {}, P> = (payload: [T, P]) => boolean;
-export type CompositeFilter<T extends {}, P = never> = Filter<T> | ParamsFilter<T, P>;
-export type Filterable<T extends {}, P = any> = {
+export type Filter<T extends any> = GenericFunction<T, boolean>;
+export type ParamsFilter<T extends any, P> = (payload: [T, P]) => boolean;
+export type CompositeFilter<T extends any, P = never> = Filter<T> | ParamsFilter<T, P>;
+export type Filterable<T extends any, P = any> = {
     filter: CompositeFilter<T, P>;
     params?: P;
 }

@@ -2,7 +2,7 @@ import { CompiledSchema, DeepPartial, Expression, IdType, InferCreateType, Infer
 import { Filterable } from "../expressions/types";
 
 export interface IDbPlugin {
-    query<TEntity extends {}>(query: Query<TEntity>, done: (entities: InferType<TEntity>[], error?: any) => void): void;
+    query<TEntity extends {}, TShape extends any = TEntity>(query: IQuery<TEntity, TShape>, done: (result: TShape, error?: any) => void): void;
     destroy(done: (error?: any) => void): void;
     bulkOperations<TEntity extends {}>(schema: CompiledSchema<TEntity>, operations: EntityChanges<TEntity>, done: (result: EntityModificationResult<TEntity>, error?: any) => void): void;
 }
@@ -37,15 +37,24 @@ export type QueryOptions = {
 }
 
 export type QuerySort = { key: string, direction: "asc" | "desc" };
-export type Query<TEntity extends {}> = {
-    schema: CompiledSchema<TEntity>,
-    expression?: Expression,
-    options: QueryOptions,
-    filters: Filterable<TEntity, any>[];
-}
-export type QueryField = { sourceName: string, destinationName: string };
 
-export type ReadOperation<TEntity extends {}> = Query<TEntity> & {
+export type IQuery<TEntity extends {}, TShape extends any = TEntity> = {
+    schema: CompiledSchema<TEntity>;
+    expression?: Expression;
+    options: QueryOptions;
+    filters: Filterable<TShape, any>[];
+    filter: (data: TShape) => TShape;
+    // we can only enable change tracking when we do not change (reduce/aggregate) the response
+    // from the database
+    get changeTracking(): boolean;
+};
+export type QueryField = {
+    sourceName: string,
+    destinationName: string,
+    getter: <T>(data: Record<string, unknown>) => T;
+};
+
+export type ReadOperation<TEntity extends {}> = IQuery<TEntity> & {
     done: (result: TEntity[], error?: any) => void
 }
 

@@ -22,17 +22,16 @@ export class AggregateQueryable<T extends {}, U = void> extends QueryRoot<T> {
     count(done: QueryResult<number>): U {
         this.countValue = true;
 
-        this.getData((r, e) => {
+        this.getData<number>((r, e) => {
             if (e) {
                 done(0, e);
                 return;
             };
 
-            const shapedData = shaper(r);
-            done(shapedData)
+            done(r)
         });
 
-        return this.subscribeQuery(shaper, (r, e) => {
+        return this.subscribeQuery<number>((r, e) => {
             if (r == null) {
                 done(0, new Error("Could not find entity in query"))
                 return;

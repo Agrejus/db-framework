@@ -6,7 +6,7 @@ export class SelectionQueryable<T extends {}, U = void> extends AggregateQueryab
 
     toArray(done: QueryResult<T[]>): U {
         this.getData(done);
-        return this.subscribeQuery<T[]>(w => w, done) as U;
+        return this.subscribeQuery<T[]>(done) as U;
     }
 
     first(expression: Filter<T>, done: QueryResult<T>): U;
@@ -40,7 +40,7 @@ export class SelectionQueryable<T extends {}, U = void> extends AggregateQueryab
         });
 
         const d = done != null ? done : paramsOrDone != null ? paramsOrDone as QueryResult<T> : doneOrExpression as QueryResult<T>;
-        return this.subscribeQuery<T>(shaper, (r, e) => {
+        return this.subscribeQuery<T>((r, e) => {
             if (r == null) {
                 d(undefined, new Error("Could not find entity in query"))
                 return;
@@ -80,7 +80,7 @@ export class SelectionQueryable<T extends {}, U = void> extends AggregateQueryab
         });
 
         const d = done != null ? done : paramsOrDone != null ? paramsOrDone as QueryResult<T> : doneOrExpression as QueryResult<T>;
-        return this.subscribeQuery<T>(shaper, (r, e) => {
+        return this.subscribeQuery<T>((r, e) => {
             if (r == null) {
                 d(undefined, e)
                 return;
@@ -105,7 +105,7 @@ export class SelectionQueryable<T extends {}, U = void> extends AggregateQueryab
         }, (d, r, e) => d(shaper(r), e));
 
         const d = done != null ? done : paramsOrDone != null ? paramsOrDone as QueryResult<boolean> : doneOrExpression as QueryResult<boolean>;
-        return this.subscribeQuery<boolean>(shaper, d) as U;
+        return this.subscribeQuery<boolean>(d) as U;
     }
 
     every(expression: Filter<T>, done: QueryResult<boolean>): U;
@@ -149,7 +149,7 @@ export class SelectionQueryable<T extends {}, U = void> extends AggregateQueryab
         if (done == null && paramsOrDone == null) {
             // empty query
             const d = doneOrExpression as QueryResult<R>;
-            this.getData((r, e) => {
+            this.getData<T[]>((r, e) => {
                 if (!e) {
                     resolve(d, r, e);
                     return;
@@ -162,7 +162,7 @@ export class SelectionQueryable<T extends {}, U = void> extends AggregateQueryab
         if (done != null) {
             // params query
             this.filters.push({ filter: doneOrExpression as ParamsFilter<T, P>, params: paramsOrDone as P });
-            this.getData((r, e) => {
+            this.getData<T[]>((r, e) => {
                 if (!e) {
                     resolve(done, r, e);
                     return;
@@ -175,7 +175,7 @@ export class SelectionQueryable<T extends {}, U = void> extends AggregateQueryab
         // regular query
         const d = paramsOrDone as QueryResult<R>;
         this.filters.push({ filter: doneOrExpression as Filter<T> })
-        this.getData((r, e) => {
+        this.getData<T[]>((r, e) => {
             if (!e) {
                 resolve(d, r, e);
                 return;

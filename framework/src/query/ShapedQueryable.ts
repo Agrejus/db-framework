@@ -37,12 +37,6 @@ export class ShapedQueryable<T extends {}, U = void> extends SelectionQueryable<
     }
 
     // needs to terminate and return a result
-    count() {
-        this.countValue = true;
-        return new AggregateQueryable<T, U>({ queryable: this });
-    }
-
-    // needs to terminate and return a result
     distinct() {
         this.distinctValue = true;
         return new AggregateQueryable<T, U>({ queryable: this });

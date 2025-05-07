@@ -84,3 +84,21 @@ export function formatFunctionString(codeString: string) {
     // Join lines back together
     return formattedLines.join("\n");
 }
+
+export const isDate = (data: unknown) => {
+    if (data == null) {
+        return false;
+    }
+
+    if (typeof data !== "object") {
+        return false;
+    }
+
+    return data instanceof Date;
+}
+
+export const assertDate = (data: unknown): asserts data is Date => {
+    if (isDate(data) === false) {
+        throw new TypeError('Value is not a Date');
+    }
+}

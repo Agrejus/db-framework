@@ -1,4 +1,4 @@
-import { CompiledSchema, EntityChanges, EntityModificationResult, Filter, Filterable, IDbPlugin, IdType, ParamsFilter, Query, SyncronousQueue, SyncronousUnitOfWork } from "@agrejus/db-framework-core";
+import { CompiledSchema, EntityChanges, EntityModificationResult, IdType, InferType, Query, SyncronousQueue, SyncronousUnitOfWork, JsonTranslator } from "@agrejus/db-framework-core";
 import { IDataAccessStrategy } from "../types";
 import { DataAccessStrategyBase } from "./DataAccessStrategyBase";
 
@@ -16,15 +16,13 @@ export class StatefulDataAccessStrategy<T extends {}> extends DataAccessStrategy
         queue.enqueue(unitOfWork.bind(this));
     }
 
-    fetch<TShape>(query: Query<TShape, T>, done: (response: { result: TShape, shouldEnableChangeTracking: boolean }, error?: any) => void) {
+    fetch<TShape>(query: Query<T, TShape>, done: (response: TShape, error?: any) => void) {
         // if we have no data in memory, then no matter the first query we need to automatically select all, then run memory queries
         if (state.size === 0) {
+            const translator = new JsonTranslator(query)
+            const queryAll = new Query<T, InferType<T>[]>(this.schema, {}, []);
             // hydrate by selecting everything
-            this.dbPlugin.query<TShape>({
-                filters: [],
-                options: {},
-                schema: this.schema
-            }, (r, e) => {
+            this.dbPlugin.query<T, InferType<T>[]>(queryAll, (r, e) => {
 
                 if (!e) {
                     // need to get the id for each and add to the map
@@ -33,24 +31,24 @@ export class StatefulDataAccessStrategy<T extends {}> extends DataAccessStrategy
                         state.set(id, item); // push raw
                     }
 
-                    const result = this._applyQueryExpressionAndFiltering([...state.values()], query);
-                    const shouldEnableChangeTracking = super._shouldEnableChangeTracking(query);
+                    const result = query.filter([...state.values()] as TShape);
+                    const translated = translator.translate<T, TShape>(result, query);
 
-                    done({ result, shouldEnableChangeTracking });
+                    done(translated);
                     return;
                 }
 
-                done({ result: [], shouldEnableChangeTracking: false }, e);
+                done(null, e);
             });
             return;
         }
 
         console.log('Queried State')
-        // need to run this after filtering, otherwise we attach and run too much
-        const result = this._applyQueryExpressionAndFiltering([...state.values()], query);
-        const shouldEnableChangeTracking = super._shouldEnableChangeTracking(query);
+        const translator = new JsonTranslator(query)
+        const result = query.filter([...state.values()] as TShape);
+        const translated = translator.translate<T, TShape>(result, query);
 
-        done({ result, shouldEnableChangeTracking });
+        done(translated);
     }
 
     private _statefulBulkOperations(schema: CompiledSchema<T>, operations: EntityChanges<T>, done: (result: EntityModificationResult<T>, error?: any) => void) {

@@ -14,85 +14,29 @@ export class DataAccessStrategyBase<T extends {}> {
         this.dbPlugin.bulkOperations(schema, operations, done);
     }
 
-    protected _fetch<TShape>(query: Query<TShape, T>, done: (response: { result: TShape | null, shouldEnableChangeTracking: boolean }, error?: any) => void) {
-        this.dbPlugin.query<TShape>(query, (r, e) => {
+    // filter<TShape>(query: Query<T, TShape>, data: InferType<T>[]): InferType<T>[] {
 
-            if (!e) {
-                const result = this._applyQueryExpressionAndFiltering(r, query);
-                const shouldEnableChangeTracking = this._shouldEnableChangeTracking(query);
+    //     if (query.filters.length === 0) {
+    //         return data;
+    //     }
 
-                done({ result, shouldEnableChangeTracking });
-                return;
-            }
+    //     const result: InferType<T>[] = [];
 
-            done({ result: null, shouldEnableChangeTracking: false }, e);
-        });
-    }
+    //     for (let i = 0, length = query.filters.length; i < length; i++) {
 
-    filter<TShape>(query: Query<TShape, T>, data: InferType<T>[]): InferType<T>[] {
+    //         const filter = query.filters[i];
+    //         if (filter.params == null) {
+    //             // standard filtering
+    //             const selector = filter.filter as Filter<InferType<T>>;
+    //             result.push(...data.filter(selector));
+    //             continue;
+    //         }
 
-        if (query.filters.length === 0) {
-            return data;
-        }
+    //         // params filtering
+    //         const selector = filter.filter as ParamsFilter<InferType<T>, any>
+    //         result.push(...data.filter(w => selector([w, filter.params])));
+    //     }
 
-        const result: InferType<T>[] = [];
-
-        for (let i = 0, length = query.filters.length; i < length; i++) {
-
-            const filter = query.filters[i];
-            if (filter.params == null) {
-                // standard filtering
-                const selector = filter.filter as Filter<InferType<T>>;
-                result.push(...data.filter(selector));
-                continue;
-            }
-
-            // params filtering
-            const selector = filter.filter as ParamsFilter<InferType<T>, any>
-            result.push(...data.filter(w => selector([w, filter.params])));
-        }
-
-        return data;
-    }
-
-    protected _shouldEnableChangeTracking<TShape>(query: Query<TShape, T>) {
-
-        // we can only enable change tracking when we do not change (reduce/aggregate) the response
-        // from the database
-        return query.options.fields?.length == null || query.options.fields.length === 0;
-    }
-
-    protected _applyFiltering<TShape>(data: TShape, filters: Filterable<TShape, any>[]): TShape {
-
-        if (Array.isArray(data)) {
-            let result: any[] = data;
-
-            for (let i = 0, length = filters.length; i < length; i++) {
-                if (filters[i].params == null) {
-                    // standard filtering
-                    const selector = filters[i].filter as Filter<TShape>
-                    result = data.filter(selector);
-                    return;
-                }
-
-                // params filtering
-                const selector = filters[i].filter as ParamsFilter<T, any>
-                result = data.filter(w => selector([w, filters[i].params]));
-            }
-
-            return result as TShape;
-        }
-
-        return data;
-    }
-
-    protected _applyQueryExpressionAndFiltering<TShape>(data: TShape, query: Query<TShape, T>): TShape {
-
-        // Memory Filtering Fallback
-        if (query.expression == null && query.filters.length > 0) {
-            return this._applyFiltering(data, query.filters);
-        }
-
-        return data;
-    }
+    //     return data;
+    // }
 }

@@ -1,4 +1,4 @@
-import { QueryOptions, toExpression, Expression, combineExpressions, QueryField, Query, Filterable } from "@agrejus/db-framework-core";
+import { QueryOptions, toExpression, Expression, combineExpressions, QueryField, IQuery, Filterable, Query } from "@agrejus/db-framework-core";
 import { EntityMap } from "../../types";
 import { QueryOrdering } from "../types";
 import { DataBridge } from "../../data-access/DataBridge";
@@ -19,7 +19,7 @@ export abstract class QueryRoot<T extends {}> {
     protected sumValue: boolean = false;
     protected distinctValue: boolean = false;
     protected subscribeValue: boolean = false;
-    private _compiledQuery: Query<T> | null = null;
+    private _compiledQuery: IQuery<T> | null = null;
 
     constructor(options: { queryable?: QueryRoot<T>, dataBridge?: DataBridge<T>, changeTracker?: ChangeTracker<T> }) {
 
@@ -68,7 +68,7 @@ export abstract class QueryRoot<T extends {}> {
         }
     }
 
-    protected subscribeQuery<U>(shape: (data: T[]) => U, done: (result: U, error?: any) => void) {
+    protected subscribeQuery<U>(done: (result: U, error?: any) => void) {
 
         if (this.subscribeValue === false) {
             return () => { };
@@ -76,18 +76,16 @@ export abstract class QueryRoot<T extends {}> {
 
         const query = this.getOrCompileQuery();
 
-        return this.dataBridge.subscribe(query, shape, (r, e) => {
+        return this.dataBridge.subscribe<U, unknown>(query as any, (r, e) => {
 
-            const { data, shouldEnableChangeTracking } = r;
-
-            if (shouldEnableChangeTracking === true) {
-                const enriched = this.changeTracker.enrich(data as any);
+            if (query.changeTracking === true) {
+                const enriched = this.changeTracker.enrich(r as any);
                 const resolved = this.changeTracker.resolve(enriched, { mergeResponse: true });
                 done(resolved as U, e);
                 return;
             }
 
-            done(data, e);
+            done(r, e);
         });
     }
 
@@ -131,7 +129,11 @@ export abstract class QueryRoot<T extends {}> {
                 const [destinationName, sourcePathAndName] = property.split(":").map(w => w.trim());
                 const sourceName = this._extractPropertyName(sourcePathAndName);
 
-                return { sourceName, destinationName };
+                return {
+                    sourceName,
+                    destinationName,
+                    getter: () => 1 as any
+                };
             })
         }
 
@@ -139,7 +141,8 @@ export abstract class QueryRoot<T extends {}> {
 
         return [{
             destinationName: field,
-            sourceName: field
+            sourceName: field,
+            getter: () => 1 as any
         }];
     }
 
@@ -196,31 +199,28 @@ export abstract class QueryRoot<T extends {}> {
         const expression = this.getExpression();
         const options = this.getQueryOptions();
 
-        this._compiledQuery = {
-            schema: this.dataBridge.schema,
+        this._compiledQuery = new Query(
+            this.dataBridge.schema,
             options,
-            filters: this.filters
-        }
-
-        if (expression != null) {
-            this._compiledQuery.expression = expression;
-        }
+            this.filters,
+            expression
+        );
 
         return this._compiledQuery;
     }
 
-    protected getData(done: (result: T[], error?: any) => void) {
+    protected getData<TShape>(done: (result: TShape, error?: any) => void) {
 
         const query = this.getOrCompileQuery();
 
-        this.dataBridge.fetch(query, ({ result, shouldEnableChangeTracking }, error) => {
+        this.dataBridge.fetch<TShape>(query as any, (result, error) => {
 
             if (error != null) {
                 done(result, error)
                 return;
             }
 
-            if (shouldEnableChangeTracking === true) {
+            if (query.changeTracking === true) {
                 const enriched = this.changeTracker.enrich(result as any);
                 const resolved = this.changeTracker.resolve(enriched);
                 done(resolved as any);
