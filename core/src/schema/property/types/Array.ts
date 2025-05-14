@@ -12,6 +12,12 @@ export class SchemaArray<T extends any, TModifiers extends SchemaModifiers> exte
     instance: T[];
     type = SchemaTypes.Array;
     private _schemaArray = true;
+    readonly innerSchema?: SchemaBase<any, any>; // we need to know the type of the array, that is what this is for
+
+    constructor(entity?: SchemaBase<T[], TModifiers>, literals?: T[][]) {
+        super(entity, literals);
+        this.innerSchema = entity;
+    }
 
     optional() {
         return new SchemaOptional<T[], TModifiers | "optional">(this);

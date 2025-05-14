@@ -1,3 +1,4 @@
+import { InferMappedType } from "@agrejus/db-framework-core";
 import { EntityMap } from "../../types";
 import { LimitedQueryableAsync } from "../LimitedQueryableAsync";
 import { OrderedQueryableAsync } from "../OrderedQueryableAsync";
@@ -8,9 +9,9 @@ import { QueryOrdering } from "../types";
 
 export class QueryableBaseAsync<T extends {}> extends SelectionQueryableAsync<T> {
 
-    map<R extends T[keyof T] | Partial<T>>(expression: EntityMap<T, R>) {
+    map<R extends T[keyof T] | {}>(expression: EntityMap<T, R>) {
         this.mapValue = expression;
-        return new ShapedQueryableAsync<R>({ queryable: this as any });
+        return new ShapedQueryableAsync<InferMappedType<R>>({ queryable: this as any });
     }
 
     skip(amount: number) {

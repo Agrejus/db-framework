@@ -136,13 +136,14 @@ export class MemoryPlugin implements IDbPlugin {
 
         try {
             const translator = new JsonTranslator<TEntity, TShape>(query);
-            const collection = [...data[query.schema.collectionName].values()];
+            const collection = data[query.schema.collectionName] == null ? [] : [...data[query.schema.collectionName].values()];
 
             // Filter our where clauses
             const result = query.filter(collection as TShape);
 
             // translate if we are doing any operations like count/sum/min/max/skip/take
             const translated = translator.translate(result, query);
+
             done(translated);
 
         } catch (e) {

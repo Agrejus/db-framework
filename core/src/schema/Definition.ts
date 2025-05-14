@@ -475,6 +475,7 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
                 hasIdentityKeys,
                 freeze: freezeFunction,
                 enableChangeTracking: enableChangeTrackingFunction,
+                definition: this
                 // getProperty: (path: string) => {
 
                 // }

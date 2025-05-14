@@ -6,5 +6,6 @@ export const product = s.define("products", {
     price: s.number(),
     category: s.string(),
     inStock: s.boolean(),
-    tags: s.string("computer", "accessory").array()
+    tags: s.string("computer", "accessory").array(),
+    createdDate: s.date().default(() => new Date())
 }).compile();

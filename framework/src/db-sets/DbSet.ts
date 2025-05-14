@@ -1,5 +1,5 @@
 import { DbSetOptions, DbSetPipelines, EntityCallbackMany, EntityMap, QueryResult, SaveChangesContextStepFive, SaveChangesContextStepFour, SaveChangesContextStepOne, SaveChangesContextStepSix, SaveChangesContextStepThree, SaveChangesContextStepTwo } from "../types";
-import { IDbPlugin, InferCreateType, InferType, Filter, ParamsFilter, CompiledSchema } from '@agrejus/db-framework-core';
+import { IDbPlugin, InferCreateType, InferType, Filter, ParamsFilter, CompiledSchema, InferMappedType } from '@agrejus/db-framework-core';
 import { Queryable } from '../query/Queryable';
 import { QueryableAsync } from '../query/QueryableAsync';
 import { ParamsQueryableAsync } from "../query/ParamsQueryableAsync";
@@ -222,24 +222,25 @@ export class DbSet<TEntity extends {}> {
         return queryable.where(selector as ParamsFilter<InferType<TEntity>, P>, params);
     }
 
-    sort(selector: EntityMap<TEntity, TEntity[keyof TEntity]>) {
-        const result = new QueryableAsync<TEntity>({
+    sort(selector: EntityMap<InferType<TEntity>, InferType<TEntity>[keyof InferType<TEntity>]>) {
+        const result = new QueryableAsync<InferType<TEntity>>({
             dataBridge: this.dataBridge as any,
             changeTracker: this.changeTracker as any
         });
         return result.order(selector);
     }
 
-    sortDescending(selector: EntityMap<TEntity, TEntity[keyof TEntity]>) {
-        const result = new QueryableAsync<TEntity>({
+    sortDescending(selector: EntityMap<InferType<TEntity>, InferType<TEntity>[keyof InferType<TEntity>]>) {
+        const result = new QueryableAsync<InferType<TEntity>>({
             dataBridge: this.dataBridge as any,
             changeTracker: this.changeTracker as any
         });
+
         return result.orderDescending(selector);
     }
 
-    map<R extends InferType<TEntity>[keyof InferType<TEntity>] | Partial<InferType<TEntity>>>(expression: EntityMap<InferType<TEntity>, R>) {
-        const result = new QueryableAsync<InferType<TEntity>>({
+    map<R extends TEntity[keyof TEntity] | {}>(expression: EntityMap<TEntity, R>) {
+        const result = new QueryableAsync<TEntity>({
             dataBridge: this.dataBridge as any,
             changeTracker: this.changeTracker as any
         });

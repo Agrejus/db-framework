@@ -11,6 +11,25 @@ export class JsonTranslator<TEntity extends {}, TShape> extends DataTranslator {
         this._query = query;
     }
 
+    map<T>(data: unknown): T {
+
+        if (this._query.options.shaper == null) {
+            throw new Error("Cannot find internal map function");
+        }
+
+        if (Array.isArray(data) == false) {
+            throw new Error("Can only map an array of data");
+        }
+
+        const response = [];
+
+        for (let i = 0, length = data.length; i < length; i++) {
+            response.push(this._query.options.shaper(data[i]));
+        }
+
+        return response as T;
+    }
+
     // data should be the result we are looking for 
     count<T extends number>(data: unknown): T {
 
@@ -29,56 +48,84 @@ export class JsonTranslator<TEntity extends {}, TShape> extends DataTranslator {
         return this._minMax(data, "max", (a: any, b: any) => b - a);
     }
 
-    sum<T extends number>(data: unknown): T {
+    sort<T>(data: unknown): T {
+        if (Array.isArray(data) && this._query.options.sort != null) {
 
-        if (Array.isArray(data)) {
+            for (const sort of this._query.options.sort) {
+                data.sort((a, b) => {
+                    if (sort.direction === "asc") {
+                        return (sort.selector(a) as any) - (sort.selector(b) as any);
+                    }
 
-            const field = this._getSelectionField("sum");
-            return data.map(w => field.getter<number>(w)).reduce((a, v) => {
-
-                if (typeof v !== "number") {
-                    throw new Error(`Cannot sum, property is not a number.  Property: ${field.sourceName}`);
-                }
-
-                return a + v;
-            }, 0) as T;
+                    return (sort.selector(b) as any) - (sort.selector(a) as any);
+                })
+            }
         }
 
-        throw new Error("Cannot sum resulting data, it must be an array.  Please return array of data for function: sum()");
+        return data as T;
+    }
+
+    sum<T extends number>(data: unknown): T {
+
+        if (Array.isArray(data) === false) {
+            throw new Error("Cannot sum resulting data, it must be an array.  Please return array of data for function: sum()");
+        }
+
+        if (this._query.options.shaper == null) {
+            throw new Error(`sum() operation can only be performed when one field is mapped for a result.  Ex.  myset.map(x => x.someNumber).sum()`)
+        }
+
+        let sum = 0;
+        const field = this._getSelectionField("sum");
+
+        for (let i = 0, length = data.length; i < length; i++) {
+            const value = data[i];
+
+            if (typeof value !== "number") {
+                throw new Error(`Cannot sum, property is not a number.  Property: ${field.sourceName}`);
+            }
+
+            sum += value;
+        }
+
+        return sum as T;
     }
 
     distinct<T>(data: unknown): T {
-        if (Array.isArray(data)) {
 
-            const result = new Set<string | number | Date>();
-            const field = this._getSelectionField("distinct");
-            // would be nice to have property info here for type detection
-            let needsDateConversion = false;
-
-            for (let i = 0, length = data.length; i < length; i++) {
-                const value = field.getter<string | number | Date>(data[i]);
-
-                if (typeof value === "number" || typeof value === "string") {
-                    result.add(value);
-                    continue;
-                }
-
-                if (isDate(value)) {
-                    needsDateConversion = true;
-                    result.add(value.toISOString());
-                    continue;
-                }
-
-            }
-
-            if (needsDateConversion) {
-                return [...result].map(w => new Date(w)) as T;
-            }
-
-            return [...result] as T
+        if (Array.isArray(data) === false) {
+            throw new Error("Cannot perform distinct on resulting data, it must be an array.  Please return array of data (string, number, or Date) for function: distinct()");
         }
 
-        throw new Error("Cannot perform distinct on resulting data, it must be an array.  Please return array of data (string, number, or Date) for function: distinct()");
+        if (this._query.options.shaper == null) {
+            throw new Error(`distinct() operation can only be performed when one field is mapped for a result.  Ex.  myset.map(x => x.someNumberOrDateOrString).distinct()`)
+        }
+
+        const result = new Set<string | number | Date>();
+        // would be nice to have property info here for type detection
+        let needsDateConversion = false;
+
+        for (let i = 0, length = data.length; i < length; i++) {
+            const value = data[i];
+
+            if (typeof value === "number" || typeof value === "string") {
+                result.add(value);
+                continue;
+            }
+
+            if (isDate(value)) {
+                needsDateConversion = true;
+                result.add((value as Date).toISOString());
+                continue;
+            }
+
+        }
+
+        if (needsDateConversion) {
+            return [...result].map(w => new Date(w)) as T;
+        }
+
+        return [...result] as T
     }
 
     default<T>(data: unknown): T {
@@ -136,16 +183,12 @@ export class JsonTranslator<TEntity extends {}, TShape> extends DataTranslator {
             throw new Error(`Cannot find ${name} from resulting data, it must be an array.  Please return array of data for function: ${name}()`)
         }
 
-        if (this._query.options.fields == null ||
-            this._query.options.fields.length === 0 ||
-            this._query.options.fields.length > 1) {
+        if (this._query.options.shaper == null) {
             throw new Error(`${name}() operation can only be performed when one field is mapped for a result.  Ex.  myset.map(x => x.someNumberOrDateOrString).${name}()`)
         }
 
-        const field = this._getSelectionField(name);
-        const fieldData = data.map(w => field.getter(w));
-        fieldData.sort(sort);
+        data.sort(sort);
 
-        return fieldData[0] as T;
+        return data[0] as T;
     }
 }

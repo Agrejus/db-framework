@@ -8,6 +8,7 @@ import { SchemaObject } from "./property/types/Object";
 import { SchemaString } from "./property/types/String";
 import { IdType } from "../types";
 import { PropertyInfo } from "../common/PropertyInfo";
+import { SchemaIdentity } from "./property/modifiers/Identity";
 
 export enum SchemaTypes {
     Array = "Array",
@@ -24,11 +25,11 @@ export enum SchemaTypes {
 export type ArrayShape = string | number | Date | {};
 
 export const s = {
-    number: <T extends number[] = number[]>(...literals: T) => new SchemaNumber<T[number] extends never ? number : T[number], never>(),
-    string: <T extends string[] = string[]>(...literals: T) => new SchemaString<T[number] extends never ? string : T[number], never>(),
+    number: <T extends number[] = number[]>(...literals: T) => new SchemaNumber<T[number] extends never ? number : T[number], never>(null, literals),
+    string: <T extends string[] = string[]>(...literals: T) => new SchemaString<T[number] extends never ? string : T[number], never>(null, literals),
     boolean: <T extends boolean = boolean>() => new SchemaBoolean<T, never>(),
     date: <T extends Date = Date>() => new SchemaDate<T, never>(),
-    array: <T extends any>(schema: SchemaBase<T, never>) => new SchemaArray<SchemaBase<T, never>, never>(),
+    array: <T extends any>(schema: SchemaBase<T, never>) => new SchemaArray<SchemaBase<T, never>, never>(schema as any),
     object: <T extends {} = {}>(schema: T) => new SchemaObject<T, never>(schema),
     define: <T extends {}>(collectionName: string, schema: T) => new SchemaDefinition<T>(collectionName, schema)
 }
@@ -87,6 +88,7 @@ export type CompiledSchema<TEntity extends {}> = {
     hasIdentityKeys: boolean;
     freeze: (entity: InferType<TEntity>) => InferType<TEntity>;
     enableChangeTracking: (entity: InferType<TEntity>) => InferType<TEntity>;
+    definition: SchemaDefinition<TEntity>;
 }
 
 export type PropertySerializer<T extends any> = (value: T) => string | number;
@@ -110,13 +112,6 @@ export type SchemaModifiers = "default" | "deserialize" |
     "readonly" | "serialize" |
     "unmapped" | "computed";
 
-// type InferPrimitive<T> =
-//     T extends SchemaObject<infer Obj, infer _> ?
-//     { [K in keyof Obj]: InferPrimitive<Obj[K]> } : // Process nested objects
-//     T extends SchemaBase<infer X, infer _> ?
-//     X : // Extract the primitive type
-//     never;
-
 type InferPrimitive<T> =
     T extends SchemaArray<infer Y, infer __> ? InferPrimitive<Y>[]
     : T extends SchemaObject<infer Obj, infer _> ?
@@ -125,8 +120,9 @@ type InferPrimitive<T> =
     X : // Extract the primitive type
     never;
 
-export type InferType<T> = T extends CompiledSchema<infer R> ? InferCompiledSchema<R> : T extends {} ? InferCompiledSchema<T> : unknown;
+export type InferType<T> = T extends CompiledSchema<infer R> ? InferCompiledSchema<R> : T extends {} ? InferCompiledSchema<T> : T;
 export type InferCreateType<T> = T extends CompiledSchema<infer R> ? InferCompiledCreateSchema<R> : T extends {} ? InferCompiledCreateSchema<T> : unknown;
+export type InferMappedType<T> = T extends SchemaBase<infer K, infer __> ? InferType<K> : InferCompiledSchema<T>;
 
 type HasModifier<T, K extends keyof T, M extends SchemaModifiers> =
     T[K] extends SchemaBase<any, infer Mods> ?

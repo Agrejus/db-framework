@@ -10,9 +10,19 @@ export abstract class DataTranslator {
     abstract default<T>(data: unknown): T;
     abstract skip<T>(data: unknown): T;
     abstract take<T>(data: unknown): T;
+    abstract sort<T>(data: unknown): T;
+    abstract map<T>(data: unknown): T;
 
     translate<T extends {}, TShape>(data: unknown, query: IQuery<T, TShape>): TShape {
 
+        if (query.options.sort != null && query.options.sort.length > 0) {
+            // don't return, we are sorting in place
+            this.sort(data);
+        }
+
+        if (query.options.shaper != null) {
+            data = this.map(data) as TShape;
+        }
 
         if (query.options.skip != null && query.options.skip > 0) {
             data = this.skip(data) as TShape;

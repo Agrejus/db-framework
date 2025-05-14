@@ -9,7 +9,7 @@ export abstract class QueryRoot<T extends {}> {
     protected readonly dataBridge: DataBridge<T>;
     protected readonly changeTracker: ChangeTracker<T>;
     protected filters: Filterable<T, any>[] = [];
-    protected mapValue: EntityMap<T, T[keyof T] | Partial<T>> | null = null;
+    protected mapValue: EntityMap<T, T[keyof T] | {}> | null = null;
     protected takeValue: number | null = null;
     protected skipValue: number | null = null;
     protected sorting: { direction: QueryOrdering, selector: EntityMap<T, T[keyof T]> }[] = [];
@@ -64,7 +64,8 @@ export abstract class QueryRoot<T extends {}> {
             skip: this.skipValue,
             sum: this.sumValue,
             take: this.takeValue,
-            fields
+            fields,
+            shaper: this.mapValue
         }
     }
 
@@ -93,7 +94,7 @@ export abstract class QueryRoot<T extends {}> {
         return sorting.map(sort => {
             const propertyName = this._getSortPropertyName(sort.selector);
 
-            return { direction: sort.direction, key: propertyName }
+            return { direction: sort.direction, key: propertyName, selector: sort.selector }
         });
     }
 
@@ -220,6 +221,7 @@ export abstract class QueryRoot<T extends {}> {
                 return;
             }
 
+            // if change tracking is true, we will never be shaping the result from .map()
             if (query.changeTracking === true) {
                 const enriched = this.changeTracker.enrich(result as any);
                 const resolved = this.changeTracker.resolve(enriched);

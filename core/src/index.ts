@@ -61,6 +61,7 @@ export {
     CompiledSchema,
     InferType,
     InferCreateType,
+    InferMappedType,
     SchemaTypes,
     SchemaModifiers,
     s,

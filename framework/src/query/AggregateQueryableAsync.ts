@@ -1,14 +1,15 @@
+import { InferType } from "@agrejus/db-framework-core";
 import { createPromise } from "../utilities";
 import { AggregateQueryable } from "./AggregateQueryable";
 
 export class AggregateQueryableAsync<T extends {}> extends AggregateQueryable<T> {
 
-    minAsync(): Promise<T> {
-        return createPromise<T>(w => this.min(w));
+    minAsync() {
+        return createPromise<InferType<T>>(w => this.min(w));
     }
 
     maxAsync() {
-        return createPromise<T>(w => this.max(w));
+        return createPromise<InferType<T>>(w => this.max(w));
     }
 
     sumAsync() {
@@ -20,6 +21,6 @@ export class AggregateQueryableAsync<T extends {}> extends AggregateQueryable<T>
     }
 
     distinctAsync() {
-        return createPromise<T>(w => this.distinct(w));
+        return createPromise<InferType<T>[]>(w => this.distinct(w));
     }
 }

@@ -1,5 +1,5 @@
 import { SchemaTypes } from '..';
-import { PropertyDeserializer, PropertySerializer } from '../schema';
+import { PropertyDeserializer, PropertySerializer, SchemaArray } from '../schema';
 import { SchemaBase } from '../schema/property/base/Base';
 import { DefaultValue, FunctionBody } from '../types';
 
@@ -22,6 +22,8 @@ export class PropertyInfo<T extends {}> {
     readonly functionBody: FunctionBody<any, T> | null;
     readonly children: PropertyInfo<T>[] = [];
     readonly schema: SchemaBase<T, any>;
+    readonly innerSchema?: SchemaBase<unknown, any>;
+    readonly literals: T[];
 
     readonly parent?: PropertyInfo<T>;
 
@@ -29,6 +31,11 @@ export class PropertyInfo<T extends {}> {
         this.schema = schema;
         this.name = name;
         this.type = schema.type;
+        this.literals = schema.literals;
+
+        if (schema instanceof SchemaArray) {
+            this.innerSchema = schema.innerSchema;
+        }
 
         this.isNullable = schema.isNullable;
         this.isOptional = schema.isOptional;

@@ -34,4 +34,12 @@ export class SqlTranslator extends DataTranslator {
     take<T>(data: unknown): T {
         return data as T
     }
+
+    sort<T>(data: unknown): T {
+        return data as T
+    }
+
+    map<T>(data: unknown): T {
+        return data as T
+    }
 }

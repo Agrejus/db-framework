@@ -21,8 +21,21 @@ export class Query<TEntity extends {}, TShape extends any = TEntity> implements 
         this.expression = expression;
     }
 
+    // boolean value whether or not change tracking can be enabled on the query result
     get changeTracking(): boolean {
-        return this.options.fields?.length == null || this.options.fields.length === 0
+
+        if (this.options.fields?.length != null && this.options.fields.length > 0) {
+            return false
+        }
+
+        if (this.options.count === true ||
+            this.options.max === true ||
+            this.options.min === true ||
+            this.options.sum === true) {
+            return false
+        }
+
+        return true;
     }
 
     filter(data: TShape): TShape {

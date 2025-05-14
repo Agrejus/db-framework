@@ -34,9 +34,10 @@ export type QueryOptions = {
     sum?: boolean;
     distinct?: boolean;
     fields?: QueryField[];
+    shaper?: (item: unknown) => unknown;
 }
 
-export type QuerySort = { key: string, direction: "asc" | "desc" };
+export type QuerySort = { key: string, selector: (item: unknown) => unknown, direction: "asc" | "desc" };
 
 export type IQuery<TEntity extends {}, TShape extends any = TEntity> = {
     schema: CompiledSchema<TEntity>;

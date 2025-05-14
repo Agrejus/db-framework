@@ -1,5 +1,4 @@
 import { EntityMap } from "../types";
-import { AggregateQueryableAsync } from "./AggregateQueryableAsync";
 import { LimitedQueryableAsync } from "./LimitedQueryableAsync";
 import { OrderedQueryableAsync } from "./OrderedQueryableAsync";
 import { SelectionQueryableAsync } from "./SelectionQueryableAsync";
@@ -16,31 +15,6 @@ export class ShapedQueryableAsync<T extends {}> extends SelectionQueryableAsync<
     take(amount: number) {
         this.takeValue = amount;
         return new LimitedQueryableAsync<T>({ queryable: this })
-    }
-
-    min() {
-        this.minValue = true;
-        return new AggregateQueryableAsync<T>({ queryable: this });
-    }
-
-    max() {
-        this.maxValue = true;
-        return new AggregateQueryableAsync<T>({ queryable: this });
-    }
-
-    sum() {
-        this.sumValue = true;
-        return new AggregateQueryableAsync<T>({ queryable: this });
-    }
-
-    count() {
-        this.countValue = true;
-        return new AggregateQueryableAsync<T>({ queryable: this });
-    }
-
-    distinct() {
-        this.distinctValue = true;
-        return new AggregateQueryableAsync<T>({ queryable: this });
     }
 
     order(selector: EntityMap<T, T[keyof T]>) {
