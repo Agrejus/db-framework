@@ -1,5 +1,5 @@
 import { TrampolinePipeline } from '../common/TrampolinePipeline';
-import { CompiledSchema, InferCreateType, InferType } from '../schema';
+import { CompiledSchema, InferCreateType } from '../schema';
 import { EntityChanges, EntityModificationResult, IDbPlugin, IdbPluginCollection, IQuery } from './types';
 
 type OperationsPayload = {
@@ -16,10 +16,10 @@ type PersistPayload<TEntity extends {}> = OperationsPayload & {
 
 export class DbPluginReplicator implements IDbPlugin {
 
-    private _plugins: IdbPluginCollection;
+    plugins: IdbPluginCollection;
 
     private constructor(plugins: IdbPluginCollection) {
-        this._plugins = plugins;
+        this.plugins = plugins;
     }
 
     /**
@@ -29,16 +29,19 @@ export class DbPluginReplicator implements IDbPlugin {
      * @param replicas Additional database plugins that will replicate operations from the source
      * @returns A new DbPluginReplicator instance that manages the source-replica relationship
      */
-    static create(source: IDbPlugin, ...replicas: IDbPlugin[]) {
-        return new DbPluginReplicator({
-            source,
-            replicas
-        });
+    static create(plugins: IdbPluginCollection) {
+        return new DbPluginReplicator(plugins);
     }
 
+    /**
+     * Will query the read plugin if there is one, otherwise the source plugin will be queried
+    */
     query<TEntity extends {}, TShape extends any = TEntity>(query: IQuery<TEntity, TShape>, done: (result: TShape, error?: any) => void): void {
         try {
-            this._plugins.source.query(query, done);
+
+            const plugin = this.plugins.read != null ? this.plugins.read : this.plugins.source;
+
+            plugin.query(query, done);
         } catch (e: any) {
             done(null, e);
         }
@@ -48,7 +51,7 @@ export class DbPluginReplicator implements IDbPlugin {
         try {
 
             const pipeline = new TrampolinePipeline<OperationsPayload>();
-            const plugins = [this._plugins.source, ...this._plugins.replicas];
+            const plugins = [this.plugins.source, ...this.plugins.replicas];
             const data: OperationsPayload = {
                 plugins,
                 index: 0,
@@ -135,7 +138,12 @@ export class DbPluginReplicator implements IDbPlugin {
         try {
             // insert into the source first to generate any ids, then take the result and persist that into the replicas
             const pipeline = new TrampolinePipeline<OperationsPayload>();
-            const plugins = [this._plugins.source, ...this._plugins.replicas];
+            const plugins = [this.plugins.source, ...this.plugins.replicas];
+
+            if (this.plugins.read != null) {
+                plugins.push(this.plugins.read);
+            }
+
             const data: PersistPayload<TEntity> = {
                 plugins,
                 index: 0,

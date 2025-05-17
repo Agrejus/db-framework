@@ -164,7 +164,6 @@ export abstract class QueryRoot<T extends {}> {
         try {
             return toExpression(this.dataBridge.schema, filter.filter, {});
         } catch (e) {
-            console.warn(`[WARNING] - Failed to parse selector to expression, falling back to memory filtering.  Selector: ${filter.filter.toString()}, Params: ${JSON.stringify(filter.params ?? {})}`)
             return null; // fallback to memory filtering
         }
     }

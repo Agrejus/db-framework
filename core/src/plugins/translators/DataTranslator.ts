@@ -1,6 +1,12 @@
 import { IQuery } from "../types";
 
-export abstract class DataTranslator {
+export abstract class DataTranslator<T extends {}, TShape> {
+
+    protected query: IQuery<T, TShape>;
+
+    constructor(query: IQuery<T, TShape>) {
+        this.query = query;
+    }
 
     abstract count<T extends number>(data: unknown): T;
     abstract min<T extends string | number | Date>(data: unknown): T;
@@ -13,42 +19,42 @@ export abstract class DataTranslator {
     abstract sort<T>(data: unknown): T;
     abstract map<T>(data: unknown): T;
 
-    translate<T extends {}, TShape>(data: unknown, query: IQuery<T, TShape>): TShape {
+    translate(data: unknown): TShape {
 
-        if (query.options.sort != null && query.options.sort.length > 0) {
+        if (this.query.options.sort != null && this.query.options.sort.length > 0) {
             // don't return, we are sorting in place
             this.sort(data);
         }
 
-        if (query.options.shaper != null) {
+        if (this.query.options.shaper != null) {
             data = this.map(data) as TShape;
         }
 
-        if (query.options.skip != null && query.options.skip > 0) {
+        if (this.query.options.skip != null && this.query.options.skip > 0) {
             data = this.skip(data) as TShape;
         }
 
-        if (query.options.take != null && query.options.take > 0) {
+        if (this.query.options.take != null && this.query.options.take > 0) {
             data = this.take(data) as TShape;
         }
 
-        if (query.options.count === true) {
+        if (this.query.options.count === true) {
             return this.count(data) as TShape;
         }
 
-        if (query.options.distinct === true) {
+        if (this.query.options.distinct === true) {
             return this.distinct(data) as TShape;
         }
 
-        if (query.options.max === true) {
+        if (this.query.options.max === true) {
             return this.max(data) as TShape;
         }
 
-        if (query.options.min === true) {
+        if (this.query.options.min === true) {
             return this.min(data) as TShape;
         }
 
-        if (query.options.sum === true) {
+        if (this.query.options.sum === true) {
             return this.sum(data) as TShape;
         }
 

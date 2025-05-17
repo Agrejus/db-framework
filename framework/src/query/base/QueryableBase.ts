@@ -23,12 +23,12 @@ export class QueryableBase<T extends {}, U = void> extends SelectionQueryable<T,
         return new LimitedQueryable<T, U>({ queryable: this })
     }
 
-    order(expression: EntityMap<T, T[keyof T]>) {
+    sort(expression: EntityMap<T, T[keyof T]>) {
         this.sorting.push({ selector: expression, direction: QueryOrdering.Ascending });
         return new OrderedQueryable<T, U>({ queryable: this });
     }
 
-    orderDescending(expression: EntityMap<T, T[keyof T]>) {
+    sortDescending(expression: EntityMap<T, T[keyof T]>) {
         this.sorting.push({ selector: expression, direction: QueryOrdering.Descending });
         return new OrderedQueryable<T, U>({ queryable: this });
     }

@@ -17,12 +17,12 @@ export class ShapedQueryableAsync<T extends {}> extends SelectionQueryableAsync<
         return new LimitedQueryableAsync<T>({ queryable: this })
     }
 
-    order(selector: EntityMap<T, T[keyof T]>) {
+    sort(selector: EntityMap<T, T[keyof T]>) {
         this.sorting.push({ selector, direction: QueryOrdering.Ascending });
         return new OrderedQueryableAsync<T>({ queryable: this });
     }
 
-    orderDescending(selector: EntityMap<T, T[keyof T]>) {
+    sortDescending(selector: EntityMap<T, T[keyof T]>) {
         this.sorting.push({ selector, direction: QueryOrdering.Descending });
         return new OrderedQueryableAsync<T>({ queryable: this });
     }

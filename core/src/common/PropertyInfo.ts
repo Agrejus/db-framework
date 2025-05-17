@@ -159,9 +159,16 @@ export class PropertyInfo<T extends {}> {
 
     getAssignmentPath(options?: { parent?: string }) {
         const parts = this._resolvePathArray({
-            root: options.parent,
+            root: options?.parent,
             assignmentType: "ASSIGNMENT"
         });
+
+        // if there is no parent the first item in the parts list is a .
+        if (options?.parent == null) {
+            parts.shift();
+
+            return parts.join("");
+        }
 
         return parts.join("");
     }

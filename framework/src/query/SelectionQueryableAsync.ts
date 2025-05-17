@@ -1,6 +1,7 @@
 import { Filter, ParamsFilter } from "@agrejus/db-framework-core";
 import { createPromise } from "../utilities";
 import { SelectionQueryable } from "./SelectionQueryable";
+import { AggregateQueryableAsync } from './AggregateQueryableAsync';
 
 export class SelectionQueryableAsync<T extends {}> extends SelectionQueryable<T> {
 

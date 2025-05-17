@@ -7,9 +7,20 @@ export interface IDbPlugin {
     bulkOperations<TEntity extends {}>(schema: CompiledSchema<TEntity>, operations: EntityChanges<TEntity>, done: (result: EntityModificationResult<TEntity>, error?: any) => void): void;
 }
 
+/**
+ * Represents a collection of database plugins with a primary source and optional replicas
+ * Used for implementing read/write separation and high availability
+ */
 export type IdbPluginCollection = {
+    /** The primary database plugin that handles all write operations, do not include in the list of replicas */
     source: IDbPlugin;
+    /** Array of replica database plugins that can be used for read operations */
     replicas: IDbPlugin[];
+    /** The primary database plugin that handles all read operations, do not include in the list of replicas.  
+     * Used when the source plugin should generate the identity properties, but the read replica will only
+     * read data.  Typically this is a MemoryPlugin.  Should not be included in the list of replicas
+     */
+    read?: IDbPlugin;
 }
 
 export type EntityChanges<T extends {}> = {
@@ -45,7 +56,7 @@ export type IQuery<TEntity extends {}, TShape extends any = TEntity> = {
     options: QueryOptions;
     filters: Filterable<TShape, any>[];
     filter: (data: TShape) => TShape;
-    // we can only enable change tracking when we do not change (reduce/aggregate) the response
+    // we can only enable change tracking when we do not change (reduce/aggregate/map) the response
     // from the database
     get changeTracking(): boolean;
 };

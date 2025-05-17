@@ -1,3 +1,5 @@
+import { DbPluginLogging } from "../plugins/DbPluginLogging";
+
 export const toMap = <T extends {}>(data: T[], keySelector: (item: T) => T[keyof T] | string) => {
 
     const result = new Map<T[keyof T] | string, T>();
@@ -85,7 +87,7 @@ export function formatFunctionString(codeString: string) {
     return formattedLines.join("\n");
 }
 
-export const isDate = (data: unknown) => {
+export const isDate = (data: unknown): data is Date => {
     if (data == null) {
         return false;
     }
@@ -101,4 +103,50 @@ export const assertDate = (data: unknown): asserts data is Date => {
     if (isDate(data) === false) {
         throw new TypeError('Value is not a Date');
     }
+}
+
+export const now = (): number => {
+
+    if (typeof performance !== 'undefined' && performance.now) {
+        // Browser or modern Node.js
+        return performance.now();
+    } else if (typeof require !== 'undefined') {
+        // Older Node.js
+        try {
+            const { performance } = require('perf_hooks');
+            return performance.now();
+        } catch (e) {
+            // Fallback if perf_hooks is not available
+            return Date.now();
+        }
+    }
+
+    // Fallback for very old environments
+    return Date.now();
+}
+
+export const assertIsNotNull = <T>(data: unknown, message?: string): asserts data is T => {
+    if (data == null) {
+        throw new TypeError(message ?? 'Assertion failed, data is null');
+    }
+}
+
+export const assertInstanceOf = <T extends new (...args: any[]) => any>(value: unknown, Instance: T): asserts value is T => {
+    if (value instanceof Instance) {
+        return;
+    }
+
+    if (typeof value === "object" && "constructor" in value) {
+        throw new TypeError(`Value is not instance of type.  Type: ${value.constructor.name}`);
+    }
+
+    throw new TypeError(`Value is not instance of type`);
+}
+
+export const assertInstanceOfDbPluginLogging = (value: unknown): asserts value is DbPluginLogging => {
+    if (value instanceof DbPluginLogging) {
+        return;
+    }
+
+    throw new TypeError(`Value is not instance of DbPluginLogging`);
 }

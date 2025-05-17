@@ -3,7 +3,25 @@ import { CompiledSchema, DeepPartial, EntityChanges, EntityModificationResult, I
 let data: Record<string, Map<IdType, Record<string, unknown>>> = {};
 const numericalIds: Record<string, number> = {};
 
+export const assertIsMemoryPlugin = (value: unknown): asserts value is MemoryPlugin => {
+    if (value instanceof MemoryPlugin) {
+        return;
+    }
+
+    throw new TypeError(`Value is not instance of type MemoryPlugin`);
+}
+
 export class MemoryPlugin implements IDbPlugin {
+
+    get size() {
+        let count = 0;
+
+        for (const key in data) {
+            count += data[key].size;
+        }
+
+        return count;
+    }
 
     destroy(done: (error?: any) => void): void {
         data = {};
@@ -142,7 +160,7 @@ export class MemoryPlugin implements IDbPlugin {
             const result = query.filter(collection as TShape);
 
             // translate if we are doing any operations like count/sum/min/max/skip/take
-            const translated = translator.translate(result, query);
+            const translated = translator.translate(result);
 
             done(translated);
 

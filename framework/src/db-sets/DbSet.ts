@@ -227,7 +227,7 @@ export class DbSet<TEntity extends {}> {
             dataBridge: this.dataBridge as any,
             changeTracker: this.changeTracker as any
         });
-        return result.order(selector);
+        return result.sort(selector);
     }
 
     sortDescending(selector: EntityMap<InferType<TEntity>, InferType<TEntity>[keyof InferType<TEntity>]>) {
@@ -236,7 +236,7 @@ export class DbSet<TEntity extends {}> {
             changeTracker: this.changeTracker as any
         });
 
-        return result.orderDescending(selector);
+        return result.sortDescending(selector);
     }
 
     map<R extends TEntity[keyof TEntity] | {}>(expression: EntityMap<TEntity, R>) {

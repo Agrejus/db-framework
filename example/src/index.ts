@@ -1,6 +1,8 @@
 import { DataContext } from "@agrejus/db-framework";
-import { s, uuid, InferType } from "@agrejus/db-framework-core";
-import { PouchDbPlugin } from "@agrejus/db-framework-plugin-pouchdb";
+import { s, uuid, InferType, DbPluginLogging } from "@agrejus/db-framework-core";
+import { MemoryPlugin } from "@agrejus/db-framework-plugin-memory";
+import { PouchDbPlugin, toMango } from "@agrejus/db-framework-plugin-pouchdb";
+import { setQueryOptions } from "@agrejus/db-framework-plugin-pouchdb/dist/expressionResolver";
 import { performance } from 'perf_hooks'
 
 // const model = s.define("MY_TABLE", {
@@ -15,7 +17,7 @@ import { performance } from 'perf_hooks'
 //     documentType: w.computed((_, t) => t).tracked()
 // })).compile();
 
-const nested = s.define("MY_NESTED_TABLE", {
+const nested = s.define("products", {
     _id: s.string().key().identity(),
     more: s.object({
         one: s.string(),
@@ -51,15 +53,32 @@ type Test = InferType<typeof nested>;
 //     documentType: w.computed((_, t) => t).tracked()
 // })).compile();
 
-const plugin = new PouchDbPlugin("testing-db");
+const memoryPlugin = new MemoryPlugin();
+const memoryPluginWithLogging = DbPluginLogging.create(memoryPlugin);
+const pouchDbPlugin = new PouchDbPlugin("test-db");
+const pouchDbPluginWithLogging = DbPluginLogging.create(pouchDbPlugin).setHook("onQueryRequest", (data) => {
+    if (data.query.expression != null) {
+
+        const request = {
+            selector: {}
+        };
+
+        request.selector = toMango(data.query.expression);
+
+        setQueryOptions(data.query.options, request);
+
+        data.query.mango = request;
+    }
+})
+
 class Ctx extends DataContext {
 
     constructor() {
-        super(plugin);
+        super(pouchDbPluginWithLogging);
     }
 
     // test = this.dbset(model).create();
-    nested = this.dbset(nested).create();
+    nested = this.dbset(nested).stateful().create();
     // date = this.dbset(modelWithDate).create();
 }
 
@@ -70,13 +89,13 @@ const r = async () => {
         // they are not taking into account defaults
         debugger;
         const ctx = new Ctx();
-        debugger;
+
 
         // await ctx.date.addAsync({
         //     name: "James"
         // });
 
-        await ctx.saveChangesAsync();
+        // await ctx.saveChangesAsync();
 
         await ctx.nested.addAsync({
             child: {
@@ -93,17 +112,23 @@ const r = async () => {
             more: {
                 one: "one",
                 two: "two"
-            }
+            },
+            order: 100
         });
 
         await ctx.saveChangesAsync();
-        const s1 = performance.now();
-        const r = await ctx.nested.where(w => w.name == "James").firstOrUndefinedAsync();
-        console.log('DONE 5', performance.now() - s1, r);
+        //const r3 = await ctx.nested.where(w => w.name == "James").map(w => w.name).firstOrUndefinedAsync();
 
-        const s2 = performance.now();
-        const r2 = await ctx.nested.where(w => w.name == "James").firstOrUndefinedAsync();
-        console.log('DONE 6', performance.now() - s2, r2)
+        // why is this not working? we are falling back to non expression querying, we should be using it!
+        const r4 = await ctx.nested.where(w => w.order === 100).map(w => w.order).sumAsync();
+        console.log(r4);
+
+        const r1 = await ctx.nested.where(w => w.name == "James").firstOrUndefinedAsync();
+        const r2 = await ctx.nested.where(([w, d]) => w.name == d.name, { name: "James" }).firstOrUndefinedAsync();
+
+
+        await ctx.nested.where(w => w.name == "James").firstOrUndefinedAsync();
+
 
         // const s1 = performance.now();
         // ctx.nested.where(w => w.name == "James").firstOrUndefined((r, e) => {
@@ -117,55 +142,55 @@ const r = async () => {
 
         const s3 = performance.now();
         ctx.nested.where(w => w.name == "James").toArray((r, e) => {
-            console.log('DONE 3', performance.now() - s3, r, e)
+
         });
 
-        const [result] = await ctx.nested.addAsync({
-            name: "",
-            order: 1,
-            child: {
-                name: "",
-                nested: {
-                    more: {
-                        array: [],
-                        final: 1
-                    },
-                    winner: 1
-                }
-            },
-            more: {
-                one: "one",
-                two: "two"
-            }
-        });
+        // const [result] = await ctx.nested.addAsync({
+        //     name: "",
+        //     order: 1,
+        //     child: {
+        //         name: "",
+        //         nested: {
+        //             more: {
+        //                 array: [],
+        //                 final: 1
+        //             },
+        //             winner: 1
+        //         }
+        //     },
+        //     more: {
+        //         one: "one",
+        //         two: "two"
+        //     }
+        // });
 
         // await ctx.saveChangesAsync();
 
         // we need to stop returning a new Data Access manager, can we put this in the plugin instead?
         const unsubscribe = ctx.nested.where(w => w.name == "James").subscribe().toArray((r, e) => {
-            console.log('DONE', r, e)
+
         });
 
-        for (let i = 0; i < 50; i++) {
-            await ctx.nested.addAsync({
-                name: `James ${i}`,
-                order: i,
-                child: {
-                    name: "",
-                    nested: {
-                        more: {
-                            array: [],
-                            final: i
-                        },
-                        winner: i
-                    }
-                },
-                more: {
-                    one: "one",
-                    two: "two"
-                }
-            });
-        }
+        // for (let i = 0; i < 50; i++) {
+        //     await ctx.nested.addAsync({
+        //         name: `James ${i}`,
+        //         order: i,
+        //         child: {
+        //             name: "",
+        //             nested: {
+        //                 more: {
+        //                     array: [],
+        //                     final: i
+        //                 },
+        //                 winner: i
+        //             }
+        //         },
+        //         more: {
+        //             one: "one",
+        //             two: "two"
+        //         }
+        //     });
+        // }
 
 
         // const [added] =  await ctx.test.addAsync({
@@ -178,7 +203,7 @@ const r = async () => {
         // after we call 'getChanges', we should call prepare on the adds and return a new object, then
         // we can merge on the result and merge the resulting object.  We can forget about the object we send 
         // over to save
-        debugger;
+
 
         // looks like PDB always returns 1 document when limit is 1... wtf?
 
@@ -187,33 +212,33 @@ const r = async () => {
 
 
         const x = await ctx.nested.firstOrUndefinedAsync(w => w.child.name == "test");
-        debugger;
+
         const x1 = await ctx.nested.where(w => w.child.name.startsWith("other")).toArrayAsync();
-        debugger;
+
         // Weird stuff is happening here
         // we are trying to auto create indexes
         // const x3 = await ctx.nested.order(w => w.order).toArrayAsync();
         // const x2 = await ctx.nested.order(w => w.name).toArrayAsync();
-        debugger;
+
         const xx = await ctx.nested.firstOrUndefinedAsync(w => w._id === "");// we are working on it.  Mango query is too loose
         const xx1 = await ctx.nested.firstOrUndefinedAsync(w => w.name === "");// we are working on it.  Mango query is too loose
-        debugger;
+
         const xxx = await ctx.nested.firstOrUndefinedAsync(w => w._id === x9[0]._id);
-        debugger;
+
         // we need to have a dbset return a new queryable object and not reuse
         const s = await ctx.nested.someAsync(([w, p]) => w.name === p.name, { name: "James6" });
-        debugger;
+
         const foundOne = await ctx.nested.firstOrUndefinedAsync(w => w._id == "test");
-        debugger;
+
 
 
 
 
         const found = await ctx.nested.where(([w, p]) => w.name.startsWith(p.name), { name: "James" })
-            .order(w => w._id)
+            .sort(w => w._id)
             .map(w => ({ name: w.name, _id: w._id }))
             .toArrayAsync();
-        debugger;
+
         console.log(found)
 
 

@@ -68,4 +68,8 @@ export class Query<TEntity extends {}, TShape extends any = TEntity> implements 
         // Plugin did filtering
         return data;
     }
+
+    static all<T extends {}, TShape extends any = T>(schema: CompiledSchema<T>) {
+        return new Query<T, TShape>(schema, {}, []);
+    }
 }

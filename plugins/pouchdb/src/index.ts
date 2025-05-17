@@ -1,13 +1,16 @@
 import PouchDB from 'pouchdb';
-import { CompiledSchema, EntityChanges, EntityModificationResult, IDbPlugin, InferType, Query, SyncronousQueue, SyncronousUnitOfWork, toMap } from '@agrejus/db-framework-core';
-import { setQueryOptions, toMango } from './expression/resolver';
+import { CompiledSchema, EntityChanges, EntityModificationResult, IDbPlugin, InferType, IQuery, JsonTranslator, Query, SyncronousQueue, SyncronousUnitOfWork, toMap } from '@agrejus/db-framework-core';
+import { setQueryOptions, toMango } from './expressionResolver';
 import findAdapter from 'pouchdb-find';
+import { PouchDBTranslator } from './translator';
 
 PouchDB.plugin(findAdapter);
 const INDEX_NAME = "db_framework_order_index";
 
 // PouchDB cannot process operations asyncronously, we need a queue so we don't lock things up
 const queue = new SyncronousQueue();
+
+export { toMango };
 
 export class PouchDbPlugin implements IDbPlugin {
 
@@ -205,9 +208,8 @@ export class PouchDbPlugin implements IDbPlugin {
         queue.enqueue(unitOfWork.bind(this));
     }
 
-    query<TEntity extends {}>(query: Query<TEntity>, done: (entities: InferType<TEntity>[], error?: any) => void): void {
-
-        const unitOfWork: SyncronousUnitOfWork = (d) => this._query(query, (r, e) => {
+    query<TEntity extends {}, TShape extends unknown = TEntity>(query: IQuery<TEntity, TShape>, done: (result: TShape, error?: any) => void): void {
+        const unitOfWork: SyncronousUnitOfWork = (d) => this._query<TEntity, TShape>(query, (r, e) => {
             d();
             done(r, e)
         })
@@ -215,13 +217,14 @@ export class PouchDbPlugin implements IDbPlugin {
         queue.enqueue(unitOfWork.bind(this));
     }
 
-    private _query<TEntity extends {}>(query: Query<TEntity>, done: (entities: InferType<TEntity>[], error?: any) => void): void {
+    private _query<TEntity extends {}, TShape extends unknown = TEntity>(query: IQuery<TEntity, TShape>, done: (result: TShape, error?: any) => void): void {
 
         const request: PouchDB.Find.FindRequest<unknown> = {
             selector: {}
-        }
+        };
 
         if (query.expression == null) {
+            const jsonTranslator = new JsonTranslator<TEntity, TShape>(query);
 
             setQueryOptions(query.options, request);
 
@@ -238,7 +241,7 @@ export class PouchDbPlugin implements IDbPlugin {
                                 w.getIndexes((error, result) => {
 
                                     if (error != null) {
-                                        d([], error);
+                                        d(null, error);
                                         return;
                                     }
 
@@ -251,12 +254,16 @@ export class PouchDbPlugin implements IDbPlugin {
                                         }, (error) => {
 
                                             if (error != null) {
-                                                d([], error);
+                                                d(null, error);
                                                 return;
                                             }
 
                                             w.find(request, (error, result) => {
-                                                d(result?.docs ?? [] as any[], error)
+
+                                                // Filter our where clauses, we are in the fallback route
+                                                const filteredResult = query.filter(result.docs as TShape);
+
+                                                d(jsonTranslator.translate(filteredResult), error)
                                             });
                                         })
                                         return;
@@ -266,9 +273,8 @@ export class PouchDbPlugin implements IDbPlugin {
 
                                     if (found) {
                                         w.deleteIndex(found, (error) => {
-                                            /*  */
                                             if (error != null) {
-                                                d([], error);
+                                                d(null, error);
                                                 return;
                                             }
 
@@ -280,12 +286,16 @@ export class PouchDbPlugin implements IDbPlugin {
                                             }, (error) => {
 
                                                 if (error != null) {
-                                                    d([], error);
+                                                    d(null, error);
                                                     return;
                                                 }
 
                                                 w.find(request, (error, result) => {
-                                                    d(result?.docs ?? [] as any[], error)
+
+                                                    // Filter our where clauses, we are in the fallback route
+                                                    const filteredResult = query.filter(result.docs as TShape);
+
+                                                    d(jsonTranslator.translate(filteredResult), error)
                                                 });
                                             })
                                         })
@@ -299,12 +309,16 @@ export class PouchDbPlugin implements IDbPlugin {
                                         }
                                     }, (error) => {
                                         if (error != null) {
-                                            d([], error);
+                                            d(null, error);
                                             return;
                                         }
 
                                         w.find(request, (error, result) => {
-                                            d(result?.docs ?? [] as any[], error)
+
+                                            // Filter our where clauses, we are in the fallback route
+                                            const filteredResult = query.filter(result.docs as TShape);
+
+                                            d(jsonTranslator.translate(filteredResult), error)
                                         });
                                     });
                                 })
@@ -314,7 +328,10 @@ export class PouchDbPlugin implements IDbPlugin {
                         }
                     }
 
-                    d(result?.docs ?? [] as any[], error)
+                    // Filter our where clauses, we are in the fallback route
+                    const filteredResult = query.filter(result.docs as TShape);
+
+                    d(jsonTranslator.translate(filteredResult), error)
                 });
             }, done);
             return;
@@ -324,9 +341,12 @@ export class PouchDbPlugin implements IDbPlugin {
 
         setQueryOptions(query.options, request);
 
+        // PouchDB did all of the filtering for us, let's translate the response
+        const pouchDbTranslator = new PouchDBTranslator<TEntity, TShape>(query);
+
         this._doWork((w, d) => {
             w.find(request, (error, result) => {
-                d(result?.docs ?? [] as any[], error)
+                d(pouchDbTranslator.translate(result), error)
             });
         }, done);
 

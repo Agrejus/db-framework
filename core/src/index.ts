@@ -49,12 +49,16 @@ export {
     SqlTranslator
 } from './plugins/translators/SqlTranslator';
 
+export { DbPluginLogging } from './plugins/DbPluginLogging';
+
 export { Query } from './plugins/Query';
 
 export {
     toMap,
     isDate,
-    assertDate
+    assertDate,
+    assertIsNotNull,
+    assertInstanceOfDbPluginLogging
 } from './utilities';
 
 export {
@@ -85,4 +89,4 @@ export {
 
 export {
     DbPluginReplicator
-} from './plugins/replication';
+} from './plugins/DbPluginReplicator';

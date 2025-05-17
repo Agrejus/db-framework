@@ -1,6 +1,6 @@
 import { DataTranslator } from "./DataTranslator";
 
-export class SqlTranslator extends DataTranslator {
+export class SqlTranslator<TEntity extends {}, TShape> extends DataTranslator<TEntity, TShape> {
 
     // data should be the result we are looking for 
     count<T extends number>(data: unknown): T {

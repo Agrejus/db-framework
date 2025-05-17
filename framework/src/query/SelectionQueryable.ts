@@ -57,14 +57,6 @@ export class SelectionQueryable<T extends {}, U = void> extends AggregateQueryab
 
         this.takeValue = 1; // ensure we only select 1 record
 
-        const shaper = (r: T[]) => {
-            if (r.length === 0) {
-                return undefined
-            }
-
-            return r[0];
-        }
-
         this._query({
             doneOrExpression,
             done,

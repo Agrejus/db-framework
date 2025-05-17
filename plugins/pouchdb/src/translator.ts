@@ -1,22 +1,23 @@
-import { DataTranslator } from "./DataTranslator";
-import { isDate } from "../../utilities";
+import { DataTranslator, isDate } from '@agrejus/db-framework-core';
+import { assertIsResponse } from './utilities';
 
-export class JsonTranslator<TEntity extends {}, TShape> extends DataTranslator<TEntity, TShape> {
+export class PouchDBTranslator<TEntity extends {}, TShape> extends DataTranslator<TEntity, TShape> {
 
     map<T>(data: unknown): T {
+        assertIsResponse<TEntity>(data);
 
         if (this.query.options.shaper == null) {
             throw new Error("Cannot find internal map function");
         }
 
-        if (Array.isArray(data) == false) {
+        if (Array.isArray(data.docs) === false) {
             throw new Error("Can only map an array of data");
         }
 
-        const response = [];
+        const response: any = [];
 
-        for (let i = 0, length = data.length; i < length; i++) {
-            response.push(this.query.options.shaper(data[i]));
+        for (let i = 0, length = data.docs.length; i < length; i++) {
+            response.push(this.query.options.shaper(data.docs[i]));
         }
 
         return response as T;
@@ -41,6 +42,9 @@ export class JsonTranslator<TEntity extends {}, TShape> extends DataTranslator<T
     }
 
     sort<T>(data: unknown): T {
+
+        assertIsResponse<TEntity>(data);
+
         if (Array.isArray(data) && this.query.options.sort != null) {
 
             for (const sort of this.query.options.sort) {
@@ -107,7 +111,7 @@ export class JsonTranslator<TEntity extends {}, TShape> extends DataTranslator<T
 
             if (isDate(value)) {
                 needsDateConversion = true;
-                result.add(value.toISOString());
+                result.add((value as Date).toISOString());
                 continue;
             }
 
@@ -121,10 +125,16 @@ export class JsonTranslator<TEntity extends {}, TShape> extends DataTranslator<T
     }
 
     default<T>(data: unknown): T {
-        return data as T
+
+        assertIsResponse<TEntity>(data);
+
+        return data.docs as T
     }
 
     skip<T>(data: unknown): T {
+
+        assertIsResponse<TEntity>(data);
+
         if (Array.isArray(data)) {
 
             if (this.query.options.skip != null && this.query.options.skip > 0) {
@@ -143,6 +153,9 @@ export class JsonTranslator<TEntity extends {}, TShape> extends DataTranslator<T
     }
 
     take<T>(data: unknown): T {
+
+        assertIsResponse<TEntity>(data);
+
         if (Array.isArray(data)) {
 
             if (this.query.options.take != null && this.query.options.take > 0) {

@@ -29,6 +29,9 @@
   "peerDependencies": {
     "@agrejus/db-framework-core": "^2.0.0-beta.6"
   },
+  "dependencies": {
+    "@agrejus/db-framework-plugin-memory": "file://../plugins/memory"
+  },
   "devDependencies": {
     "@agrejus/db-framework-core": "file://../core",
     "@rspack/cli": "^1.1.8",

@@ -12,7 +12,8 @@
   "dependencies": {
     "@agrejus/db-framework-core": "file://../core",
     "@agrejus/db-framework": "file://../framework",
-    "@agrejus/db-framework-plugin-pouchdb": "file://../plugins/pouchdb"
+    "@agrejus/db-framework-plugin-pouchdb": "file://../plugins/pouchdb",
+    "@agrejus/db-framework-plugin-memory": "file://../plugins/memory"
   },
   "devDependencies": {
     "ts-node": "^10.9.2",

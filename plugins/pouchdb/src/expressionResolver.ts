@@ -9,7 +9,7 @@ export const setQueryOptions = (options: QueryOptions, query: PouchDB.Find.FindR
     }
     if (options.take != null) {
         query.limit = options.take;
-    } 
+    }
     else {
         query.limit = undefined; // select all
     }
@@ -76,7 +76,7 @@ export const toMango = (expression: Expression): PouchDB.Find.Selector => {
 
         throw new Error(`Unsupported operator: ${operatorExp.operator}`);
     }
-    
+
     if (expression.type === "comparator") {
         const comparatorExp = expression as ComparatorExpression;
         const propertyInfo = (comparatorExp.left as PropertyPathExpression).property;

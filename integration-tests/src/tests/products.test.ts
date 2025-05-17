@@ -529,4 +529,40 @@ describe('Product Creation', () => {
         const expectedSum = all.filter(w => w.price > 100).reduce((a, v) => a + v.price, 0);
         expect(expectedSum).toBe(count);
     });
+
+    it('where + where', async () => {
+        // Arrange
+        const context = BasicDataContext.create();
+        await seedData(context, 200);
+
+        const all = await context.products.toArrayAsync();
+        const count = await context.products.where(w => w.price > 100).where(w => w.name.startsWith("s")).toArrayAsync();
+
+        const expectedSum = all.filter(w => w.price > 100 && w.name.startsWith("s"));
+
+        expectedSum.sort();
+        count.sort();
+
+        expect(expectedSum).toStrictEqual(count);
+    });
+
+    it('where + sort + toArrayAsync', async () => {
+        // Arrange
+        const context = BasicDataContext.create();
+        await seedData(context, 200);
+
+        const all = await context.products.toArrayAsync();
+        const result = await context.products
+            .where(w => w.price > 100)
+            .sortDescending(w => w.price)
+            .map(w => w.price)
+            .toArrayAsync();
+
+        const expected = all.filter(w => w.price > 100).map(w => w.price);
+
+        expected.sort((a, b) => b - a)
+
+
+        expect(expected).toStrictEqual(result);
+    });
 }); 
