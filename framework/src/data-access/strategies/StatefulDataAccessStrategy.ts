@@ -1,26 +1,43 @@
-import { CompiledSchema, EntityChanges, EntityModificationResult, IdType, InferType, Query, SyncronousQueue, SyncronousUnitOfWork, JsonTranslator, DbPluginReplicator, assertIsNotNull, InferCreateType, DbPluginLogging, IDbPlugin } from "@agrejus/db-framework-core";
+import { CompiledSchema, EntityChanges, EntityModificationResult, InferType, Query, assertIsNotNull, InferCreateType, DbPluginLogging, IDbPluginReplicator, OptimisticDbPluginReplicator, assertInstanceOfDbPluginLogging, IDbPlugin, DbPluginReplicator } from "@agrejus/db-framework-core";
 import { IDataAccessStrategy } from "../types";
 import { DataAccessStrategyBase } from "./DataAccessStrategyBase";
 import { assertIsMemoryPlugin, MemoryPlugin } from "@agrejus/db-framework-plugin-memory";
-import { assertInstanceOfDbPluginLogging } from "@agrejus/db-framework-core/dist/utilities";
+import { DbSetOptions, StatefulDbSetOptions } from "../../types";
 
-let replicator: DbPluginReplicator;
+let dbPluginReplicator: IDbPluginReplicator;
+
+const getReplicator = (dbPlugin: IDbPlugin, optimistic?: boolean) => {
+    if (dbPluginReplicator != null) {
+        return dbPluginReplicator;
+    }
+
+    if (optimistic === true) {
+        dbPluginReplicator = OptimisticDbPluginReplicator.create({
+            replicas: [],
+            source: dbPlugin,
+            read: dbPlugin instanceof DbPluginLogging ? DbPluginLogging.create(new MemoryPlugin()) : new MemoryPlugin()
+        });
+    } else {
+        dbPluginReplicator = DbPluginReplicator.create({
+            replicas: [],
+            source: dbPlugin,
+            read: dbPlugin instanceof DbPluginLogging ? DbPluginLogging.create(new MemoryPlugin()) : new MemoryPlugin()
+        });
+    }
+
+    return dbPluginReplicator;
+}
 
 export class StatefulDataAccessStrategy<T extends {}> extends DataAccessStrategyBase<T> implements IDataAccessStrategy<T> {
 
-    bulkOperations(schema: CompiledSchema<T>, operations: EntityChanges<T>, done: (result: EntityModificationResult<T>, error?: any) => void) {
-        super._bulkOperations(schema, operations, done);
+    bulkOperations(dbSetOptions: DbSetOptions, schema: CompiledSchema<T>, operations: EntityChanges<T>, done: (result: EntityModificationResult<T>, error?: any) => void) {
+        const optimistic = (dbSetOptions as StatefulDbSetOptions).optimistic;
+        getReplicator(this.dbPlugin, optimistic).bulkOperations(schema, operations, done);
     }
 
-    fetch<TShape>(query: Query<T, TShape>, done: (response: TShape, error?: any) => void) {
+    fetch<TShape>(_: DbSetOptions, query: Query<T, TShape>, done: (response: TShape, error?: any) => void) {
 
-        if (replicator == null) {
-            replicator = DbPluginReplicator.create({
-                replicas: [],
-                source: this.dbPlugin,
-                read: this.dbPlugin instanceof DbPluginLogging ? DbPluginLogging.create(new MemoryPlugin()) : new MemoryPlugin()
-            })
-        }
+        const replicator = getReplicator(this.dbPlugin);
 
         assertIsNotNull(replicator.plugins.read, "Read plugin cannot be null for stateful dbsets");
 
@@ -48,8 +65,8 @@ export class StatefulDataAccessStrategy<T extends {}> extends DataAccessStrategy
                     return;
                 }
 
-                // Add data from main plugin
-                replicator.bulkOperations(this.schema, {
+                // Add data to the read plugin
+                readPlugin.bulkOperations(this.schema, {
                     adds: r as InferCreateType<T>[],
                     removes: [],
                     updates: new Map()

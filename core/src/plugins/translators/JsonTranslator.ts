@@ -1,5 +1,5 @@
 import { DataTranslator } from "./DataTranslator";
-import { isDate } from "../../utilities";
+import { isDate } from "../../utilities/index";
 
 export class JsonTranslator<TEntity extends {}, TShape> extends DataTranslator<TEntity, TShape> {
 

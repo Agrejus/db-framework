@@ -59,7 +59,7 @@ export {
     assertDate,
     assertIsNotNull,
     assertInstanceOfDbPluginLogging
-} from './utilities';
+} from './utilities/index';
 
 export {
     CompiledSchema,
@@ -89,4 +89,10 @@ export {
 
 export {
     DbPluginReplicator
-} from './plugins/DbPluginReplicator';
+} from './plugins/replicators/DbPluginReplicator';
+
+export {
+    OptimisticDbPluginReplicator
+} from './plugins/replicators/OptimisticDbPluginReplicator';
+
+export { IDbPluginReplicator } from './plugins/replicators/types';

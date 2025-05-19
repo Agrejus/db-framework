@@ -1,5 +1,5 @@
 import { DataContext } from "@agrejus/db-framework";
-import { s, uuid, InferType, DbPluginLogging } from "@agrejus/db-framework-core";
+import { s, InferType, DbPluginLogging } from "@agrejus/db-framework-core";
 import { MemoryPlugin } from "@agrejus/db-framework-plugin-memory";
 import { PouchDbPlugin, toMango } from "@agrejus/db-framework-plugin-pouchdb";
 import { setQueryOptions } from "@agrejus/db-framework-plugin-pouchdb/dist/expressionResolver";
@@ -78,7 +78,7 @@ class Ctx extends DataContext {
     }
 
     // test = this.dbset(model).create();
-    nested = this.dbset(nested).stateful().create();
+    nested = this.dbset(nested).stateful({ optimistic: true }).create();
     // date = this.dbset(modelWithDate).create();
 }
 
@@ -97,26 +97,26 @@ const r = async () => {
 
         // await ctx.saveChangesAsync();
 
-        await ctx.nested.addAsync({
-            child: {
-                name: "Child Name",
-                nested: {
-                    more: {
-                        array: ["test"],
-                        final: 1
-                    },
-                    winner: 100
-                }
-            },
-            name: "James",
-            more: {
-                one: "one",
-                two: "two"
-            },
-            order: 100
-        });
+        // await ctx.nested.addAsync({
+        //     child: {
+        //         name: "Child Name",
+        //         nested: {
+        //             more: {
+        //                 array: ["test"],
+        //                 final: 1
+        //             },
+        //             winner: 100
+        //         }
+        //     },
+        //     name: "James",
+        //     more: {
+        //         one: "one",
+        //         two: "two"
+        //     },
+        //     order: 100
+        // });
 
-        await ctx.saveChangesAsync();
+        // await ctx.saveChangesAsync();
         //const r3 = await ctx.nested.where(w => w.name == "James").map(w => w.name).firstOrUndefinedAsync();
 
         // why is this not working? we are falling back to non expression querying, we should be using it!
@@ -171,7 +171,7 @@ const r = async () => {
 
         });
 
-        // for (let i = 0; i < 50; i++) {
+        // for (let i = 0; i < 50000; i++) {
         //     await ctx.nested.addAsync({
         //         name: `James ${i}`,
         //         order: i,
@@ -271,7 +271,7 @@ const r = async () => {
         const id = setInterval(() => {
             count++;
             console.log(count);
-            if (count >= 5 && id != null) {
+            if (count >= 50 && id != null) {
                 clearInterval(id);
             }
 

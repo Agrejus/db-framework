@@ -2,7 +2,7 @@ import { CompiledSchema } from "../schema";
 import { Expression, OperatorExpression, ComparatorExpression, Comparator, ValueExpression, PropertyPathExpression, Filter, ParamsFilter } from "./types";
 
 export const combineExpressions = (...expressions: Expression[]): Expression => {
-    
+
     if (expressions.length === 0) {
         throw new Error("combineExpressions requires at least 1 expression");
     }
@@ -169,7 +169,7 @@ const getComparatorName = (value: string): Comparator => {
 const getValue = <P extends any>(value: string, params: P): ValueExpression => {
     return {
         type: "value",
-        value: value.startsWith("\'") || value.startsWith("\"") ? value.replace(/\"|\'/g, "") : getValueFromParams(value, params)
+        value: value.startsWith("\'") || value.startsWith("\"") || params == null ? value.replace(/\"|\'/g, "") : getValueFromParams(value, params)
     };
 }
 

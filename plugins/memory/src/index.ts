@@ -58,14 +58,15 @@ export class MemoryPlugin implements IDbPlugin {
     private _processAdds<TEntity extends {}>(schema: CompiledSchema<TEntity>, adds: InferCreateType<TEntity>[]) {
         const collectionName = schema.collectionName;
         const result: DeepPartial<InferCreateType<TEntity>>[] = [];
+        const idProperties = schema.idProperties;
 
         for (let i = 0, length = adds.length; i < length; i++) {
             const add = adds[i] as Record<string, unknown>;
 
             if (schema.hasIdentityKeys) {
 
-                for (let j = 0, l = schema.idProperties.length; j < l; j++) {
-                    const property = schema.idProperties[j];
+                for (let j = 0, l = idProperties.length; j < l; j++) {
+                    const property = idProperties[j];
 
                     if (add[property.name] != null) {
 
@@ -103,7 +104,16 @@ export class MemoryPlugin implements IDbPlugin {
                 continue;
             }
 
-            // add non identity
+            // ensure keys
+            for (let j = 0, l = idProperties.length; j < l; j++) {
+                const property = idProperties[j];
+
+                if (property.getValue(add) == null) {
+                    throw new Error(`Key cannot be null.  Key: ${property.name}`);
+                }
+            }
+
+            // add non identity, user generated ids
             this._addToMemoryCollection(schema, add);
             result.push(add as DeepPartial<InferCreateType<TEntity>>);
         }

@@ -10,11 +10,13 @@ export class DataBridge<T extends {}> {
     private readonly signal: AbortSignal;
     private readonly strategy: IDataAccessStrategy<T>;
     readonly schema: CompiledSchema<T>;
+    private readonly options: DbSetOptions;
 
-    constructor(strategy: IDataAccessStrategy<T>, schema: CompiledSchema<T>, signal: AbortSignal) {
+    private constructor(strategy: IDataAccessStrategy<T>, schema: CompiledSchema<T>, options: DbSetOptions) {
         this.strategy = strategy;
         this.schema = schema;
-        this.signal = signal;
+        this.signal = options.signal;
+        this.options = options;
     }
 
     private static createStrategy<T extends {}>(schema: CompiledSchema<T>, dbPlugin: IDbPlugin, options: DbSetOptions) {
@@ -28,15 +30,15 @@ export class DataBridge<T extends {}> {
     static create<T extends {}>(schema: CompiledSchema<T>, dbPlugin: IDbPlugin, options: DbSetOptions) {
         const strategy = DataBridge.createStrategy(schema, dbPlugin, options);
 
-        return new DataBridge<T>(strategy, schema, options.signal);
+        return new DataBridge<T>(strategy, schema, options);
     }
 
     bulkOperations(schema: CompiledSchema<T>, operations: EntityChanges<T>, done: (result: EntityModificationResult<T>, error?: any) => void) {
-        this.strategy.bulkOperations(schema, operations, done);
+        this.strategy.bulkOperations(this.options, schema, operations, done);
     }
 
     fetch<TShape>(query: Query<T, TShape>, done: (response: TShape, error?: any) => void) {
-        this.strategy.fetch(query, done);
+        this.strategy.fetch(this.options, query, done);
     }
 
     subscribe<TShape, U>(query: Query<T, TShape>, done: (result: TShape, error?: any) => void) {

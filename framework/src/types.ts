@@ -74,6 +74,10 @@ export type DbSetOptions = {
     signal: AbortSignal
 }
 
+export type StatefulDbSetOptions = DbSetOptions & {
+    optimistic: boolean
+}
+
 export type SaveChangesContextStepOne = {
     count: number;
 }

@@ -1,5 +1,5 @@
 import { CompiledSchema } from '../schema';
-import { now } from '../utilities';
+import { now } from '../utilities/index';
 import { EntityChanges, EntityModificationResult, IDbPlugin, IQuery } from './types';
 
 // Check if we're in development environment

@@ -125,7 +125,7 @@ export const now = (): number => {
     return Date.now();
 }
 
-export const assertIsNotNull = <T>(data: unknown, message?: string): asserts data is T => {
+export const assertIsNotNull = <T extends unknown>(data: T, message?: string): asserts data is T => {
     if (data == null) {
         throw new TypeError(message ?? 'Assertion failed, data is null');
     }
@@ -136,7 +136,7 @@ export const assertInstanceOf = <T extends new (...args: any[]) => any>(value: u
         return;
     }
 
-    if (typeof value === "object" && "constructor" in value) {
+    if (value != null && typeof value === "object" && "constructor" in value) {
         throw new TypeError(`Value is not instance of type.  Type: ${value.constructor.name}`);
     }
 

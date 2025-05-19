@@ -147,6 +147,46 @@ export class PropertyInfo<T extends {}> {
         return false;
     }
 
+    getValue(instance: unknown) {
+        if (instance == null) {
+            return null;
+        }
+
+        const pathArray = this.getPathArray();
+        let current: any = instance;
+
+        for (const prop of pathArray) {
+            if (current == null) {
+                return null;
+            }
+            current = current[prop];
+        }
+
+        return current;
+    }
+
+    setValue(instance: unknown, value: unknown) {
+        if (instance == null) {
+            throw new Error('Cannot set value on null or undefined instance');
+        }
+
+        const pathArray = this.getPathArray();
+        let current: any = instance;
+
+        // Navigate to the parent of the target property
+        for (let i = 0; i < pathArray.length - 1; i++) {
+            const prop = pathArray[i];
+            if (current[prop] == null) {
+                current[prop] = {};
+            }
+            current = current[prop];
+        }
+
+        // Set the value on the final property
+        const finalProp = pathArray[pathArray.length - 1];
+        current[finalProp] = value;
+    }
+
     getSelectrorPath(options: { parent: string, assignmentType?: AssignmentType }) {
 
         const parts = this._resolvePathArray({

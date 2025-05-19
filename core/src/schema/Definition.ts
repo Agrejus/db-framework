@@ -2,7 +2,7 @@ import { CompiledSchema, GetHashTypeFunction, HashFunction, HashType, InferCreat
 import { SchemaFunction } from './table/Function';
 import { SchemaComputed } from './table/Computed';
 import { SchemaBase } from "./property/base/Base";
-import { hash } from "../utilities";
+import { hash } from "../utilities/index";
 import { PropertyInfo } from '../common/PropertyInfo';
 import { CodeBuilder } from '../common/CodeBlock';
 import { EnrichmentHandlerBuilder } from '../handlers/EnrichmentHandlerBuilder';

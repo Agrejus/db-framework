@@ -162,7 +162,7 @@ export abstract class QueryRoot<T extends {}> {
         }
 
         try {
-            return toExpression(this.dataBridge.schema, filter.filter, {});
+            return toExpression(this.dataBridge.schema, filter.filter, null);
         } catch (e) {
             return null; // fallback to memory filtering
         }

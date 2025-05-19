@@ -1,24 +1,13 @@
-import { TrampolinePipeline } from '../common/TrampolinePipeline';
-import { CompiledSchema, InferCreateType } from '../schema';
-import { EntityChanges, EntityModificationResult, IDbPlugin, IdbPluginCollection, IQuery } from './types';
-
-type OperationsPayload = {
-    plugins: IDbPlugin[];
-    index: number;
-    errors: any[];
-}
-
-type PersistPayload<TEntity extends {}> = OperationsPayload & {
-    operations: EntityChanges<TEntity>;
-    result?: EntityModificationResult<TEntity>;
-    schema: CompiledSchema<TEntity>;
-}
+import { TrampolinePipeline } from '../../common/TrampolinePipeline';
+import { CompiledSchema, InferCreateType } from '../../schema';
+import { EntityChanges, EntityModificationResult, IDbPlugin, IdbPluginCollection, IQuery } from '../types';
+import { OperationsPayload, PersistPayload } from './types';
 
 export class DbPluginReplicator implements IDbPlugin {
 
     plugins: IdbPluginCollection;
 
-    private constructor(plugins: IdbPluginCollection) {
+    protected constructor(plugins: IdbPluginCollection) {
         this.plugins = plugins;
     }
 
@@ -59,7 +48,7 @@ export class DbPluginReplicator implements IDbPlugin {
             };
 
             for (let i = 0, length = plugins.length; i < length; i++) {
-                pipeline.pipe<OperationsPayload>(this._destroy.bind(this))
+                pipeline.pipe<OperationsPayload>(this.destroyDbs.bind(this))
             }
 
             pipeline.filter<OperationsPayload>(data, (result) => {
@@ -77,7 +66,7 @@ export class DbPluginReplicator implements IDbPlugin {
         }
     }
 
-    private _destroy(payload: OperationsPayload, done: (payload: OperationsPayload) => void) {
+    protected destroyDbs(payload: OperationsPayload, done: (payload: OperationsPayload) => void) {
         const { plugins, index } = payload;
         const plugin = plugins[index];
 
@@ -87,7 +76,10 @@ export class DbPluginReplicator implements IDbPlugin {
         plugin.destroy((e) => {
             if (e != null) {
                 payload.errors.push(e);
+                return;
             }
+
+            done(payload);
         });
     }
 
@@ -134,7 +126,6 @@ export class DbPluginReplicator implements IDbPlugin {
     }
 
     bulkOperations<TEntity extends {}>(schema: CompiledSchema<TEntity>, operations: EntityChanges<TEntity>, done: (result: EntityModificationResult<TEntity>, error?: any) => void): void {
-
         try {
             // insert into the source first to generate any ids, then take the result and persist that into the replicas
             const pipeline = new TrampolinePipeline<OperationsPayload>();
