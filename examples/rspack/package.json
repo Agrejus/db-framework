@@ -1,0 +1,28 @@
+{
+  "name": "rspack-web",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "rspack dev",
+    "build": "rspack build",
+    "preview": "rspack preview"
+  },
+  "dependencies": {
+    "@agrejus/db-framework": "file://../framework",
+    "@agrejus/db-framework-core": "file://../core",
+    "@agrejus/db-framework-plugin-memory": "file://../plugins/memory",
+    "@agrejus/db-framework-plugin-pouchdb": "file://../plugins/pouchdb",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@rspack/cli": "^1.3.11",
+    "@rspack/core": "^1.3.11",
+    "@rspack/plugin-react-refresh": "^1.4.3",
+    "@types/react": "^19.1.4",
+    "@types/react-dom": "^19.1.5",
+    "react-refresh": "^0.17.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  }
+}

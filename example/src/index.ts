@@ -1,9 +1,9 @@
 import { DataContext } from "@agrejus/db-framework";
 import { s, InferType, DbPluginLogging } from "@agrejus/db-framework-core";
 import { MemoryPlugin } from "@agrejus/db-framework-plugin-memory";
-import { PouchDbPlugin, toMango } from "@agrejus/db-framework-plugin-pouchdb";
-import { setQueryOptions } from "@agrejus/db-framework-plugin-pouchdb/dist/expressionResolver";
+import { PouchDbPlugin, toMango, setQueryOptions } from "@agrejus/db-framework-plugin-pouchdb";
 import { performance } from 'perf_hooks'
+import { faker } from '@faker-js/faker';
 
 // const model = s.define("MY_TABLE", {
 //     _id: s.string().key().default((i) => i.createUUID(64), { createUUID }),
@@ -16,6 +16,45 @@ import { performance } from 'perf_hooks'
 //     toString: w.function(w => w.date.toISOString()),
 //     documentType: w.computed((_, t) => t).tracked()
 // })).compile();
+
+// const obj = {
+//     one: faker.number.int({ min: 1, max: 1000 }),
+//     two: faker.word.sample(),
+//     three: faker.date.recent(),
+//     four: faker.lorem.sentence(1000),
+//     five: {
+//         one: faker.number.int({ min: 100, max: 1000 }),
+//         two: faker.date.future(),
+//         three: {
+//             one: faker.location.streetAddress(),
+//             two: faker.number.int({ min: 100000, max: 999999 })
+//         }
+//     }
+// }
+
+
+// const toString = (o: any) => {
+//     const { one, two, three, four, five } = o;
+//     const { one: fiveOne, two: fiveTwo, three: fiveThree } = five;
+//     const { one: threeOne, two: threeTwo } = fiveThree;
+
+//     return `{one:${one},two:${two},three:${three.toDateString()},four:${four},five:{one:${fiveOne},two:${fiveTwo.toISOString()},three:{one:${threeOne},two:${threeTwo}}}}`;
+// }
+
+// const array = new Array(10000).fill(obj);
+// console.log(array)
+// const s1 = performance.now();
+
+// // JSON.stringify(array);
+// const result = new Array(array.length);
+// for (let i = 0; i < array.length; i++) {
+//     result[i] = toString(array[i]);
+// }
+// const final = `[${result.join(",")}]`;
+
+
+// console.log(performance.now() - s1);
+
 
 const nested = s.define("products", {
     _id: s.string().key().identity(),
@@ -78,7 +117,7 @@ class Ctx extends DataContext {
     }
 
     // test = this.dbset(model).create();
-    nested = this.dbset(nested).stateful({ optimistic: true }).create();
+    nested = this.dbset(nested).create();
     // date = this.dbset(modelWithDate).create();
 }
 
@@ -96,27 +135,34 @@ const r = async () => {
         // });
 
         // await ctx.saveChangesAsync();
+        const xx5 = await ctx.nested.sort(w => w.name).firstOrUndefinedAsync(w => w._id !== "");
+        const xx = await ctx.nested.sort(w => w.name).sort(w => w.order).firstOrUndefinedAsync(w => w._id === "");// we are working on it.  Mango query is too loose
+        const xx1 = await ctx.nested.firstOrUndefinedAsync(w => w.name === "");// we are working on it.  Mango query is too loose
+        const xx2 = await ctx.nested.firstOrUndefinedAsync(w => w.name === "James");
+        const xx3 = await ctx.nested.firstOrUndefinedAsync(w => w.order >= 100);
+        const xx4 = await ctx.nested.sort(w => w.name).sort(w => w.order).firstOrUndefinedAsync(w => w._id !== "");
+        console.log(xx, xx1, xx2, xx3, xx4, xx5);
 
-        // await ctx.nested.addAsync({
-        //     child: {
-        //         name: "Child Name",
-        //         nested: {
-        //             more: {
-        //                 array: ["test"],
-        //                 final: 1
-        //             },
-        //             winner: 100
-        //         }
-        //     },
-        //     name: "James",
-        //     more: {
-        //         one: "one",
-        //         two: "two"
-        //     },
-        //     order: 100
-        // });
+        await ctx.nested.addAsync({
+            child: {
+                name: "Child Name",
+                nested: {
+                    more: {
+                        array: ["test"],
+                        final: 1
+                    },
+                    winner: 100
+                }
+            },
+            name: "James",
+            more: {
+                one: "one",
+                two: "two"
+            },
+            order: 100
+        });
 
-        // await ctx.saveChangesAsync();
+        await ctx.saveChangesAsync();
         //const r3 = await ctx.nested.where(w => w.name == "James").map(w => w.name).firstOrUndefinedAsync();
 
         // why is this not working? we are falling back to non expression querying, we should be using it!
@@ -140,9 +186,8 @@ const r = async () => {
         //     console.log('DONE 2', performance.now() - s2, r, e)
         // });
 
-        const s3 = performance.now();
-        ctx.nested.where(w => w.name == "James").toArray((r, e) => {
-
+        ctx.nested.where(w => w.name == "James").subscribe().map(w => w.order).sum((r, e) => {
+            console.log('SUBSCRIBED', r, e)
         });
 
         // const [result] = await ctx.nested.addAsync({
@@ -171,26 +216,26 @@ const r = async () => {
 
         });
 
-        // for (let i = 0; i < 50000; i++) {
-        //     await ctx.nested.addAsync({
-        //         name: `James ${i}`,
-        //         order: i,
-        //         child: {
-        //             name: "",
-        //             nested: {
-        //                 more: {
-        //                     array: [],
-        //                     final: i
-        //                 },
-        //                 winner: i
-        //             }
-        //         },
-        //         more: {
-        //             one: "one",
-        //             two: "two"
-        //         }
-        //     });
-        // }
+        for (let i = 0; i < 5; i++) {
+            await ctx.nested.addAsync({
+                name: `James ${i}`,
+                order: i * 100,
+                child: {
+                    name: "",
+                    nested: {
+                        more: {
+                            array: [],
+                            final: i
+                        },
+                        winner: i
+                    }
+                },
+                more: {
+                    one: "one",
+                    two: "two"
+                }
+            });
+        }
 
 
         // const [added] =  await ctx.test.addAsync({
@@ -219,9 +264,6 @@ const r = async () => {
         // we are trying to auto create indexes
         // const x3 = await ctx.nested.order(w => w.order).toArrayAsync();
         // const x2 = await ctx.nested.order(w => w.name).toArrayAsync();
-
-        const xx = await ctx.nested.firstOrUndefinedAsync(w => w._id === "");// we are working on it.  Mango query is too loose
-        const xx1 = await ctx.nested.firstOrUndefinedAsync(w => w.name === "");// we are working on it.  Mango query is too loose
 
         const xxx = await ctx.nested.firstOrUndefinedAsync(w => w._id === x9[0]._id);
 

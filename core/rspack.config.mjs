@@ -9,8 +9,14 @@ export default defineConfig({
     output: {
         path: resolve(__dirname, "dist"),
         filename: "index.js", // Default output file name
+        library: {
+            type: "module"
+        },
         globalObject: "this", // Ensures compatibility with both browser and Node.js
         clean: true, // Cleans the output directory before each build
+    },
+    experiments: {
+        outputModule: true
     },
     module: {
         rules: [
@@ -28,11 +34,15 @@ export default defineConfig({
     },
     resolve: {
         extensions: [".ts", ".js"], // Resolve TypeScript and JavaScript files
+        fallback: {
+            "perf_hooks": false
+        }
     },
     target: "web", // Compile for both browser and Node.js
     externals: {
         // Define external dependencies to avoid bundling them
         // e.g., for lodash: "lodash": "lodash"
+        "perf_hooks": "perf_hooks"
     },
     mode: "development", // Set production mode
     devtool: "source-map"

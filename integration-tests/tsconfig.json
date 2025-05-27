@@ -2,7 +2,7 @@
     "compilerOptions": {
         "allowJs": true,
         "allowSyntheticDefaultImports": true,
-        "module": "commonjs",
+        "module": "ESNext",
         "lib": [
             "ESNext",
             "ESNext.disposable"

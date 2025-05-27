@@ -38,37 +38,6 @@ export class Query<TEntity extends {}, TShape extends any = TEntity> implements 
         return true;
     }
 
-    filter(data: TShape): TShape {
-
-        // Memory Filtering Fallback
-        if (this.expression == null && this.filters.length > 0) {
-
-            if (Array.isArray(data) === false) {
-                return data;
-            }
-
-            let result: any[] = data;
-
-            for (let i = 0, length = this.filters.length; i < length; i++) {
-                if (this.filters[i].params == null) {
-                    // standard filtering
-                    const selector = this.filters[i].filter as Filter<TShape>
-                    result = data.filter(selector);
-                    continue;
-                }
-
-                // params filtering
-                const selector = this.filters[i].filter as ParamsFilter<TShape, any>
-                result = data.filter(w => selector([w, this.filters[i].params]));
-            }
-
-            return result as TShape;
-        }
-
-        // Plugin did filtering
-        return data;
-    }
-
     static all<T extends {}, TShape extends any = T>(schema: CompiledSchema<T>) {
         return new Query<T, TShape>(schema, {}, []);
     }

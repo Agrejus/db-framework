@@ -3,6 +3,11 @@ import { isDate } from "../../utilities/index";
 
 export class JsonTranslator<TEntity extends {}, TShape> extends DataTranslator<TEntity, TShape> {
 
+    override translate(data: unknown): TShape {
+        const filteredData = this.filter(data);
+        return super.translate(filteredData);
+    }
+
     map<T>(data: unknown): T {
 
         if (this.query.options.shaper == null) {

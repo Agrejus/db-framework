@@ -1,5 +1,87 @@
-import { CompiledSchema } from "../schema";
+import { CompiledSchema, SchemaTypes } from "../schema";
 import { Expression, OperatorExpression, ComparatorExpression, Comparator, ValueExpression, PropertyPathExpression, Filter, ParamsFilter } from "./types";
+
+// need to have negated + strict
+const comparators: Record<string, ComparatorExpression> = {
+    startsWith: {
+        comparator: "starts-with",
+        negated: false,
+        strict: false,
+        type: "comparator",
+    },
+    endsWith: {
+        comparator: "ends-with",
+        negated: false,
+        strict: false,
+        type: "comparator",
+    },
+    includes: {
+        comparator: "includes",
+        negated: false,
+        strict: false,
+        type: "comparator",
+    },
+    "==": {
+        comparator: "equals",
+        negated: false,
+        strict: false,
+        type: "comparator",
+    },
+    "===": {
+        comparator: "equals",
+        negated: false,
+        strict: true,
+        type: "comparator",
+    },
+    "!=": {
+        comparator: "equals",
+        negated: true,
+        strict: false,
+        type: "comparator",
+    },
+    "!==": {
+        comparator: "equals",
+        negated: true,
+        strict: true,
+        type: "comparator",
+    },
+    ">=": {
+        comparator: "greater-than-equals",
+        negated: false,
+        strict: false,
+        type: "comparator",
+    },
+    ">==": {
+        comparator: "greater-than-equals",
+        negated: false,
+        strict: true,
+        type: "comparator",
+    },
+    "<=": {
+        comparator: "less-than-equals",
+        negated: false,
+        strict: false,
+        type: "comparator",
+    },
+    "<==": {
+        comparator: "less-than-equals",
+        negated: false,
+        strict: true,
+        type: "comparator",
+    },
+    ">": {
+        comparator: "greater-than",
+        negated: false,
+        strict: false,
+        type: "comparator",
+    },
+    "<": {
+        comparator: "less-than",
+        negated: false,
+        strict: false,
+        type: "comparator",
+    }
+} as const;
 
 export const combineExpressions = (...expressions: Expression[]): Expression => {
 
@@ -99,6 +181,57 @@ const parseExpressionToTree = <P extends any>(schema: CompiledSchema<any>, expre
     return parse(expression);
 }
 
+const convertAndAssignValue = (valueExpression: unknown, propertyPathExpression: unknown) => {
+
+    assertIsPropertyPathExpression(propertyPathExpression);
+
+    assertIsValueExpression(valueExpression)
+
+    const propertyType = propertyPathExpression.property.type;
+
+    valueExpression.value = converters[propertyType](valueExpression.value)
+}
+
+const converters: Record<SchemaTypes, (value: unknown) => unknown> = {
+    Array: v => v,
+    Boolean: v => Boolean(v),
+    Computed: v => v,
+    Date: v => v,
+    Definition: v => v,
+    Function: v => v,
+    Number: v => Number(v),
+    Object: v => v,
+    String: v => String(v)
+}
+
+const isExpression = (value: unknown): value is Expression => {
+    return typeof value === "object" && value !== null && "type" in value;
+}
+
+function assertIsExpression(value: unknown): asserts value is Expression {
+    if (isExpression(value) === false) {
+        throw new Error("Assertion Failed: Value is not a Expression")
+    }
+}
+
+function assertIsPropertyPathExpression(value: unknown): asserts value is PropertyPathExpression {
+
+    assertIsExpression(value);
+
+    if (!("property" in value)) {
+        throw new Error("Assertion Failed: Value is not a PropertyPathExpression")
+    }
+}
+
+function assertIsValueExpression(value: unknown): asserts value is ValueExpression {
+
+    assertIsExpression(value);
+
+    if (!("value" in value)) {
+        throw new Error("Assertion Failed: Value is not a ValueExpression")
+    }
+}
+
 const parseCondition = <P extends any>(schema: CompiledSchema<any>, expression: string, params: P): ComparatorExpression => {
 
     // Remove any leading/trailing whitespace
@@ -115,55 +248,63 @@ const parseCondition = <P extends any>(schema: CompiledSchema<any>, expression: 
     // Match patterns for methods like startsWith/endsWith and operators
     const methodMatch = expression.match(/([a-zA-Z0-9_.]+)\.(startsWith|endsWith|includes)\((.+)\)(\s*(===|==|!==|!=)\s*(true|false))?/);
     const equalityMatch = expression.match(/([a-zA-Z0-9_.]+)\s*(===|==|!==|!=)\s*(.*|\d+|true|false)/);
+    const comparisonMatch = expression.match(/([a-zA-Z0-9_.]+)\s*(>=|<=|>|<)\s*(.+)/);
 
     if (methodMatch) {
         // Handle .startsWith or .endsWith
-        const result: ComparatorExpression = {
-            type: "comparator",
-            comparator: getComparatorName(methodMatch[2]),
-            negated,
-            left: getPropertyName(schema, methodMatch[1]),
-            right: getValue(methodMatch[3], params)
+        const comparator = getComparator(methodMatch[2]);
+
+        if (negated) {
+            comparator.negated = negated;
         }
+
+        comparator.left = getProperty(schema, methodMatch[1]);
+        comparator.right = getValue(methodMatch[3], params);
 
         // If the comparison is explicitly to false, mark it as negated
         if (methodMatch[6] === "false") {
-            result.negated = true;
+            comparator.negated = true;
         }
 
-        return result;
+        return comparator;
     }
 
     if (equalityMatch) {
-        const result: ComparatorExpression = {
-            type: "comparator",
-            comparator: "equals",
-            negated: equalityMatch[2] === "!=" || equalityMatch[2] === "!==",
-            left: getPropertyName(schema, equalityMatch[1]),
-            right: getValue(equalityMatch[3], params)
-        }
 
-        return result;
+        const comparator = getComparator(equalityMatch[2]);
+
+        comparator.left = getProperty(schema, equalityMatch[1]);
+        comparator.right = getValue(equalityMatch[3], params);
+
+        convertAndAssignValue(comparator.right, comparator.left);
+
+        return comparator;
+    }
+
+    if (comparisonMatch) {
+
+        const comparator = getComparator(comparisonMatch[2]);
+
+        comparator.left = getProperty(schema, comparisonMatch[1]);
+        comparator.right = getValue(comparisonMatch[3], params);
+
+        convertAndAssignValue(comparator.right, comparator.left);
+
+        return comparator;
     }
 
     throw new Error(`Unsupported expression format: ${expression}`);
 }
 
-const getComparatorName = (value: string): Comparator => {
+const getComparator = (value: string): ComparatorExpression => {
 
-    if (value === "startsWith") {
-        return "starts-with";
+    const comparator = comparators[value];
+
+    if (comparator == null) {
+        throw new Error(`Cannot find comparator:  Comparator: ${value}`)
     }
 
-    if (value === "endsWith") {
-        return "ends-with";
-    }
-
-    if (value === "includes") {
-        return "includes";
-    }
-
-    throw new Error(`Cannot find comparator from function name:  Name: ${value}`)
+    return comparator
 }
 
 const getValue = <P extends any>(value: string, params: P): ValueExpression => {
@@ -197,7 +338,7 @@ const getValueFromParams = <P extends any>(value: string, params: P) => {
     return result;
 }
 
-const getPropertyName = (schema: CompiledSchema<any>, value: string): PropertyPathExpression => {
+const getProperty = (schema: CompiledSchema<any>, value: string): PropertyPathExpression => {
 
     const pathSplit = value.split(/\?\.|\!\.|\./g);
     pathSplit.shift();

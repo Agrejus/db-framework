@@ -7,7 +7,7 @@
   "scripts": {
     "build:types": "tsc --emitDeclarationOnly",
     "build:bundle": "rspack build",
-    "build": "npm run build:bundle && npm run build:types",
+    "build": "tsc",
     "tsc": "tsc"
   },
   "sideEffects": false,
@@ -27,11 +27,12 @@
   ],
   "description": "PouchDB plugin for db-framework",
   "dependencies": {
+    "events": "^3.3.0",
     "pouchdb": "^9.0.0",
     "pouchdb-find": "^9.0.0"
   },
   "peerDependencies": {
-    "@agrejus/db-framework-core": "^2.0.0-beta.6"
+    "@agrejus/db-framework-core": "~2"
   },
   "devDependencies": {
     "@agrejus/db-framework-core": "file://../../core",

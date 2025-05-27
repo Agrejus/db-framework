@@ -1,5 +1,5 @@
 import { DataTranslator, isDate } from '@agrejus/db-framework-core';
-import { assertIsResponse } from './utilities';
+import { assertIsResponse, isResponse } from './utilities';
 
 export class PouchDBTranslator<TEntity extends {}, TShape> extends DataTranslator<TEntity, TShape> {
 
@@ -126,9 +126,11 @@ export class PouchDBTranslator<TEntity extends {}, TShape> extends DataTranslato
 
     default<T>(data: unknown): T {
 
-        assertIsResponse<TEntity>(data);
+        if (isResponse(data)) {
+            return data.docs as T;
+        }
 
-        return data.docs as T
+        return data as T;
     }
 
     skip<T>(data: unknown): T {

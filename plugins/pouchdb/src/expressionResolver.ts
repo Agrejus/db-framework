@@ -1,7 +1,7 @@
 import { ComparatorExpression, Expression, OperatorExpression, PropertyPathExpression, QueryOptions, SchemaTypes, ValueExpression } from "@agrejus/db-framework-core";
 import PouchDB from 'pouchdb';
 
-export const setQueryOptions = (options: QueryOptions, query: PouchDB.Find.FindRequest<unknown>) => {
+export const setQueryOptions = (options: QueryOptions, query: PouchDB.Find.FindRequest<{}>) => {
 
     // Handle skip/limit
     if (options.skip != null) {
@@ -80,7 +80,7 @@ export const toMango = (expression: Expression): PouchDB.Find.Selector => {
     if (expression.type === "comparator") {
         const comparatorExp = expression as ComparatorExpression;
         const propertyInfo = (comparatorExp.left as PropertyPathExpression).property;
-        const value = (comparatorExp.right as ValueExpression).value;
+        const value: any = (comparatorExp.right as ValueExpression).value;
         const propertyPath = propertyInfo.getAssignmentPath();
 
         switch (comparatorExp.comparator) {
@@ -98,6 +98,22 @@ export const toMango = (expression: Expression): PouchDB.Find.Selector => {
                     [propertyPath]: comparatorExp.negated ? { $ne: value } : { $eq: value }
                 };
             }
+            case "greater-than":
+                return {
+                    [propertyPath]: comparatorExp.negated ? { $lte: value } : { $gt: value }
+                };
+            case "greater-than-equals":
+                return {
+                    [propertyPath]: comparatorExp.negated ? { $lt: value } : { $gte: value }
+                };
+            case "less-than":
+                return {
+                    [propertyPath]: comparatorExp.negated ? { $gte: value } : { $lt: value }
+                };
+            case "less-than-equals":
+                return {
+                    [propertyPath]: comparatorExp.negated ? { $gt: value } : { $lte: value }
+                };
             case "starts-with":
                 if (comparatorExp.negated) {
                     throw new Error(`Mango queries do not support negated 'starts-with' directly.`);

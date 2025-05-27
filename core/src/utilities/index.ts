@@ -106,22 +106,12 @@ export const assertDate = (data: unknown): asserts data is Date => {
 }
 
 export const now = (): number => {
-
     if (typeof performance !== 'undefined' && performance.now) {
         // Browser or modern Node.js
         return performance.now();
-    } else if (typeof require !== 'undefined') {
-        // Older Node.js
-        try {
-            const { performance } = require('perf_hooks');
-            return performance.now();
-        } catch (e) {
-            // Fallback if perf_hooks is not available
-            return Date.now();
-        }
     }
 
-    // Fallback for very old environments
+    // Fallback for older environments
     return Date.now();
 }
 
@@ -130,6 +120,13 @@ export const assertIsNotNull = <T extends unknown>(data: T, message?: string): a
         throw new TypeError(message ?? 'Assertion failed, data is null');
     }
 }
+
+export function assertIsArray<T>(data: unknown, message?: string): asserts data is T[] {
+    if (!Array.isArray(data)) {
+        throw new TypeError(message ?? 'Assertion failed, data is not of type Array');
+    }
+}
+
 
 export const assertInstanceOf = <T extends new (...args: any[]) => any>(value: unknown, Instance: T): asserts value is T => {
     if (value instanceof Instance) {
@@ -150,3 +147,7 @@ export const assertInstanceOfDbPluginLogging = (value: unknown): asserts value i
 
     throw new TypeError(`Value is not instance of DbPluginLogging`);
 }
+
+export const isNodeRuntime = () => typeof process !== 'undefined' &&
+    process.versions != null &&
+    process.versions.node != null;

@@ -55,7 +55,6 @@ export type IQuery<TEntity extends {}, TShape extends any = TEntity> = {
     expression?: Expression;
     options: QueryOptions;
     filters: Filterable<TShape, any>[];
-    filter: (data: TShape) => TShape;
     // we can only enable change tracking when we do not change (reduce/aggregate/map) the response
     // from the database
     get changeTracking(): boolean;

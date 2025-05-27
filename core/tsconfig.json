@@ -2,7 +2,7 @@
     "compilerOptions": {
         "allowJs": true,
         "allowSyntheticDefaultImports": true,
-        "module": "CommonJS",
+        "module": "ESNext",
         "lib": [
             "ESNext"
         ],
@@ -17,7 +17,7 @@
         "resolveJsonModule": true
     },
     "include": [
-        "./src/index.ts"
+        "./src/**/*"
     ],
     "exclude": [
         "node_modules",

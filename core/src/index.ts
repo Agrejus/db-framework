@@ -58,7 +58,8 @@ export {
     isDate,
     assertDate,
     assertIsNotNull,
-    assertInstanceOfDbPluginLogging
+    assertInstanceOfDbPluginLogging,
+    isNodeRuntime
 } from './utilities/index';
 
 export {

@@ -1,9 +1,23 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { BasicDataContext } from '../contexts/BasicDataContext';
 import { product } from '../schemas/product';
 import { generateData } from '../data/generator';
 import { faker } from '@faker-js/faker';
 
+const wait = (ms: number) => new Promise<void>((resolve) => {
+
+    let sum = 0;
+    const run = () => {
+        if (sum >= ms) {
+            resolve();
+            return;
+        }
+        sum += 5;
+        setTimeout(run, 5);
+    }
+
+    run();
+});
 
 const seedData = async (context: BasicDataContext, count: number = 2) => {
 
@@ -13,7 +27,7 @@ const seedData = async (context: BasicDataContext, count: number = 2) => {
     await context.saveChangesAsync();
 }
 
-describe('Product Creation', () => {
+describe('add', () => {
     it('Can add a basic product', async () => {
         // Arrange
         const context = BasicDataContext.create();
@@ -36,7 +50,7 @@ describe('Product Creation', () => {
     it('Can add multiple products', async () => {
         // Arrange
         const context = BasicDataContext.create();
-        const items = generateData(product, 1);
+        const items = generateData(product, 2);
 
         // Act
         const added = await context.products.addAsync(...items);
@@ -54,8 +68,10 @@ describe('Product Creation', () => {
             expect(product.tags).toEqual(items[index].tags);
         });
     });
+});
 
-    it('toArrayAsync', async () => {
+describe('toArrayAsync', () => {
+    it('all records', async () => {
         // Arrange
         const context = BasicDataContext.create();
         await seedData(context);
@@ -78,6 +94,134 @@ describe('Product Creation', () => {
         expect(found.length).toBe(0);
     });
 
+    it('where + skip + toArrayAsync', async () => {
+        // Arrange
+        const context = BasicDataContext.create();
+        await seedData(context, 100);
+
+        // Act
+        const found = await context.products.where(w => w.id != "").skip(1).toArrayAsync();
+
+        // Assert
+        expect(found.length).toBe(99);
+    });
+
+    it('where + skip + toArrayAsync', async () => {
+        // Arrange
+        const context = BasicDataContext.create();
+        await seedData(context, 100);
+
+        // Act
+        const found = await context.products.where(w => w.id != "").skip(1).take(1).toArrayAsync();
+
+        // Assert
+        expect(found.length).toBe(1);
+    });
+
+    it('where + toArrayAsync', async () => {
+        // Arrange
+        const context = BasicDataContext.create();
+        await seedData(context);
+
+        // Act
+        const found = await context.products.where(w => w.id != "").toArrayAsync();
+
+        // Assert
+        expect(found.length).toBe(2);
+    });
+
+    it('map + toArrayAsync + one property', async () => {
+        // Arrange
+        const context = BasicDataContext.create();
+        await seedData(context, 100);
+
+        // Act
+        const found = await context.products.map(w => w.id).toArrayAsync()
+
+        // Assert
+        expect(found).toBeDefined();
+        expect(found.length).toBe(100);
+        expect(found[0]).toBeTypeOf("string");
+    });
+
+    it('sort', async () => {
+        // Arrange
+        const context = BasicDataContext.create();
+        await seedData(context, 200);
+
+        const sorted = await context.products.sort(w => w.price).toArrayAsync();
+
+        let last: null | number = null;
+
+        for (const item of sorted) {
+            if (last == null) {
+                last = item.price;
+                continue;
+            }
+
+            expect(last).toBeLessThanOrEqual(item.price);
+            last = item.price;
+        }
+    });
+
+    it('sort descending', async () => {
+        // Arrange
+        const context = BasicDataContext.create();
+        await seedData(context, 200);
+
+        const sorted = await context.products.sortDescending(w => w.price).toArrayAsync();
+
+        let last: null | number = null;
+
+        for (const item of sorted) {
+            if (last == null) {
+                last = item.price;
+                continue;
+            }
+
+            expect(last).toBeGreaterThanOrEqual(item.price);
+            last = item.price;
+        }
+    });
+
+    it('where + where', async () => {
+        // Arrange
+        const context = BasicDataContext.create();
+        await seedData(context, 200);
+
+        const all = await context.products.toArrayAsync();
+        const count = await context.products.where(w => w.price > 100).where(w => w.name.startsWith("s")).toArrayAsync();
+
+        const expectedSum = all.filter(w => w.price > 100 && w.name.startsWith("s"));
+
+        expectedSum.sort();
+        count.sort();
+
+        expect(expectedSum).toStrictEqual(count);
+    });
+
+    it('where + sort + toArrayAsync', async () => {
+        // Arrange
+        const context = BasicDataContext.create();
+        await seedData(context, 200);
+
+        const all = await context.products.toArrayAsync();
+        const result = await context.products
+            .where(w => w.price > 100)
+            .sortDescending(w => w.price)
+            .map(w => w.price)
+            .toArrayAsync();
+
+        const expected = all.filter(w => w.price > 100).map(w => w.price);
+
+        expected.sort((a, b) => b - a)
+
+
+        expect(expected).toStrictEqual(result);
+    });
+});
+
+describe('firstAsync', () => {
 
     it('firstAsync with result', async () => {
         // Arrange
@@ -98,6 +242,38 @@ describe('Product Creation', () => {
         // Act
         expect(context.products.firstAsync()).rejects.toThrow();
     });
+
+    it('where + firstAsync with no result found', async () => {
+        // Arrange
+        const context = BasicDataContext.create();
+
+        // Act
+        expect(context.products.where(w => w.id != "").firstAsync()).rejects.toThrow();
+    });
+
+    it('where + firstAsync', async () => {
+        // Arrange
+        const context = BasicDataContext.create();
+        await seedData(context);
+
+        // Act
+        const found = await context.products.where(w => w.id != "").firstAsync();
+
+        // Assert
+        expect(found).toBeDefined();
+    });
+
+    it('throws: where + firstOrUndefinedAsync', async () => {
+        // Arrange
+        const context = BasicDataContext.create();
+        await seedData(context);
+
+        // Act/Assert
+        expect(context.products.where(w => w.id === "").firstAsync()).rejects.toThrow();
+    });
+});
+
+describe('firstOrUndefinedAsync', () => {
 
     it('firstOrUndefinedAsync with result', async () => {
         // Arrange
@@ -121,6 +297,293 @@ describe('Product Creation', () => {
         // Assert
         expect(found).toBeUndefined();
     });
+
+    it('where + firstOrUndefinedAsync', async () => {
+        // Arrange
+        const context = BasicDataContext.create();
+        await seedData(context);
+
+        // Act
+        const found = await context.products.where(w => w.id != "").firstOrUndefinedAsync();
+
+        // Assert
+        expect(found).toBeDefined();
+    });
+
+    it('map + firstOrUndefinedAsync + one property', async () => {
+        // Arrange
+        const context = BasicDataContext.create();
+        await seedData(context, 100);
+
+        // Act
+        const found = await context.products.map(w => w.id).firstOrUndefinedAsync();
+
+        // Assert
+        expect(found).toBeDefined();
+        expect(found).toBeTypeOf("string");
+    });
+
+    it('map + firstOrUndefinedAsync + two properties', async () => {
+        // Arrange
+        const context = BasicDataContext.create();
+        await seedData(context, 100);
+
+        // Act
+        const found = await context.products.map(w => ({ first: w.id, second: w.inStock })).firstOrUndefinedAsync();
+
+        // Assert
+        expect(found).toBeDefined();
+        expect(found?.first).toBeDefined();
+        expect(found?.second).toBeDefined();
+    });
+});
+
+describe("subscribe", () => {
+
+    it('not subscribed should not fire when data changes + firstOrUndefined has query', async () => {
+
+        const callback = vi.fn();
+        // Arrange
+        const context = BasicDataContext.create();
+        await seedData(context);
+
+        // Act
+        context.products.where(w => w.id != "").firstOrUndefined(w => w.id !== "", callback);
+
+        await context.products.addAsync(...generateData(product, 1));
+        await context.saveChangesAsync();
+
+        await wait(500);
+
+        // Assert
+        expect(callback).toHaveBeenCalledTimes(1);
+        expect(callback.mock.calls[0][0]).toBeDefined();
+        expect(callback.mock.calls[0][1]).toBeUndefined();
+    });
+
+    it('subscribe should fire when data changes + firstOrUndefined has query', async () => {
+
+        const callback = vi.fn();
+        // Arrange
+        const context = BasicDataContext.create();
+        await seedData(context);
+
+        // Act
+        context.products.subscribe().where(w => w.id != "").firstOrUndefined(w => w.id !== "", callback);
+
+        await context.products.addAsync(...generateData(product, 1));
+        await context.saveChangesAsync();
+
+        await wait(500);
+
+        // Assert
+        expect(callback).toHaveBeenCalledTimes(2);
+        expect(callback.mock.calls[0][0]).toBeDefined();
+        expect(callback.mock.calls[0][1]).toBeUndefined();
+
+        expect(callback.mock.calls[1][0]).toBeDefined();
+        expect(callback.mock.calls[1][1]).toBeUndefined();
+    });
+
+    it('not subscribed should not fire when data changes + firstOrUndefined has query', async () => {
+
+        const callback = vi.fn();
+        // Arrange
+        const context = BasicDataContext.create();
+        await seedData(context);
+
+        // Act
+        context.products.where(w => w.id != "").firstOrUndefined(w => w.id !== "", callback);
+
+        await context.products.addAsync(...generateData(product, 1));
+        await context.saveChangesAsync();
+
+        await wait(500);
+
+        // Assert
+        expect(callback).toHaveBeenCalledTimes(1);
+        expect(callback.mock.calls[0][0]).toBeDefined();
+        expect(callback.mock.calls[0][1]).toBeUndefined();
+    });
+
+    it('subscribe should fire when data changes + firstOrUndefined has no query', async () => {
+
+        const callback = vi.fn();
+        // Arrange
+        const context = BasicDataContext.create();
+        await seedData(context);
+
+        // Act
+        context.products.subscribe().where(w => w.id != "").firstOrUndefined(callback);
+
+        await context.products.addAsync(...generateData(product, 1));
+        await context.saveChangesAsync();
+
+        await wait(500);
+
+        // Assert
+        expect(callback).toHaveBeenCalledTimes(2);
+        expect(callback.mock.calls[0][0]).toBeDefined();
+        expect(callback.mock.calls[0][1]).toBeUndefined();
+
+        expect(callback.mock.calls[1][0]).toBeDefined();
+        expect(callback.mock.calls[1][1]).toBeUndefined();
+    });
+
+    it('subscribe should fire when data changes + toArray', async () => {
+
+        const callback = vi.fn();
+        // Arrange
+        const context = BasicDataContext.create();
+        await seedData(context);
+
+        // Act
+        context.products.subscribe().where(w => w.id != "").toArray(callback);
+
+        await context.products.addAsync(...generateData(product, 1));
+        await context.saveChangesAsync();
+
+        await wait(500);
+
+        // Assert
+        expect(callback).toHaveBeenCalledTimes(2);
+        expect(Array.isArray(callback.mock.calls[0][0])).toBe(true);
+        expect(callback.mock.calls[0][1]).toBeUndefined();
+
+        expect(Array.isArray(callback.mock.calls[1][0])).toBe(true);
+        expect(callback.mock.calls[1][1]).toBeUndefined();
+    });
+
+    it('subscribe should fire when data changes + sum', async () => {
+
+        const callback = vi.fn();
+        // Arrange
+        const context = BasicDataContext.create();
+        await seedData(context);
+
+        // Act
+        context.products.subscribe().where(w => w.id != "").map(w => w.price).sum(callback);
+
+        await context.products.addAsync(...generateData(product, 1));
+        await context.saveChangesAsync();
+
+        await wait(500);
+
+        // Assert
+        expect(callback).toHaveBeenCalledTimes(2);
+        expect(callback.mock.calls[0][0]).toBeTypeOf("number");
+        expect(callback.mock.calls[0][0]).toBeGreaterThan(0);
+        expect(callback.mock.calls[0][1]).toBeUndefined();
+
+        expect(callback.mock.calls[1][0]).toBeTypeOf("number");
+        expect(callback.mock.calls[1][0]).toBeGreaterThan(0);
+        expect(callback.mock.calls[1][1]).toBeUndefined();
+    });
+
+    it('subscribe should fire when data changes + count', async () => {
+
+        const callback = vi.fn();
+        // Arrange
+        const context = BasicDataContext.create();
+        await seedData(context);
+
+        // Act
+        context.products.subscribe().where(w => w.id != "").map(w => w.price).count(callback);
+
+        await context.products.addAsync(...generateData(product, 1));
+        await context.saveChangesAsync();
+
+        await wait(500);
+
+        // Assert
+        expect(callback).toHaveBeenCalledTimes(2);
+        expect(callback.mock.calls[0][0]).toBeTypeOf("number");
+        expect(callback.mock.calls[0][0]).toBe(2);
+        expect(callback.mock.calls[0][1]).toBeUndefined();
+
+        expect(callback.mock.calls[1][0]).toBeTypeOf("number");
+        expect(callback.mock.calls[1][0]).toBe(3);
+        expect(callback.mock.calls[1][1]).toBeUndefined();
+    });
+
+    it('subscribe should fire when data changes + max', async () => {
+
+        const callback = vi.fn();
+        // Arrange
+        const context = BasicDataContext.create();
+        await seedData(context);
+
+        // Act
+        context.products.subscribe().where(w => w.id != "").map(w => w.price).max(callback);
+
+        await context.products.addAsync(...generateData(product, 1));
+        await context.saveChangesAsync();
+
+        await wait(500);
+
+        // Assert
+        expect(callback).toHaveBeenCalledTimes(2);
+        expect(callback.mock.calls[0][0]).toBeTypeOf("number");
+        expect(callback.mock.calls[0][0]).toBeGreaterThan(0);
+        expect(callback.mock.calls[0][1]).toBeUndefined();
+
+        expect(callback.mock.calls[1][0]).toBeTypeOf("number");
+        expect(callback.mock.calls[1][0]).toBeGreaterThan(0);
+        expect(callback.mock.calls[1][1]).toBeUndefined();
+    });
+
+    it('subscribe should fire when data changes + min', async () => {
+
+        const callback = vi.fn();
+        // Arrange
+        const context = BasicDataContext.create();
+        await seedData(context);
+
+        // Act
+        context.products.subscribe().where(w => w.id != "").map(w => w.price).min(callback);
+
+        await context.products.addAsync(...generateData(product, 1));
+        await context.saveChangesAsync();
+
+        await wait(500);
+
+        // Assert
+        expect(callback).toHaveBeenCalledTimes(2);
+        expect(callback.mock.calls[0][0]).toBeTypeOf("number");
+        expect(callback.mock.calls[0][0]).toBeGreaterThan(0);
+        expect(callback.mock.calls[0][1]).toBeUndefined();
+
+        expect(callback.mock.calls[1][0]).toBeTypeOf("number");
+        expect(callback.mock.calls[1][0]).toBeGreaterThan(0);
+        expect(callback.mock.calls[1][1]).toBeUndefined();
+    });
+
+    it('subscribe should fire when data changes + distinct', async () => {
+
+        const callback = vi.fn();
+        // Arrange
+        const context = BasicDataContext.create();
+        await seedData(context);
+
+        // Act
+        context.products.subscribe().where(w => w.id != "").map(w => w.price).distinct(callback);
+
+        await context.products.addAsync(...generateData(product, 1));
+        await context.saveChangesAsync();
+
+        await wait(500);
+
+        // Assert
+        expect(callback).toHaveBeenCalledTimes(2);
+        expect(Array.isArray(callback.mock.calls[0][0])).toBe(true);
+        expect(callback.mock.calls[0][1]).toBeUndefined();
+
+        expect(Array.isArray(callback.mock.calls[1][0])).toBe(true);
+        expect(callback.mock.calls[1][1]).toBeUndefined();
+    });
+});
+
+describe('Products', () => {
 
     it('everyAsync = true', async () => {
         // Arrange
@@ -170,47 +633,6 @@ describe('Product Creation', () => {
         expect(found).toBe(false);
     });
 
-    it('where + firstAsync', async () => {
-        // Arrange
-        const context = BasicDataContext.create();
-        await seedData(context);
-
-        // Act
-        const found = await context.products.where(w => w.id != "").firstAsync();
-
-        // Assert
-        expect(found).toBeDefined();
-    });
-
-    it('where + firstAsync with no result found', async () => {
-        // Arrange
-        const context = BasicDataContext.create();
-
-        // Act
-        expect(context.products.where(w => w.id != "").firstAsync()).rejects.toThrow();
-    });
-
-    it('where + firstOrUndefinedAsync', async () => {
-        // Arrange
-        const context = BasicDataContext.create();
-        await seedData(context);
-
-        // Act
-        const found = await context.products.where(w => w.id != "").firstOrUndefinedAsync();
-
-        // Assert
-        expect(found).toBeDefined();
-    });
-
-    it('throws: where + firstOrUndefinedAsync', async () => {
-        // Arrange
-        const context = BasicDataContext.create();
-        await seedData(context);
-
-        // Act/Assert
-        expect(context.products.where(w => w.id === "").firstAsync()).rejects.toThrow();
-    });
-
     it('where + someAsync', async () => {
         // Arrange
         const context = BasicDataContext.create();
@@ -221,18 +643,6 @@ describe('Product Creation', () => {
 
         // Assert
         expect(found).toBeDefined();
-    });
-
-    it('where + toArrayAsync', async () => {
-        // Arrange
-        const context = BasicDataContext.create();
-        await seedData(context);
-
-        // Act
-        const found = await context.products.where(w => w.id != "").toArrayAsync();
-
-        // Assert
-        expect(found.length).toBe(2);
     });
 
     it('where + countAsync', async () => {
@@ -256,71 +666,6 @@ describe('Product Creation', () => {
 
         // Assert
         expect(found).toBe(0);
-    });
-
-    it('where + skip + toArrayAsync', async () => {
-        // Arrange
-        const context = BasicDataContext.create();
-        await seedData(context, 100);
-
-        // Act
-        const found = await context.products.where(w => w.id != "").skip(1).toArrayAsync();
-
-        // Assert
-        expect(found.length).toBe(99);
-    });
-
-    it('where + skip + toArrayAsync', async () => {
-        // Arrange
-        const context = BasicDataContext.create();
-        await seedData(context, 100);
-
-        // Act
-        const found = await context.products.where(w => w.id != "").skip(1).take(1).toArrayAsync();
-
-        // Assert
-        expect(found.length).toBe(1);
-    });
-
-    it('map + firstOrUndefinedAsync + one property', async () => {
-        // Arrange
-        const context = BasicDataContext.create();
-        await seedData(context, 100);
-
-        // Act
-        const found = await context.products.map(w => w.id).firstOrUndefinedAsync();
-
-        // Assert
-        expect(found).toBeDefined();
-        expect(found).toBeTypeOf("string");
-    });
-
-    it('map + toArrayAsync + one property', async () => {
-        // Arrange
-        const context = BasicDataContext.create();
-        await seedData(context, 100);
-
-        // Act
-        const found = await context.products.map(w => w.id).toArrayAsync()
-
-        // Assert
-        expect(found).toBeDefined();
-        expect(found.length).toBe(100);
-        expect(found[0]).toBeTypeOf("string");
-    });
-
-    it('map + firstOrUndefinedAsync + two properties', async () => {
-        // Arrange
-        const context = BasicDataContext.create();
-        await seedData(context, 100);
-
-        // Act
-        const found = await context.products.map(w => ({ first: w.id, second: w.inStock })).firstOrUndefinedAsync();
-
-        // Assert
-        expect(found).toBeDefined();
-        expect(found?.first).toBeDefined();
-        expect(found?.second).toBeDefined();
     });
 
     it('removeOne', async () => {
@@ -362,46 +707,6 @@ describe('Product Creation', () => {
 
         // Assert
         expect(foundAfterSave.name).toBe(word);
-    });
-
-    it('sort', async () => {
-        // Arrange
-        const context = BasicDataContext.create();
-        await seedData(context, 200);
-
-        const sorted = await context.products.sort(w => w.price).toArrayAsync();
-
-        let last: null | number = null;
-
-        for (const item of sorted) {
-            if (last == null) {
-                last = item.price;
-                continue;
-            }
-
-            expect(last).toBeLessThanOrEqual(item.price);
-            last = item.price;
-        }
-    });
-
-    it('sort descending', async () => {
-        // Arrange
-        const context = BasicDataContext.create();
-        await seedData(context, 200);
-
-        const sorted = await context.products.sortDescending(w => w.price).toArrayAsync();
-
-        let last: null | number = null;
-
-        for (const item of sorted) {
-            if (last == null) {
-                last = item.price;
-                continue;
-            }
-
-            expect(last).toBeGreaterThanOrEqual(item.price);
-            last = item.price;
-        }
     });
 
     it('max', async () => {
@@ -528,41 +833,5 @@ describe('Product Creation', () => {
 
         const expectedSum = all.filter(w => w.price > 100).reduce((a, v) => a + v.price, 0);
         expect(expectedSum).toBe(count);
-    });
-
-    it('where + where', async () => {
-        // Arrange
-        const context = BasicDataContext.create();
-        await seedData(context, 200);
-
-        const all = await context.products.toArrayAsync();
-        const count = await context.products.where(w => w.price > 100).where(w => w.name.startsWith("s")).toArrayAsync();
-
-        const expectedSum = all.filter(w => w.price > 100 && w.name.startsWith("s"));
-
-        expectedSum.sort();
-        count.sort();
-
-        expect(expectedSum).toStrictEqual(count);
-    });
-
-    it('where + sort + toArrayAsync', async () => {
-        // Arrange
-        const context = BasicDataContext.create();
-        await seedData(context, 200);
-
-        const all = await context.products.toArrayAsync();
-        const result = await context.products
-            .where(w => w.price > 100)
-            .sortDescending(w => w.price)
-            .map(w => w.price)
-            .toArrayAsync();
-
-        const expected = all.filter(w => w.price > 100).map(w => w.price);
-
-        expected.sort((a, b) => b - a)
-
-
-        expect(expected).toStrictEqual(result);
     });
 }); 

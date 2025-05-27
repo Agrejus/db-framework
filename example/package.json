@@ -10,10 +10,11 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@agrejus/db-framework-core": "file://../core",
     "@agrejus/db-framework": "file://../framework",
+    "@agrejus/db-framework-core": "file://../core",
+    "@agrejus/db-framework-plugin-memory": "file://../plugins/memory",
     "@agrejus/db-framework-plugin-pouchdb": "file://../plugins/pouchdb",
-    "@agrejus/db-framework-plugin-memory": "file://../plugins/memory"
+    "@faker-js/faker": "^9.8.0"
   },
   "devDependencies": {
     "ts-node": "^10.9.2",

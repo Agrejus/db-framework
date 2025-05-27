@@ -1,3 +1,5 @@
+import { Filter, ParamsFilter } from "../../expressions/types";
+import { assertIsArray } from "../../utilities/index";
 import { IQuery } from "../types";
 
 export abstract class DataTranslator<T extends {}, TShape> {
@@ -18,6 +20,36 @@ export abstract class DataTranslator<T extends {}, TShape> {
     abstract take<T>(data: unknown): T;
     abstract sort<T>(data: unknown): T;
     abstract map<T>(data: unknown): T;
+
+    /// Should never call this in the db plugin if the db does the filtering
+    protected filter(data: unknown): TShape {
+
+        assertIsArray(data);
+
+        // Memory Filtering Fallback
+        if (this.query.filters.length > 0) {
+
+            let result = data;
+
+            for (let i = 0, length = this.query.filters.length; i < length; i++) {
+                if (this.query.filters[i].params == null) {
+                    // standard filtering
+                    const selector = this.query.filters[i].filter as Filter<TShape>
+                    result = data.filter(selector);
+                    continue;
+                }
+
+                // params filtering
+                const selector = this.query.filters[i].filter as ParamsFilter<TShape, any>
+                result = data.filter(w => selector([w as TShape, this.query.filters[i].params]));
+            }
+
+            return result as TShape;
+        }
+
+        // Plugin did filtering
+        return data as TShape;
+    }
 
     translate(data: unknown): TShape {
 

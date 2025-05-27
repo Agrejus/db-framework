@@ -7,10 +7,11 @@ import { event } from '../schemas/event';
 import { order } from '../schemas/order';
 import { blogPost } from '../schemas/blogPost';
 import { comment } from '../schemas/comments';
+import { uuidv4 } from '@agrejus/db-framework-core';
 
 export class BasicDataContext extends DataContext {
-    constructor() {
-        super(new MemoryPlugin())
+    constructor(dbname: string) {
+        super(new MemoryPlugin(dbname))
     }
 
     users = this.dbset(user).create();
@@ -22,6 +23,6 @@ export class BasicDataContext extends DataContext {
     comments = this.dbset(comment).create();
 
     static create() {
-        return new BasicDataContext();
+        return new BasicDataContext(uuidv4());
     }
 } 

@@ -1,16 +1,15 @@
 import PouchDB from 'pouchdb';
-import { CompiledSchema, EntityChanges, EntityModificationResult, IDbPlugin, InferType, IQuery, JsonTranslator, Query, SyncronousQueue, SyncronousUnitOfWork, toMap } from '@agrejus/db-framework-core';
+import { CompiledSchema, DataTranslator, EntityChanges, EntityModificationResult, IDbPlugin, IQuery, JsonTranslator, Query, SyncronousQueue, SyncronousUnitOfWork, toMap } from '@agrejus/db-framework-core';
 import { setQueryOptions, toMango } from './expressionResolver';
 import findAdapter from 'pouchdb-find';
 import { PouchDBTranslator } from './translator';
 
 PouchDB.plugin(findAdapter);
-const INDEX_NAME = "db_framework_order_index";
 
 // PouchDB cannot process operations asyncronously, we need a queue so we don't lock things up
 const queue = new SyncronousQueue();
 
-export { toMango };
+export { toMango, setQueryOptions };
 
 export class PouchDbPlugin implements IDbPlugin {
 
@@ -130,16 +129,16 @@ export class PouchDbPlugin implements IDbPlugin {
                 }
                 const errors: any[] = [];
 
+                if (e) {
+                    errors.push(e);
+                }
+
                 this._doWork((db, d) => {
                     db.bulkGet<TEntity>({
                         docs: ids.map(w => ({ id: w as string }))
                     }, (error, bulkGetResponse) => {
 
                         if (error) {
-                            errors.push(error);
-                        }
-
-                        if (e) {
                             errors.push(error);
                         }
 
@@ -217,123 +216,93 @@ export class PouchDbPlugin implements IDbPlugin {
         queue.enqueue(unitOfWork.bind(this));
     }
 
+    private _find<TEntity extends {}, TShape extends unknown = TEntity>(request: PouchDB.Find.FindRequest<unknown>, translator: DataTranslator<TEntity, TShape>, query: IQuery<TEntity, TShape>, done: (result: TShape, error?: any) => void) {
+        this._doWork((w, d) => {
+            this.onGetIndex(query, request, (index => {
+
+                if (index != null) {
+                    request.use_index = index;
+                }
+
+                w.find(request, (error, result) => {
+
+
+                    if (error != null && "message" in error && typeof error.message === "string") {
+                        const match = error.message.match(/Cannot sort on field\(s\) "([^"]+)" when using the default index/);
+
+                        // fallback
+                        if (match && match[1]) {
+
+                            console.warn("PouchDB sort error, falling back to memory sorting by selecting all data", error);
+                            const allRequest: PouchDB.Find.FindRequest<unknown> = {
+                                selector: {}
+                            };
+                            const all = Query.all<TEntity, TShape>(query.schema);
+                            setQueryOptions(all.options, allRequest);
+
+                            // Fallback to memory sorting/filtering, force Json Translator use
+                            const jsonTranslator = new JsonTranslator<TEntity, TShape>(query);
+
+                            w.find(allRequest, (error, result) => {
+
+                                if (error != null) {
+                                    d(null, error);
+                                    return;
+                                }
+
+                                const translated = this._translate(result, jsonTranslator);
+                                d(translated);
+                            });
+                            return;
+                        }
+                        // let this fall through
+                    }
+
+                    // use passed in translator
+                    const translated = this._translate(result, translator);
+
+                    d(translated, error);
+                });
+
+            }));
+        }, done);
+    }
+
+    private _translate<TEntity extends {}, TShape extends unknown = TEntity>(result: PouchDB.Find.FindResponse<unknown>, translator: DataTranslator<TEntity, TShape>) {
+
+        if (translator instanceof JsonTranslator) {
+            return translator.translate(result.docs);
+        }
+
+        return translator.translate(result);
+    }
+
+    protected onGetIndex<TEntity extends {}, TShape extends unknown = TEntity>(_: IQuery<TEntity, TShape>, __: PouchDB.Find.FindRequest<unknown>, done: (result: null | string | [string, string]) => void) {
+        done(null);
+    }
+
     private _query<TEntity extends {}, TShape extends unknown = TEntity>(query: IQuery<TEntity, TShape>, done: (result: TShape, error?: any) => void): void {
 
         const request: PouchDB.Find.FindRequest<unknown> = {
             selector: {}
         };
+        const jsonTranslator = new JsonTranslator<TEntity, TShape>(query);
+
+        if (query.options.sort != null && query.options.sort.length > 1) {
+            console.warn("PouchDB cannot internally handle more than one sort operation, falling back to memory sorting by selecting all data");
+            const all = Query.all<TEntity, TShape>(query.schema);
+            setQueryOptions(all.options, request);
+
+            this._find(request, jsonTranslator, query, done);
+            return;
+
+        }
 
         if (query.expression == null) {
-            const jsonTranslator = new JsonTranslator<TEntity, TShape>(query);
 
             setQueryOptions(query.options, request);
 
-            this._doWork((w, d) => {
-                w.find(request, (error, result) => {
-
-                    if (error != null && "message" in error && typeof error.message === "string") {
-                        const match = error.message.match(/Cannot sort on field\(s\) "([^"]+)" when using the default index/);
-
-                        if (match && match[1]) {
-                            const propertyNames = match[1].split(',').map(field => field.trim());
-
-                            this._doWork((w, d) => {
-                                w.getIndexes((error, result) => {
-
-                                    if (error != null) {
-                                        d(null, error);
-                                        return;
-                                    }
-
-                                    if (result.indexes.length === 0) {
-                                        w.createIndex({
-                                            index: {
-                                                fields: propertyNames,
-                                                name: INDEX_NAME
-                                            }
-                                        }, (error) => {
-
-                                            if (error != null) {
-                                                d(null, error);
-                                                return;
-                                            }
-
-                                            w.find(request, (error, result) => {
-
-                                                // Filter our where clauses, we are in the fallback route
-                                                const filteredResult = query.filter(result.docs as TShape);
-
-                                                d(jsonTranslator.translate(filteredResult), error)
-                                            });
-                                        })
-                                        return;
-                                    }
-
-                                    const found = result.indexes.find(w => w.name === INDEX_NAME);
-
-                                    if (found) {
-                                        w.deleteIndex(found, (error) => {
-                                            if (error != null) {
-                                                d(null, error);
-                                                return;
-                                            }
-
-                                            w.createIndex({
-                                                index: {
-                                                    fields: propertyNames,
-                                                    name: INDEX_NAME
-                                                }
-                                            }, (error) => {
-
-                                                if (error != null) {
-                                                    d(null, error);
-                                                    return;
-                                                }
-
-                                                w.find(request, (error, result) => {
-
-                                                    // Filter our where clauses, we are in the fallback route
-                                                    const filteredResult = query.filter(result.docs as TShape);
-
-                                                    d(jsonTranslator.translate(filteredResult), error)
-                                                });
-                                            })
-                                        })
-                                        return;
-                                    }
-
-                                    w.createIndex({
-                                        index: {
-                                            fields: propertyNames,
-                                            name: INDEX_NAME
-                                        }
-                                    }, (error) => {
-                                        if (error != null) {
-                                            d(null, error);
-                                            return;
-                                        }
-
-                                        w.find(request, (error, result) => {
-
-                                            // Filter our where clauses, we are in the fallback route
-                                            const filteredResult = query.filter(result.docs as TShape);
-
-                                            d(jsonTranslator.translate(filteredResult), error)
-                                        });
-                                    });
-                                })
-                            }, done);
-
-                            return;
-                        }
-                    }
-
-                    // Filter our where clauses, we are in the fallback route
-                    const filteredResult = query.filter(result.docs as TShape);
-
-                    d(jsonTranslator.translate(filteredResult), error)
-                });
-            }, done);
+            this._find(request, jsonTranslator, query, done);
             return;
         }
 
@@ -344,11 +313,6 @@ export class PouchDbPlugin implements IDbPlugin {
         // PouchDB did all of the filtering for us, let's translate the response
         const pouchDbTranslator = new PouchDBTranslator<TEntity, TShape>(query);
 
-        this._doWork((w, d) => {
-            w.find(request, (error, result) => {
-                d(pouchDbTranslator.translate(result), error)
-            });
-        }, done);
-
+        this._find(request, pouchDbTranslator, query, done);
     }
 }

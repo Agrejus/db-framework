@@ -5,7 +5,10 @@ export interface ComparatorExpression extends Expression {
     type: "comparator";
     comparator: Comparator;
     negated: boolean;
+    strict: boolean;
 }
+
+
 
 export interface OperatorExpression extends Expression {
     type: "operator";
@@ -25,11 +28,11 @@ export interface PropertyPathExpression extends Expression {
 
 export interface ValueExpression extends Expression {
     type: "value";
-    value: string;
+    value: unknown;
 }
 
 export type ExpressionType = "operator" | "comparator" | "property" | "value";
-export type Comparator = "equals" | "starts-with" | "includes" | "ends-with";
+export type Comparator = "equals" | "starts-with" | "includes" | "ends-with" | "greater-than" | "greater-than-equals" | "less-than" | "less-than-equals";
 export type Operator = "&&" | "||";
 
 export type Filter<T extends any> = GenericFunction<T, boolean>;
