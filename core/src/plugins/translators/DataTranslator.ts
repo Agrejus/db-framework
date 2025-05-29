@@ -21,6 +21,37 @@ export abstract class DataTranslator<T extends {}, TShape> {
     abstract sort<T>(data: unknown): T;
     abstract map<T>(data: unknown): T;
 
+    satisfies(document: unknown) {
+
+        // Memory Filtering Fallback
+        if (this.query.filters.length > 0) {
+
+            for (let i = 0, length = this.query.filters.length; i < length; i++) {
+                if (this.query.filters[i].params == null) {
+                    // standard filtering
+                    const selector = this.query.filters[i].filter as Filter<TShape>;
+
+                    if (selector(document as TShape) === true) {
+                        return true;
+                    }
+                    continue;
+                }
+
+                // params filtering
+                const selector = this.query.filters[i].filter as ParamsFilter<TShape, any>
+                if (selector([document as TShape, this.query.filters[i].params]) === true) {
+                    return true;
+                }
+            }
+
+            // Nothing matches
+            return false;
+        }
+
+        // No filters, return true
+        return true;
+    }
+
     /// Should never call this in the db plugin if the db does the filtering
     protected filter(data: unknown): TShape {
 

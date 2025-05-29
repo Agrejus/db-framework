@@ -1,4 +1,4 @@
-import PouchDB from 'pouchdb';
+import PouchDB, { emit } from 'pouchdb';
 import { CompiledSchema, DataTranslator, EntityChanges, EntityModificationResult, IDbPlugin, IQuery, JsonTranslator, Query, SyncronousQueue, SyncronousUnitOfWork, toMap } from '@agrejus/db-framework-core';
 import { setQueryOptions, toMango } from './expressionResolver';
 import findAdapter from 'pouchdb-find';
@@ -11,12 +11,36 @@ const queue = new SyncronousQueue();
 
 export { toMango, setQueryOptions };
 
+const fallbackScenarios: { selector: (query: IQuery<any, any>) => boolean, message: string }[] = [
+    {
+        selector: w => w.options.sort != null && w.options.sort.length > 1,
+        message: "PouchDB cannot internally handle more than one sort operation, falling back to memory sorting by selecting all data"
+    },
+    {
+        selector: w => w.options.skip != null && w.options.take == null,
+        message: "PouchDB cannot internally handle skip without take value specified, query is always empty, falling back to memory sorting by selecting all data"
+    }
+];
+
+
+// PouchDB uses allDocs under the hood if no index specified.  If we have a lot of docs this is a problem.  
+// We need to keep track of the slowest queries and create indexes for the top 10
+// Use Map/Reduce for the rest?
+
+// Query Types
+// Memory Optimized -> Map/Reduce (Slower)
+// Default -> No Index Specified then all docs (Fast)
+
+type PouchDBPluginOptions = PouchDB.Configuration.DatabaseConfiguration & {
+    queryType?: "default" | "memory-optimized" | "experimental"
+}
+
 export class PouchDbPlugin implements IDbPlugin {
 
     private readonly _name: string;
-    private readonly _options?: PouchDB.Configuration.DatabaseConfiguration;
+    private readonly _options?: PouchDBPluginOptions;
 
-    constructor(name: string, options?: PouchDB.Configuration.DatabaseConfiguration) {
+    constructor(name: string, options?: PouchDBPluginOptions) {
         this._name = name;
         this._options = options;
     }
@@ -38,7 +62,7 @@ export class PouchDbPlugin implements IDbPlugin {
                         errors.push(error);
                     }
 
-                    d({ docs: response.map(w => w as T), updatesMap: updatesMap as any, removesMap: removesMap as any }, errors.length > 0 ? errors : null);
+                    d({ docs: response?.map(w => w as T), updatesMap: updatesMap as any, removesMap: removesMap as any }, errors.length > 0 ? errors : null);
                 });
             } catch (e) {
                 d({ docs: [], updatesMap: new Map(), removesMap: new Map() }, [e, ...errors])
@@ -121,6 +145,12 @@ export class PouchDbPlugin implements IDbPlugin {
 
         if (schema.hasIdentityKeys === true) {
             this._identityBulkOperations<TEntity>(operations, (r, e) => {
+
+                if (e) {
+                    done(null, e);
+                    return;
+                }
+
                 const ids = [...r.docs.map(w => (w as any).id)];
                 const result: EntityModificationResult<TEntity> = {
                     adds: [],
@@ -226,7 +256,6 @@ export class PouchDbPlugin implements IDbPlugin {
 
                 w.find(request, (error, result) => {
 
-
                     if (error != null && "message" in error && typeof error.message === "string") {
                         const match = error.message.match(/Cannot sort on field\(s\) "([^"]+)" when using the default index/);
 
@@ -281,38 +310,54 @@ export class PouchDbPlugin implements IDbPlugin {
         done(null);
     }
 
+    private _queryDefault<TEntity extends {}, TShape extends unknown = TEntity>(query: IQuery<TEntity, TShape>, done: (result: TShape, error?: any) => void): void {
+        const jsonTranslator = new JsonTranslator<TEntity, TShape>(query);
+        this._doWork((w, d) => {
+            w.allDocs({
+                include_docs: true
+            }).then(response => {
+
+
+                const translated = this._translate({
+                    docs: response.rows.map(w => w.doc)
+                }, jsonTranslator);
+                d(translated);
+            }).catch(error => {
+                d(null, error);
+            });
+        }, done);
+    }
+
+    private _queryMemoryOptimized<TEntity extends {}, TShape extends unknown = TEntity>(query: IQuery<TEntity, TShape>, done: (result: TShape, error?: any) => void): void {
+        const jsonTranslator = new JsonTranslator<TEntity, TShape>(query);
+        this._doWork((w, d) => {
+            w.query((doc, emit) => {
+                if (typeof doc === "object" && "_id" in doc && jsonTranslator.satisfies(doc)) {
+                    emit(doc._id, doc);
+                }
+            }, (error, response) => {
+
+                if (error != null) {
+                    d(null, error);
+                    return;
+                }
+
+                const translated = this._translate({
+                    docs: response.rows.map(w => w.value)
+                }, jsonTranslator);
+                d(translated);
+            });
+        }, done);
+    }
+
+
     private _query<TEntity extends {}, TShape extends unknown = TEntity>(query: IQuery<TEntity, TShape>, done: (result: TShape, error?: any) => void): void {
 
-        const request: PouchDB.Find.FindRequest<unknown> = {
-            selector: {}
-        };
-        const jsonTranslator = new JsonTranslator<TEntity, TShape>(query);
-
-        if (query.options.sort != null && query.options.sort.length > 1) {
-            console.warn("PouchDB cannot internally handle more than one sort operation, falling back to memory sorting by selecting all data");
-            const all = Query.all<TEntity, TShape>(query.schema);
-            setQueryOptions(all.options, request);
-
-            this._find(request, jsonTranslator, query, done);
-            return;
-
+        if (this._options?.queryType === "memory-optimized") {
+            this._queryMemoryOptimized<TEntity, TShape>(query, done);
+            return
         }
 
-        if (query.expression == null) {
-
-            setQueryOptions(query.options, request);
-
-            this._find(request, jsonTranslator, query, done);
-            return;
-        }
-
-        request.selector = toMango(query.expression);
-
-        setQueryOptions(query.options, request);
-
-        // PouchDB did all of the filtering for us, let's translate the response
-        const pouchDbTranslator = new PouchDBTranslator<TEntity, TShape>(query);
-
-        this._find(request, pouchDbTranslator, query, done);
+        this._queryDefault<TEntity, TShape>(query, done);
     }
 }

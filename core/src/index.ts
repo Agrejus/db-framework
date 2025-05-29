@@ -97,3 +97,7 @@ export {
 } from './plugins/replicators/OptimisticDbPluginReplicator';
 
 export { IDbPluginReplicator } from './plugins/replicators/types';
+
+export {
+    PropertyInfo
+} from './common/PropertyInfo';

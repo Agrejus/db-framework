@@ -4,6 +4,7 @@ import { MemoryPlugin } from "@agrejus/db-framework-plugin-memory";
 import { PouchDbPlugin, toMango, setQueryOptions } from "@agrejus/db-framework-plugin-pouchdb";
 import { performance } from 'perf_hooks'
 import { faker } from '@faker-js/faker';
+import PouchDB from 'pouchdb';
 
 // const model = s.define("MY_TABLE", {
 //     _id: s.string().key().default((i) => i.createUUID(64), { createUUID }),
@@ -126,6 +127,9 @@ const r = async () => {
     try {
         // need to make sure we are handling enriching and merging correctly,
         // they are not taking into account defaults
+
+        // const db = new PouchDB("test-db");
+
         debugger;
         const ctx = new Ctx();
 
@@ -135,10 +139,12 @@ const r = async () => {
         // });
 
         // await ctx.saveChangesAsync();
-        const xx5 = await ctx.nested.sort(w => w.name).firstOrUndefinedAsync(w => w._id !== "");
-        const xx = await ctx.nested.sort(w => w.name).sort(w => w.order).firstOrUndefinedAsync(w => w._id === "");// we are working on it.  Mango query is too loose
-        const xx1 = await ctx.nested.firstOrUndefinedAsync(w => w.name === "");// we are working on it.  Mango query is too loose
         const xx2 = await ctx.nested.firstOrUndefinedAsync(w => w.name === "James");
+        debugger;
+        const xx5 = await ctx.nested.sort(w => w.name).firstOrUndefinedAsync(w => w._id !== "");
+        const xx = await ctx.nested.sort(w => w.name).sort(w => w.order).firstOrUndefinedAsync(w => w._id === "");
+        const xx1 = await ctx.nested.firstOrUndefinedAsync(w => w.name === "");
+
         const xx3 = await ctx.nested.firstOrUndefinedAsync(w => w.order >= 100);
         const xx4 = await ctx.nested.sort(w => w.name).sort(w => w.order).firstOrUndefinedAsync(w => w._id !== "");
         console.log(xx, xx1, xx2, xx3, xx4, xx5);
@@ -216,7 +222,7 @@ const r = async () => {
 
         });
 
-        for (let i = 0; i < 5; i++) {
+        for (let i = 0; i < 500; i++) {
             await ctx.nested.addAsync({
                 name: `James ${i}`,
                 order: i * 100,

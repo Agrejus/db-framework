@@ -1,6 +1,8 @@
 import { EntityMap } from "../types";
+import { LimitedQueryableAsync } from "./LimitedQueryableAsync";
 import { SelectionQueryable } from "./SelectionQueryable";
 import { ShapedQueryable } from "./ShapedQueryable";
+import { SkippedQueryableAsync } from "./SkippedQueryableAsync";
 import { QueryOrdering } from "./types";
 
 export class OrderedQueryable<T extends {}, U = void> extends SelectionQueryable<T> {
@@ -18,5 +20,15 @@ export class OrderedQueryable<T extends {}, U = void> extends SelectionQueryable
     map<R extends T[keyof T] | Partial<T>>(expression: EntityMap<T, R>) {
         this.mapValue = expression;
         return new ShapedQueryable<R, U>({ queryable: this } as any);
+    }
+
+    skip(amount: number) {
+        this.skipValue = amount;
+        return new SkippedQueryableAsync<T>({ queryable: this });
+    }
+
+    take(amount: number) {
+        this.takeValue = amount;
+        return new LimitedQueryableAsync<T>({ queryable: this })
     }
 }

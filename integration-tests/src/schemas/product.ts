@@ -1,7 +1,8 @@
-import { s } from '@agrejus/db-framework-core';
+import { s, uuidv4 } from '@agrejus/db-framework-core';
 
 export const product = s.define("products", {
-    id: s.string().key().identity(),
+    _id: s.string().key().identity(),
+    _rev: s.string().identity(),
     name: s.string(),
     price: s.number(),
     category: s.string(),

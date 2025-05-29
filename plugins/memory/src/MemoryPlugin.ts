@@ -120,12 +120,8 @@ export class MemoryPlugin implements IDbPlugin, Disposable {
         try {
             const translator = new JsonTranslator<TEntity, TShape>(query);
             const collection = this.resolveCollection(query.schema);
-
-            // Filter our where clauses
-            const result = query.filter(collection.records as TShape);
-
             // translate if we are doing any operations like count/sum/min/max/skip/take
-            const translated = translator.translate(result);
+            const translated = translator.translate(collection.records);
 
             done(translated);
 

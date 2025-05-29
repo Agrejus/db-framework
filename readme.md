@@ -82,3 +82,8 @@ SELECTORS
   firstOrUndefined
   some
   every
+
+
+  TODO:
+    Make sure errors are reported correctly
+      setting a rev in a new (add) for pouchdb, does that work?

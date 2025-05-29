@@ -11,7 +11,7 @@ export const setQueryOptions = (options: QueryOptions, query: PouchDB.Find.FindR
         query.limit = options.take;
     }
     else {
-        query.limit = undefined; // select all
+        query.limit = Number.MAX_SAFE_INTEGER; // select all
     }
 
     // Handle sorting

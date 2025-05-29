@@ -1,5 +1,5 @@
-import { CompiledSchema, InferCreateType, SchemaTypes } from "@agrejus/db-framework-core/dist/schema";
-import { PropertyInfo } from "@agrejus/db-framework-core/dist/common/PropertyInfo";
+import { CompiledSchema, InferCreateType, SchemaTypes } from "@agrejus/db-framework-core";
+import { PropertyInfo } from "@agrejus/db-framework-core";
 import { faker } from '@faker-js/faker';
 
 // Helper function to generate random data based on property type
@@ -12,7 +12,7 @@ function generateValueForProperty(property: PropertyInfo<any>): any {
     // Handle default values if they exist
     if (property.defaultValue != null) {
         if (typeof property.defaultValue === 'function') {
-            return property.defaultValue();
+            return property.defaultValue(property.injected);
         }
         return property.defaultValue;
     }
@@ -136,6 +136,11 @@ export const generateData = <T extends {}>(schema: CompiledSchema<T>, count: num
 
         // Generate data for each property in the schema
         for (const property of schema.properties) {
+
+            if (property.isIdentity === true) {
+                continue;
+            }
+
             const value = generateValueForProperty(property);
             if (value !== undefined) {
                 item[property.name] = value;
