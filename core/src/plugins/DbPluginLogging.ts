@@ -1,6 +1,6 @@
-import { CompiledSchema } from '../schema';
+import { CompiledSchema, SchemaTarget } from '../schema';
 import { now } from '../utilities/index';
-import { EntityChanges, EntityModificationResult, IDbPlugin, IQuery } from './types';
+import { DbPluginBulkOperationsEvent, DbPluginQueryEvent, EntityChanges, EntityModificationResult, IDbPlugin, IQuery } from './types';
 
 // Check if we're in development environment
 const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === undefined;
@@ -10,6 +10,7 @@ export type LogHook<T> = (data: T & Record<string, unknown>) => void;
 
 export type QueryLogContext<TEntity extends {}, TShape extends any = TEntity> = {
     query: IQuery<TEntity, TShape> & Record<string, unknown>;
+    schema: CompiledSchema<TEntity>;
     result?: TShape;
     error?: any;
     duration: number;
@@ -77,13 +78,15 @@ export class DbPluginLogging implements IDbPlugin {
         return this; // For chaining
     }
 
-    query<TEntity extends {}, TShape extends any = TEntity>(query: IQuery<TEntity, TShape>, done: (result: TShape, error?: any) => void): void {
+    query<TEntity extends {}, TShape extends any = TEntity>(event: DbPluginQueryEvent<TEntity, TShape>, done: (result: TShape, error?: any) => void): void {
+        const { operation, schema } = event;
         const start = now();
 
         // Create context for hooks and logging
         const context: QueryLogContext<TEntity, TShape> = {
-            query,
-            duration: 0
+            query: operation,
+            duration: 0,
+            schema
         };
 
         // Call the request hook if defined
@@ -93,7 +96,7 @@ export class DbPluginLogging implements IDbPlugin {
 
         try {
             // Wrap the callback to measure and log the execution time
-            this.plugin.query(query, (result, error) => {
+            this.plugin.query(event, (result, error) => {
                 const end = now();
                 const duration = end - start;
 
@@ -142,9 +145,9 @@ export class DbPluginLogging implements IDbPlugin {
         // Skip logging if not in development environment
         if (!this._shouldLog) return;
 
-        const { query, result, error, duration, isCriticalError } = context;
+        const { query, result, error, duration, isCriticalError, schema } = context;
         const pluginName = "constructor" in this.plugin ? ` [${this.plugin.constructor.name}]` : "";
-        const schemaName = query.schema.collectionName;
+        const schemaName = schema.collectionName;
 
         if (this._logStyle === 'minimal') {
             if (error) {
@@ -328,14 +331,15 @@ export class DbPluginLogging implements IDbPlugin {
         }
     }
 
-    bulkOperations<TEntity extends {}>(schema: CompiledSchema<TEntity>, operations: EntityChanges<TEntity>, done: (result: EntityModificationResult<TEntity>, error?: any) => void): void {
+    bulkOperations<TEntity extends {}>(event: DbPluginBulkOperationsEvent<TEntity>, done: (result: EntityModificationResult<TEntity>, error?: any) => void): void {
+        const { operation, schema } = event;
         const start = now();
         const operationId = Math.random().toString(36).substring(2, 8);
 
         // Create context for hooks and logging
         const context: BulkOperationsLogContext<TEntity> = {
             schema,
-            operations,
+            operations: operation,
             duration: 0,
             operationId
         };
@@ -346,7 +350,7 @@ export class DbPluginLogging implements IDbPlugin {
         }
 
         try {
-            this.plugin.bulkOperations(schema, operations, (result, error) => {
+            this.plugin.bulkOperations(event, (result, error) => {
                 const end = now();
                 const duration = end - start;
 
@@ -393,7 +397,7 @@ export class DbPluginLogging implements IDbPlugin {
         // Skip logging if not in development environment
         if (!this._shouldLog) return;
 
-        const { schema, operations, result, error, duration, operationId, isCriticalError } = context;
+        const { schema, operations, result, error, duration, isCriticalError } = context;
         const schemaName = schema.collectionName;
 
         if (this._logStyle === 'minimal') {

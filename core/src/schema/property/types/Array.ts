@@ -6,6 +6,8 @@ import { SchemaOptional } from "../modifiers/Optional";
 import { SchemaDeserialize } from '../modifiers/Deserialize';
 import { SchemaSerialize } from '../modifiers/Serialize';
 import { DefaultValue } from "../../../types";
+import { uuidv4 } from "../../../utilities/uuid";
+import { SchemaIndex } from "../modifiers/Index";
 
 export class SchemaArray<T extends any, TModifiers extends SchemaModifiers> extends SchemaBase<T[], TModifiers> {
 
@@ -37,5 +39,9 @@ export class SchemaArray<T extends any, TModifiers extends SchemaModifiers> exte
 
     serialize(serializer: PropertySerializer<T[]>) {
         return new SchemaSerialize<T[], TModifiers | "serialize">(serializer, this);
+    }
+
+    index(...indexes: string[]) {
+        return new SchemaIndex<T[], TModifiers>(this as any, ...indexes);
     }
 }

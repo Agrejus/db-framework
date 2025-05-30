@@ -1,14 +1,25 @@
 import { DataContext } from "@agrejus/db-framework";
 import { s, InferType, DbPluginLogging } from "@agrejus/db-framework-core";
 import { MemoryPlugin } from "@agrejus/db-framework-plugin-memory";
-import { PouchDbPlugin, toMango, setQueryOptions } from "@agrejus/db-framework-plugin-pouchdb";
+import { PouchDbPlugin } from "@agrejus/db-framework-plugin-pouchdb";
+import { DexiePlugin } from "@agrejus/db-framework-plugin-dexie";
 import { performance } from 'perf_hooks'
 import { faker } from '@faker-js/faker';
 import PouchDB from 'pouchdb';
 
+// ADDITIONS
+// .distinct()
+// .indexable("test", "one")
+
+// DEXIE MAP => indexable("test", "one")
+// ++	Auto-incremented primary key => identity
+// &	Unique => distinct
+// *	Multi-entry index => We know if its an array already -> indexable + array
+// [A+B]	Compound index => indexable("test", "one") use the same index identifier twice
+
 // const model = s.define("MY_TABLE", {
-//     _id: s.string().key().default((i) => i.createUUID(64), { createUUID }),
-//     _rev: s.string().identity(),
+//     _id: s.string().key().default((i) => i.createUUID(64), { createUUID }).indexable("test", "one"),
+//     _rev: s.string().identity().indexable("test"),
 //     name: s.string(),
 //     year: s.number(),
 //     date: s.date().default(new Date()).deserialize(w => new Date(w)).serialize(w => w.toISOString())
@@ -64,8 +75,8 @@ const nested = s.define("products", {
         two: s.string()
     }),
     _rev: s.string().identity(),
-    order: s.number().default((d) => d.test, { test: 1 }),
-    name: s.string(),
+    order: s.number().index().default((d) => d.test, { test: 1 }),
+    name: s.string().index(),
     child: s.object({
         name: s.string(),
         nested: s.object({
@@ -94,27 +105,28 @@ type Test = InferType<typeof nested>;
 // })).compile();
 
 const memoryPlugin = new MemoryPlugin();
+const dexiePlugin = new DexiePlugin("test-db");
 const memoryPluginWithLogging = DbPluginLogging.create(memoryPlugin);
 const pouchDbPlugin = new PouchDbPlugin("test-db");
 const pouchDbPluginWithLogging = DbPluginLogging.create(pouchDbPlugin).setHook("onQueryRequest", (data) => {
     if (data.query.expression != null) {
 
-        const request = {
-            selector: {}
-        };
+        // const request = {
+        //     selector: {}
+        // };
 
-        request.selector = toMango(data.query.expression);
+        // request.selector = toMango(data.query.expression);
 
-        setQueryOptions(data.query.options, request);
+        // setQueryOptions(data.query.options, request);
 
-        data.query.mango = request;
+        // data.query.mango = request;
     }
 })
 
 class Ctx extends DataContext {
 
     constructor() {
-        super(pouchDbPluginWithLogging);
+        super(dexiePlugin);
     }
 
     // test = this.dbset(model).create();

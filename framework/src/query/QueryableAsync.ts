@@ -10,16 +10,16 @@ export class QueryableAsync<T extends {}> extends QueryableBaseAsync<T> {
     where<P extends {} = never>(selector: ParamsFilter<T, P> | Filter<T>, params?: P) {
         if (params == null) {
             this.filters.push({ filter: selector as Filter<T> });
-            return new QueryableAsync<T>({ queryable: this });
+            return new QueryableAsync<T>(this.schema as any, this.parent, { queryable: this });
         }
 
         this.filters.push({ filter: selector as ParamsFilter<T, P>, params });
 
-        return new ParamsQueryableAsync<T>({ queryable: this });
+        return new ParamsQueryableAsync<T>(this.schema as any, this.parent, { queryable: this });
     }
 
     subscribe() {
         this.subscribeValue = true;
-        return new Queryable<T, () => void>({ queryable: this });
+        return new Queryable<T, () => void>(this.schema as any, this.parent, { queryable: this });
     }
 }

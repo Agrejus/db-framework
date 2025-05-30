@@ -1,21 +1,18 @@
-import { Expression, Filter, Filterable, ParamsFilter } from '../expressions/types';
-import { CompiledSchema } from '../schema';
+
+import { Expression, Filterable } from '../expressions/types';
 import { IQuery, QueryOptions } from './types';
 
 export class Query<TEntity extends {}, TShape extends any = TEntity> implements IQuery<TEntity, TShape> {
 
-    readonly schema: CompiledSchema<TEntity>;
     readonly options: QueryOptions;
     readonly filters: Filterable<TShape, any>[];
     readonly expression?: Expression;
 
     constructor(
-        schema: CompiledSchema<TEntity>,
         options: QueryOptions,
         filters: Filterable<TShape, any>[],
         expression?: Expression
     ) {
-        this.schema = schema;
         this.options = options;
         this.filters = filters;
         this.expression = expression;
@@ -38,7 +35,7 @@ export class Query<TEntity extends {}, TShape extends any = TEntity> implements 
         return true;
     }
 
-    static all<T extends {}, TShape extends any = T>(schema: CompiledSchema<T>) {
-        return new Query<T, TShape>(schema, {}, []);
+    static all<T extends {}, TShape extends any = T>() {
+        return new Query<T, TShape>({}, []);
     }
 }

@@ -1,4 +1,4 @@
-import { IDbPlugin, CompiledSchema, EntityChanges, EntityModificationResult, InferCreateType, DeepPartial, IdType, InferType, IQuery, JsonTranslator } from "@agrejus/db-framework-core";
+import { IDbPlugin, CompiledSchema, EntityChanges, EntityModificationResult, InferCreateType, DeepPartial, IdType, InferType, IQuery, JsonTranslator, DbPluginBulkOperationsEvent, DbPluginQueryEvent } from "@agrejus/db-framework-core";
 import { DbCollection } from "./DbCollection";
 import { MemoryDatabase } from ".";
 
@@ -50,11 +50,11 @@ export class MemoryPlugin implements IDbPlugin, Disposable {
     }
 
     bulkOperations<TEntity extends {}>(
-        schema: CompiledSchema<TEntity>,
-        operations: EntityChanges<TEntity>,
+        event: DbPluginBulkOperationsEvent<TEntity>,
         done: (result: EntityModificationResult<TEntity>, error?: any) => void) {
 
-        const { adds, removes, updates } = operations;
+        const { operation, schema } = event;
+        const { adds, removes, updates } = operation;
 
         try {
             const processedAdditions = this._processAdds(schema, adds);
@@ -115,11 +115,12 @@ export class MemoryPlugin implements IDbPlugin, Disposable {
         return removes.length;
     }
 
-    query<TEntity extends {}, TShape extends any = TEntity>(query: IQuery<TEntity, TShape>, done: (result: TShape, error?: any) => void): void {
+    query<TEntity extends {}, TShape extends any = TEntity>(event: DbPluginQueryEvent<TEntity, TShape>, done: (result: TShape, error?: any) => void): void {
 
         try {
-            const translator = new JsonTranslator<TEntity, TShape>(query);
-            const collection = this.resolveCollection(query.schema);
+            const { operation, schema } = event;
+            const translator = new JsonTranslator<TEntity, TShape>(operation);
+            const collection = this.resolveCollection(schema);
             // translate if we are doing any operations like count/sum/min/max/skip/take
             const translated = translator.translate(collection.records);
 

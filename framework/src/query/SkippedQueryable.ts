@@ -4,6 +4,6 @@ export class SkippedQueryable<T extends {}, U = void> extends SelectionQueryable
 
     take(amount: number) {
         this.takeValue = amount;
-        return new SelectionQueryable<T, U>({ queryable: this })
+        return new SelectionQueryable<T, U>(this.schema as any, this.parent, { queryable: this })
     }
 }

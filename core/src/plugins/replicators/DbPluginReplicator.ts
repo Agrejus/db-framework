@@ -1,6 +1,6 @@
 import { TrampolinePipeline } from '../../common/TrampolinePipeline';
-import { CompiledSchema, InferCreateType } from '../../schema';
-import { EntityChanges, EntityModificationResult, IDbPlugin, IdbPluginCollection, IQuery } from '../types';
+import { InferCreateType } from '../../schema';
+import { DbPluginBulkOperationsEvent, DbPluginQueryEvent, EntityModificationResult, IDbPlugin, IdbPluginCollection } from '../types';
 import { OperationsPayload, PersistPayload } from './types';
 
 export class DbPluginReplicator implements IDbPlugin {
@@ -25,12 +25,12 @@ export class DbPluginReplicator implements IDbPlugin {
     /**
      * Will query the read plugin if there is one, otherwise the source plugin will be queried
     */
-    query<TEntity extends {}, TShape extends any = TEntity>(query: IQuery<TEntity, TShape>, done: (result: TShape, error?: any) => void): void {
+    query<TEntity extends {}, TShape extends any = TEntity>(event: DbPluginQueryEvent<TEntity, TShape>, done: (result: TShape, error?: any) => void): void {
         try {
 
             const plugin = this.plugins.read != null ? this.plugins.read : this.plugins.source;
 
-            plugin.query(query, done);
+            plugin.query(event, done);
         } catch (e: any) {
             done(null, e);
         }
@@ -84,7 +84,7 @@ export class DbPluginReplicator implements IDbPlugin {
     }
 
     private _persist<TEntity extends {}>(payload: PersistPayload<TEntity>, done: (payload: PersistPayload<TEntity>) => void) {
-        const { plugins, index, schema, operations, result } = payload;
+        const { plugins, index, event, result } = payload;
         const plugin = plugins[index];
 
         // move next
@@ -92,7 +92,7 @@ export class DbPluginReplicator implements IDbPlugin {
 
         // source is first
         if (payload.index === 1) {
-            plugin.bulkOperations(schema, operations, (r, e) => {
+            plugin.bulkOperations(event, (r, e) => {
                 payload.result = r;
 
                 if (e != null) {
@@ -111,10 +111,14 @@ export class DbPluginReplicator implements IDbPlugin {
 
         const { adds } = result;
 
-        plugin.bulkOperations(schema, {
-            adds: adds as InferCreateType<TEntity>[], // pass in the resulting additions to get any keys that were set
-            updates: operations.updates,
-            removes: operations.removes
+        plugin.bulkOperations({
+            operation: {
+                adds: adds as InferCreateType<TEntity>[], // pass in the resulting additions to get any keys that were set
+                updates: event.operation.updates,
+                removes: event.operation.removes
+            },
+            parent: event.parent,
+            schema: event.schema
         }, (_, e) => {
 
             if (e != null) {
@@ -125,7 +129,7 @@ export class DbPluginReplicator implements IDbPlugin {
         });
     }
 
-    bulkOperations<TEntity extends {}>(schema: CompiledSchema<TEntity>, operations: EntityChanges<TEntity>, done: (result: EntityModificationResult<TEntity>, error?: any) => void): void {
+    bulkOperations<TEntity extends {}>(event: DbPluginBulkOperationsEvent<TEntity>, done: (result: EntityModificationResult<TEntity>, error?: any) => void): void {
         try {
             // insert into the source first to generate any ids, then take the result and persist that into the replicas
             const pipeline = new TrampolinePipeline<OperationsPayload>();
@@ -139,8 +143,7 @@ export class DbPluginReplicator implements IDbPlugin {
                 plugins,
                 index: 0,
                 errors: [],
-                schema,
-                operations
+                event
             };
 
             for (let i = 0, length = plugins.length; i < length; i++) {

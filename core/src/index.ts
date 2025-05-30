@@ -30,11 +30,14 @@ export {
     EntityModificationResult,
     QueryOptions,
     QueryField,
-    IQuery as IQuery,
+    IQuery,
     QuerySort,
     DbOperation,
     ReadOperation,
-    UpsertOperation
+    UpsertOperation,
+    DbPluginQueryEvent,
+    DbPluginBulkOperationsEvent,
+    DbPluginEvent
 } from './plugins/types';
 
 export {
@@ -70,7 +73,8 @@ export {
     SchemaTypes,
     SchemaModifiers,
     s,
-    HashType
+    HashType,
+    SchemaParent
 } from './schema';
 
 export {

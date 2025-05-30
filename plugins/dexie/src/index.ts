@@ -1,0 +1,1 @@
+export { DexiePlugin } from './DexiePlugin';

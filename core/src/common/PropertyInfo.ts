@@ -14,6 +14,8 @@ export class PropertyInfo<T extends {}> {
     readonly isIdentity: boolean;
     readonly isReadonly: boolean;
     readonly isUnmapped: boolean;
+    readonly isDistinct: boolean;
+    readonly indexes: string[];
 
     readonly injected: any | null = null;
     readonly defaultValue: DefaultValue<any> | null = null;
@@ -44,6 +46,8 @@ export class PropertyInfo<T extends {}> {
         this.isReadonly = schema.isReadonly;
         this.isUnmapped = schema.isUnmapped;
         this.injected = schema.injected;
+        this.isDistinct = schema.isDistict;
+        this.indexes = schema.indexes;
 
         this.defaultValue = schema.defaultValue;
         this.valueSerializer = schema.valueSerializer;
@@ -51,6 +55,23 @@ export class PropertyInfo<T extends {}> {
         this.functionBody = schema.functionBody;
 
         this.parent = parent;
+    }
+
+    get level() {
+        let level = 0;
+        let current: PropertyInfo<T> | undefined = this;
+
+        while (current) {
+
+            if (current.parent == null) {
+                return level;
+            }
+
+            current = current.parent;
+            level++;
+        }
+
+        return level;
     }
 
     private _getPropertyChain(): PropertyInfo<T>[] {

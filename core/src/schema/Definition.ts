@@ -32,6 +32,7 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         this.instance = schema;
         this.isNullable = false;
         this.isOptional = false;
+        this.indexes = [];
     }
 
     modify<R>(builder: (d: {

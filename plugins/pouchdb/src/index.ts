@@ -1,27 +1,8 @@
-import PouchDB, { emit } from 'pouchdb';
-import { CompiledSchema, DataTranslator, EntityChanges, EntityModificationResult, IDbPlugin, IQuery, JsonTranslator, Query, SyncronousQueue, SyncronousUnitOfWork, toMap } from '@agrejus/db-framework-core';
-import { setQueryOptions, toMango } from './expressionResolver';
-import findAdapter from 'pouchdb-find';
-import { PouchDBTranslator } from './translator';
-
-PouchDB.plugin(findAdapter);
+import PouchDB from 'pouchdb';
+import { CompiledSchema, DataTranslator, DbPluginBulkOperationsEvent, DbPluginQueryEvent, EntityChanges, EntityModificationResult, IDbPlugin, IQuery, JsonTranslator, Query, SyncronousQueue, SyncronousUnitOfWork, toMap } from '@agrejus/db-framework-core';
 
 // PouchDB cannot process operations asyncronously, we need a queue so we don't lock things up
 const queue = new SyncronousQueue();
-
-export { toMango, setQueryOptions };
-
-const fallbackScenarios: { selector: (query: IQuery<any, any>) => boolean, message: string }[] = [
-    {
-        selector: w => w.options.sort != null && w.options.sort.length > 1,
-        message: "PouchDB cannot internally handle more than one sort operation, falling back to memory sorting by selecting all data"
-    },
-    {
-        selector: w => w.options.skip != null && w.options.take == null,
-        message: "PouchDB cannot internally handle skip without take value specified, query is always empty, falling back to memory sorting by selecting all data"
-    }
-];
-
 
 // PouchDB uses allDocs under the hood if no index specified.  If we have a lot of docs this is a problem.  
 // We need to keep track of the slowest queries and create indexes for the top 10
@@ -30,7 +11,6 @@ const fallbackScenarios: { selector: (query: IQuery<any, any>) => boolean, messa
 // Query Types
 // Memory Optimized -> Map/Reduce (Slower)
 // Default -> No Index Specified then all docs (Fast)
-
 type PouchDBPluginOptions = PouchDB.Configuration.DatabaseConfiguration & {
     queryType?: "default" | "memory-optimized" | "experimental"
 }
@@ -135,16 +115,15 @@ export class PouchDbPlugin implements IDbPlugin {
     }
 
     private _bulkOperations<TEntity extends {}>(
-        schema: CompiledSchema<TEntity>,
-        operations: EntityChanges<TEntity>,
+        event: DbPluginBulkOperationsEvent<TEntity>,
         done: (result: EntityModificationResult<TEntity>, error?: any) => void) {
 
-        if (schema.idProperties.length > 1) {
+        if (event.schema.idProperties.length > 1) {
             throw new Error("PouchDB cannot have more than one key per document.  Only '_id' is allowed to be the key")
         }
 
-        if (schema.hasIdentityKeys === true) {
-            this._identityBulkOperations<TEntity>(operations, (r, e) => {
+        if (event.schema.hasIdentityKeys === true) {
+            this._identityBulkOperations<TEntity>(event.operation, (r, e) => {
 
                 if (e) {
                     done(null, e);
@@ -199,13 +178,13 @@ export class PouchDbPlugin implements IDbPlugin {
             return;
         }
 
-        this._defaultBulkOperations<TEntity>(operations, done);
+        this._defaultBulkOperations<TEntity>(event.operation, done);
     }
 
-    private _doWork<TResult, TEntity>(action: (db: PouchDB.Database<TEntity>, done: (result: TResult, error?: any) => void) => void, done: (result: TResult, error?: any) => void, shouldClose: boolean = true) {
+    private _doWork<TResult, TEntity>(work: (db: PouchDB.Database<TEntity>, done: (result: TResult, error?: any) => void) => void, done: (result: TResult, error?: any) => void, shouldClose: boolean = true) {
         const db = new PouchDB<TEntity>(this._name, this._options);
 
-        action(db, (result, error) => {
+        work(db, (result, error) => {
 
             if (shouldClose) {
                 db.close(() => done(result, error));
@@ -225,11 +204,10 @@ export class PouchDbPlugin implements IDbPlugin {
 
 
     bulkOperations<TEntity extends {}>(
-        schema: CompiledSchema<TEntity>,
-        operations: EntityChanges<TEntity>,
+        event: DbPluginBulkOperationsEvent<TEntity>,
         done: (result: EntityModificationResult<TEntity>, error?: any) => void) {
 
-        const unitOfWork: SyncronousUnitOfWork = (d) => this._bulkOperations(schema, operations, (r, e) => {
+        const unitOfWork: SyncronousUnitOfWork = (d) => this._bulkOperations(event, (r, e) => {
             d();
             done(r, e)
         })
@@ -237,64 +215,13 @@ export class PouchDbPlugin implements IDbPlugin {
         queue.enqueue(unitOfWork.bind(this));
     }
 
-    query<TEntity extends {}, TShape extends unknown = TEntity>(query: IQuery<TEntity, TShape>, done: (result: TShape, error?: any) => void): void {
-        const unitOfWork: SyncronousUnitOfWork = (d) => this._query<TEntity, TShape>(query, (r, e) => {
+    query<TEntity extends {}, TShape extends unknown = TEntity>(event: DbPluginQueryEvent<TEntity, TShape>, done: (result: TShape, error?: any) => void): void {
+        const unitOfWork: SyncronousUnitOfWork = (d) => this._query<TEntity, TShape>(event, (r, e) => {
             d();
             done(r, e)
         })
 
         queue.enqueue(unitOfWork.bind(this));
-    }
-
-    private _find<TEntity extends {}, TShape extends unknown = TEntity>(request: PouchDB.Find.FindRequest<unknown>, translator: DataTranslator<TEntity, TShape>, query: IQuery<TEntity, TShape>, done: (result: TShape, error?: any) => void) {
-        this._doWork((w, d) => {
-            this.onGetIndex(query, request, (index => {
-
-                if (index != null) {
-                    request.use_index = index;
-                }
-
-                w.find(request, (error, result) => {
-
-                    if (error != null && "message" in error && typeof error.message === "string") {
-                        const match = error.message.match(/Cannot sort on field\(s\) "([^"]+)" when using the default index/);
-
-                        // fallback
-                        if (match && match[1]) {
-
-                            console.warn("PouchDB sort error, falling back to memory sorting by selecting all data", error);
-                            const allRequest: PouchDB.Find.FindRequest<unknown> = {
-                                selector: {}
-                            };
-                            const all = Query.all<TEntity, TShape>(query.schema);
-                            setQueryOptions(all.options, allRequest);
-
-                            // Fallback to memory sorting/filtering, force Json Translator use
-                            const jsonTranslator = new JsonTranslator<TEntity, TShape>(query);
-
-                            w.find(allRequest, (error, result) => {
-
-                                if (error != null) {
-                                    d(null, error);
-                                    return;
-                                }
-
-                                const translated = this._translate(result, jsonTranslator);
-                                d(translated);
-                            });
-                            return;
-                        }
-                        // let this fall through
-                    }
-
-                    // use passed in translator
-                    const translated = this._translate(result, translator);
-
-                    d(translated, error);
-                });
-
-            }));
-        }, done);
     }
 
     private _translate<TEntity extends {}, TShape extends unknown = TEntity>(result: PouchDB.Find.FindResponse<unknown>, translator: DataTranslator<TEntity, TShape>) {
@@ -310,8 +237,8 @@ export class PouchDbPlugin implements IDbPlugin {
         done(null);
     }
 
-    private _queryDefault<TEntity extends {}, TShape extends unknown = TEntity>(query: IQuery<TEntity, TShape>, done: (result: TShape, error?: any) => void): void {
-        const jsonTranslator = new JsonTranslator<TEntity, TShape>(query);
+    private _queryDefault<TEntity extends {}, TShape extends unknown = TEntity>(event: DbPluginQueryEvent<TEntity, TShape>, done: (result: TShape, error?: any) => void): void {
+        const jsonTranslator = new JsonTranslator<TEntity, TShape>(event.operation);
         this._doWork((w, d) => {
             w.allDocs({
                 include_docs: true
@@ -328,8 +255,8 @@ export class PouchDbPlugin implements IDbPlugin {
         }, done);
     }
 
-    private _queryMemoryOptimized<TEntity extends {}, TShape extends unknown = TEntity>(query: IQuery<TEntity, TShape>, done: (result: TShape, error?: any) => void): void {
-        const jsonTranslator = new JsonTranslator<TEntity, TShape>(query);
+    private _queryMemoryOptimized<TEntity extends {}, TShape extends unknown = TEntity>(event: DbPluginQueryEvent<TEntity, TShape>, done: (result: TShape, error?: any) => void): void {
+        const jsonTranslator = new JsonTranslator<TEntity, TShape>(event.operation);
         this._doWork((w, d) => {
             w.query((doc, emit) => {
                 if (typeof doc === "object" && "_id" in doc && jsonTranslator.satisfies(doc)) {
@@ -351,13 +278,13 @@ export class PouchDbPlugin implements IDbPlugin {
     }
 
 
-    private _query<TEntity extends {}, TShape extends unknown = TEntity>(query: IQuery<TEntity, TShape>, done: (result: TShape, error?: any) => void): void {
+    private _query<TEntity extends {}, TShape extends unknown = TEntity>(event: DbPluginQueryEvent<TEntity, TShape>, done: (result: TShape, error?: any) => void): void {
 
         if (this._options?.queryType === "memory-optimized") {
-            this._queryMemoryOptimized<TEntity, TShape>(query, done);
+            this._queryMemoryOptimized<TEntity, TShape>(event, done);
             return
         }
 
-        this._queryDefault<TEntity, TShape>(query, done);
+        this._queryDefault<TEntity, TShape>(event, done);
     }
 }

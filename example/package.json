@@ -14,6 +14,7 @@
     "@agrejus/db-framework-core": "file://../core",
     "@agrejus/db-framework-plugin-memory": "file://../plugins/memory",
     "@agrejus/db-framework-plugin-pouchdb": "file://../plugins/pouchdb",
+    "@agrejus/db-framework-plugin-dexie": "file://../plugins/dexie",
     "@faker-js/faker": "^9.8.0",
     "pouchdb": "^9.0.0"
   },

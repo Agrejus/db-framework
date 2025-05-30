@@ -1,4 +1,4 @@
-import { QueryOptions, toExpression, Expression, combineExpressions, QueryField, IQuery, Filterable, Query } from "@agrejus/db-framework-core";
+import { QueryOptions, toExpression, Expression, combineExpressions, QueryField, IQuery, Filterable, Query, CompiledSchema, DbPluginQueryEvent, SchemaParent } from "@agrejus/db-framework-core";
 import { EntityMap } from "../../types";
 import { QueryOrdering } from "../types";
 import { DataBridge } from "../../data-access/DataBridge";
@@ -20,8 +20,13 @@ export abstract class QueryRoot<T extends {}> {
     protected distinctValue: boolean = false;
     protected subscribeValue: boolean = false;
     private _compiledQuery: IQuery<T> | null = null;
+    protected schema: CompiledSchema<T>;
+    protected parent: SchemaParent;
 
-    constructor(options: { queryable?: QueryRoot<T>, dataBridge?: DataBridge<T>, changeTracker?: ChangeTracker<T> }) {
+    constructor(schema: CompiledSchema<T>, parent: SchemaParent, options: { queryable?: QueryRoot<T>, dataBridge?: DataBridge<T>, changeTracker?: ChangeTracker<T> }) {
+
+        this.schema = schema;
+        this.parent = parent;
 
         if (options?.dataBridge != null) {
             this.dataBridge = options.dataBridge;
@@ -75,11 +80,11 @@ export abstract class QueryRoot<T extends {}> {
             return () => { };
         }
 
-        const query = this.getOrCompileQuery();
+        const event = this.createEvent();
 
-        return this.dataBridge.subscribe<U, unknown>(query as any, (r, e) => {
+        return this.dataBridge.subscribe<U, unknown>(event, (r, e) => {
 
-            if (query.changeTracking === true) {
+            if (event.operation.changeTracking === true) {
                 const enriched = this.changeTracker.enrich(r as any);
                 const resolved = this.changeTracker.resolve(enriched, { mergeResponse: true });
                 done(resolved as U, e);
@@ -158,11 +163,11 @@ export abstract class QueryRoot<T extends {}> {
     private _convertToExpression(filter: Filterable<T>) {
 
         if (filter.params != null) {
-            return toExpression(this.dataBridge.schema, filter.filter, filter.params);
+            return toExpression(this.schema, filter.filter, filter.params);
         }
 
         try {
-            return toExpression(this.dataBridge.schema, filter.filter, null);
+            return toExpression(this.schema, filter.filter, null);
         } catch (e) {
             return null; // fallback to memory filtering
         }
@@ -200,7 +205,6 @@ export abstract class QueryRoot<T extends {}> {
         const options = this.getQueryOptions();
 
         this._compiledQuery = new Query(
-            this.dataBridge.schema,
             options,
             this.filters,
             expression
@@ -209,11 +213,19 @@ export abstract class QueryRoot<T extends {}> {
         return this._compiledQuery;
     }
 
+    protected createEvent<TShape>(): DbPluginQueryEvent<T, TShape> {
+        return {
+            operation: this.getOrCompileQuery() as any,
+            parent: this.parent,
+            schema: this.schema
+        }
+    }
+
     protected getData<TShape>(done: (result: TShape, error?: any) => void) {
 
-        const query = this.getOrCompileQuery();
+        const event = this.createEvent();
 
-        this.dataBridge.fetch<TShape>(query as any, (result, error) => {
+        this.dataBridge.query<TShape>(event, (result, error) => {
 
             if (error != null) {
                 done(result, error)
@@ -221,7 +233,7 @@ export abstract class QueryRoot<T extends {}> {
             }
 
             // if change tracking is true, we will never be shaping the result from .map()
-            if (query.changeTracking === true) {
+            if (event.operation.changeTracking === true) {
                 const enriched = this.changeTracker.enrich(result as any);
                 const resolved = this.changeTracker.resolve(enriched);
                 done(resolved as any);

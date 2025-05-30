@@ -1,4 +1,4 @@
-import { CompiledSchema, IDbPlugin } from '@agrejus/db-framework-core';
+import { CompiledSchema, IDbPlugin, SchemaParent } from '@agrejus/db-framework-core';
 import { DbSet } from '../db-sets/DbSet';
 import { DbSetOptions, DbSetPipelines, StatefulDbSetOptions } from '../types';
 import { DbSetInstanceCreator } from './types';
@@ -13,6 +13,7 @@ type DbSetBuilderProps<TEntity extends {}, TDbSet extends DbSet<TEntity>> = {
     pipelines: DbSetPipelines;
     signal: AbortSignal;
     stateful?: { optimistic: boolean }
+    parent: SchemaParent;
 }
 
 export class DbSetBuilder<TEntity extends {}, TDbSet extends DbSet<TEntity>> {
@@ -25,6 +26,7 @@ export class DbSetBuilder<TEntity extends {}, TDbSet extends DbSet<TEntity>> {
     private _pipelines: DbSetPipelines;
     private _signal: AbortSignal;
     private _statefulProps?: { optimistic: boolean }
+    private parent: SchemaParent;
 
     constructor(props: DbSetBuilderProps<TEntity, TDbSet>) {
         this._pipelines = props.pipelines;
@@ -35,6 +37,7 @@ export class DbSetBuilder<TEntity extends {}, TDbSet extends DbSet<TEntity>> {
         this._instanceCreator = props.instanceCreator;
         this._signal = props.signal;
         this._statefulProps = props.stateful;
+        this.parent = props.parent;
     }
 
     /**
@@ -54,13 +57,14 @@ export class DbSetBuilder<TEntity extends {}, TDbSet extends DbSet<TEntity>> {
             signal: this._signal,
             stateful: {
                 optimistic: options?.optimistic ?? false
-            }
+            },
+            parent: this.parent
         });
     }
 
     create(): TDbSet;
-    create<TExtension extends TDbSet>(extend: (i: DbSetInstanceCreator<TEntity, TDbSet>, dbPlugin: IDbPlugin, schema: CompiledSchema<TEntity>, options: DbSetOptions, pipelines: DbSetPipelines) => TExtension): TExtension;
-    create<TExtension extends TDbSet = never>(extend?: (i: DbSetInstanceCreator<TEntity, TDbSet>, dbPlugin: IDbPlugin, schema: CompiledSchema<TEntity>, options: DbSetOptions, pipelines: DbSetPipelines) => TExtension) {
+    create<TExtension extends TDbSet>(extend: (i: DbSetInstanceCreator<TEntity, TDbSet>, dbPlugin: IDbPlugin, schema: CompiledSchema<TEntity>, options: DbSetOptions, pipelines: DbSetPipelines, parent: SchemaParent) => TExtension): TExtension;
+    create<TExtension extends TDbSet = never>(extend?: (i: DbSetInstanceCreator<TEntity, TDbSet>, dbPlugin: IDbPlugin, schema: CompiledSchema<TEntity>, options: DbSetOptions, pipelines: DbSetPipelines, parent: SchemaParent) => TExtension) {
 
         const options: DbSetOptions = {
             stateful: this._isStateful,
@@ -73,7 +77,7 @@ export class DbSetBuilder<TEntity extends {}, TDbSet extends DbSet<TEntity>> {
 
         if (extend == null) {
             const Instance = this._instanceCreator;
-            const result = new Instance(this._dbPlugin, this._schema, options, this._pipelines);
+            const result = new Instance(this._dbPlugin, this._schema, options, this._pipelines, this.parent);
 
             this._onDbSetCreated(result);
 
@@ -81,7 +85,7 @@ export class DbSetBuilder<TEntity extends {}, TDbSet extends DbSet<TEntity>> {
         }
 
         const Instance = this._instanceCreator;
-        const extendedResult = extend(Instance, this._dbPlugin, this._schema, options, this._pipelines);
+        const extendedResult = extend(Instance, this._dbPlugin, this._schema, options, this._pipelines, this.parent);
 
         this._onDbSetCreated(extendedResult);
 

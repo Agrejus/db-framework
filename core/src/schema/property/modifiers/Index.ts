@@ -1,21 +1,29 @@
-import { PropertyDeserializer, PropertySerializer, SchemaArray, SchemaModifiers, SchemaTypes } from "../..";
+import { PropertyDeserializer, PropertySerializer, SchemaModifiers, SchemaReadonly } from "../..";
 import { DefaultValue } from "../../../types";
 import { uuidv4 } from "../../../utilities/uuid";
 import { SchemaBase } from "../base/Base";
-import { SchemaDefault } from "../modifiers/Default";
-import { SchemaDeserialize } from "../modifiers/Deserialize";
-import { SchemaDistinct } from "../modifiers/Distinct";
-import { SchemaIndex } from "../modifiers/Index";
-import { SchemaNullable } from "../modifiers/Nullable";
-import { SchemaOptional } from "../modifiers/Optional";
-import { SchemaReadonly } from "../modifiers/Readonly";
-import { SchemaSerialize } from "../modifiers/Serialize";
+import { SchemaDefault } from "./Default";
+import { SchemaDeserialize } from "./Deserialize";
+import { SchemaDistinct } from "./Distinct";
+import { SchemaNullable } from "./Nullable";
+import { SchemaOptional } from "./Optional";
+import { SchemaSerialize } from "./Serialize";
 
-export class SchemaDate<T extends Date, TModifiers extends SchemaModifiers> extends SchemaBase<T, TModifiers> {
+export class SchemaIndex<T extends any, TModifiers extends SchemaModifiers> extends SchemaBase<T, TModifiers> {
 
     instance: T;
-    type = SchemaTypes.Date;
-    private _schemaDate = true;
+    private _schemaIndex = true;
+
+    constructor(current: SchemaBase<T, TModifiers>, ...indexes: string[]) {
+        super(current);
+        this.instance = current.instance;
+
+        if (indexes.length === 0) {
+            indexes.push(uuidv4()); // Create our own unique index identifier
+        }
+
+        this.indexes = indexes;
+    }
 
     optional() {
         return new SchemaOptional<T, TModifiers | "optional">(this);
@@ -28,6 +36,7 @@ export class SchemaDate<T extends Date, TModifiers extends SchemaModifiers> exte
     default<I = never>(value: DefaultValue<T, I>, injected?: I) {
         return new SchemaDefault<T, I, TModifiers | "default">(value, injected, this);
     }
+
     readonly() {
         return new SchemaReadonly<T, TModifiers | "readonly">(this);
     }
@@ -38,14 +47,6 @@ export class SchemaDate<T extends Date, TModifiers extends SchemaModifiers> exte
 
     serialize(serializer: PropertySerializer<T>) {
         return new SchemaSerialize<T, TModifiers | "serialize">(serializer, this);
-    }
-
-    array() {
-        return new SchemaArray<typeof this, TModifiers>(this as any);
-    }
-
-    index(...indexes: string[]) {
-        return new SchemaIndex<T, TModifiers>(this as any, ...indexes);
     }
 
     distinct() {

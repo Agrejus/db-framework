@@ -1,13 +1,13 @@
 {
-  "name": "@agrejus/db-framework-plugin-pouchdb",
-  "version": "2.0.0-beta.5",
+  "name": "@agrejus/db-framework-plugin-dexie",
+  "version": "2.0.0-beta.1",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "source": "./src/index.ts",
   "scripts": {
     "build:types": "tsc --emitDeclarationOnly",
     "build:bundle": "rspack build",
-    "build": "tsc",
+    "build": "npm run build:bundle && npm run build:types",
     "tsc": "tsc"
   },
   "sideEffects": false,
@@ -25,19 +25,17 @@
     "entity framework",
     "database"
   ],
-  "description": "PouchDB plugin for db-framework",
-  "dependencies": {
-    "events": "^3.3.0",
-    "pouchdb": "^9.0.0"
-  },
+  "description": "Dexie plugin for db-framework",
   "peerDependencies": {
-    "@agrejus/db-framework-core": "~2"
+    "@agrejus/db-framework-core": "^2.0.0-beta.6"
   },
   "devDependencies": {
     "@agrejus/db-framework-core": "file://../../core",
     "@rspack/cli": "^1.1.8",
     "@rspack/core": "^1.1.8",
-    "@types/pouchdb": "^6.4.2",
     "ts-loader": "^9.5.2"
+  },
+  "dependencies": {
+    "dexie": "^4.0.11"
   }
 }

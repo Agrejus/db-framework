@@ -9,21 +9,21 @@ export class ShapedQueryable<T extends {}, U = void> extends SelectionQueryable<
 
     skip(amount: number) {
         this.skipValue = amount;
-        return new SkippedQueryable<T, U>({ queryable: this });
+        return new SkippedQueryable<T, U>(this.schema as any, this.parent, { queryable: this });
     }
 
     take(amount: number) {
         this.takeValue = amount;
-        return new LimitedQueryable<T, U>({ queryable: this })
+        return new LimitedQueryable<T, U>(this.schema as any, this.parent, { queryable: this })
     }
 
     sort(selector: EntityMap<T, T[keyof T]>) {
         this.sorting.push({ selector, direction: QueryOrdering.Ascending });
-        return new OrderedQueryable<T, U>({ queryable: this });
+        return new OrderedQueryable<T, U>(this.schema as any, this.parent, { queryable: this });
     }
 
     sortDescending(selector: EntityMap<T, T[keyof T]>) {
         this.sorting.push({ selector, direction: QueryOrdering.Descending });
-        return new OrderedQueryable<T, U>({ queryable: this });
+        return new OrderedQueryable<T, U>(this.schema as any, this.parent, { queryable: this });
     }
 }

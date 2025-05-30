@@ -21,6 +21,7 @@ export abstract class DataTranslator<T extends {}, TShape> {
     abstract sort<T>(data: unknown): T;
     abstract map<T>(data: unknown): T;
 
+    // matches filter
     satisfies(document: unknown) {
 
         // Memory Filtering Fallback

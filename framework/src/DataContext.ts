@@ -33,7 +33,10 @@ export class DataContext implements Disposable {
             onDbSetCreated: onDbSetCreated.bind(this),
             schema,
             pipelines: this._dbSetPipelines,
-            signal: this._abortController.signal
+            signal: this._abortController.signal,
+            parent: {
+                allSchemas: this.getAllSchemas.bind(this)
+            }
         });
     }
 
@@ -41,12 +44,25 @@ export class DataContext implements Disposable {
 
     }
 
+    private getAllSchemas(): CompiledSchema<any>[] {
+        const result: CompiledSchema<any>[] = [];
+
+        for (const [, value] of this._dbsets) {
+            result.push(value.schema);
+        }
+
+        return result;
+    }
+
     // Can we borrow from redux and create a way to inject middleware?
     // use actions?
     // action.type -> "SaveChanges"
     saveChanges(done: (result: number, error?: any) => void) {
 
-        const response = { count: 0 };
+        const response = {
+            count: 0,
+            allSchemas: this.getAllSchemas.bind(this)
+        };
 
         this._dbSetPipelines.save.filter<SaveChangesContextStepOne>(response, (result, error) => {
             done(result.count, error);

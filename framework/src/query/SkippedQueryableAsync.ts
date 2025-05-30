@@ -5,6 +5,6 @@ export class SkippedQueryableAsync<T extends {}> extends SelectionQueryableAsync
 
     take(amount: number) {
         this.takeValue = amount;
-        return new SelectionQueryableAsync<T>({ queryable: this })
+        return new SelectionQueryableAsync<T>(this.schema as any, this.parent, { queryable: this })
     }
 }

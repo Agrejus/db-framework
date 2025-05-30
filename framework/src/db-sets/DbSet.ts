@@ -1,5 +1,5 @@
 import { DbSetOptions, DbSetPipelines, EntityCallbackMany, EntityMap, QueryResult, SaveChangesContextStepFive, SaveChangesContextStepFour, SaveChangesContextStepOne, SaveChangesContextStepSix, SaveChangesContextStepThree, SaveChangesContextStepTwo } from "../types";
-import { IDbPlugin, InferCreateType, InferType, Filter, ParamsFilter, CompiledSchema, InferMappedType } from '@agrejus/db-framework-core';
+import { IDbPlugin, InferCreateType, InferType, Filter, ParamsFilter, CompiledSchema } from '@agrejus/db-framework-core';
 import { Queryable } from '../query/Queryable';
 import { QueryableAsync } from '../query/QueryableAsync';
 import { ParamsQueryableAsync } from "../query/ParamsQueryableAsync";
@@ -8,7 +8,7 @@ import { SelectionQueryableAsync } from "../query/SelectionQueryableAsync";
 import { ChangeTracker } from '../change-tracking/ChangeTracker';
 import { DataBridge } from '../data-access/DataBridge';
 import { UniDirectionalSubscription } from '../subscriptions/UniDirectionalSubscription';
-import { ChangeTrackingType } from "@agrejus/db-framework-core/dist/schema";
+import { ChangeTrackingType, SchemaParent } from "@agrejus/db-framework-core/dist/schema";
 
 export class DbSet<TEntity extends {}> {
 
@@ -16,18 +16,21 @@ export class DbSet<TEntity extends {}> {
     protected readonly dataBridge: DataBridge<TEntity>;
     readonly schema: CompiledSchema<TEntity>;
     protected unidirecitonalSubscription: UniDirectionalSubscription<TEntity>;
+    private readonly parent: SchemaParent;
 
     constructor(
         dbPlugin: IDbPlugin,
         schema: CompiledSchema<TEntity>,
         options: DbSetOptions,
-        pipelines: DbSetPipelines
+        pipelines: DbSetPipelines,
+        parent: SchemaParent
     ) {
 
         this.unidirecitonalSubscription = new UniDirectionalSubscription(schema.key, options.signal);
         this.schema = schema;
         this.changeTracker = ChangeTracker.create<TEntity>(schema);
-        this.dataBridge = DataBridge.create<TEntity>(schema, dbPlugin, options);
+        this.dataBridge = DataBridge.create<TEntity>(dbPlugin, options);
+        this.parent = parent;
 
         pipelines.save.pipe(this.checkForChangesStep.bind(this))
             .pipe(this.prepareAdditions.bind(this))
@@ -154,12 +157,16 @@ export class DbSet<TEntity extends {}> {
             return;
         }
 
-        this.dataBridge.bulkOperations(this.schema, {
-            // prepare is responsible for creating a new clean object 
-            // with only properties that should be saved and run any serializers
-            adds: data.adds,
-            removes: data.removes,
-            updates: data.updates
+        this.dataBridge.bulkOperations({
+            operation: {
+                // prepare is responsible for creating a new clean object 
+                // with only properties that should be saved and run any serializers
+                adds: data.adds,
+                removes: data.removes,
+                updates: data.updates
+            },
+            parent: this.parent,
+            schema: this.schema
         }, (result, error) => done({ ...data, result }, error));
     }
 
@@ -196,7 +203,7 @@ export class DbSet<TEntity extends {}> {
     }
 
     subscribe() {
-        const queryable = new Queryable<InferType<TEntity>, () => void>({
+        const queryable = new Queryable<InferType<TEntity>, () => void>(this.schema as any, this.parent, {
             dataBridge: this.dataBridge as any,
             changeTracker: this.changeTracker as any
         });
@@ -208,14 +215,14 @@ export class DbSet<TEntity extends {}> {
     where<P extends {} = never>(selector: ParamsFilter<InferType<TEntity>, P> | Filter<InferType<TEntity>>, params?: P) {
 
         if (params == null) {
-            const queryable = new QueryableAsync<InferType<TEntity>>({
+            const queryable = new QueryableAsync<InferType<TEntity>>(this.schema as any, this.parent, {
                 dataBridge: this.dataBridge as any,
                 changeTracker: this.changeTracker as any
             });
             return queryable.where(selector as Filter<InferType<TEntity>>);
         }
 
-        const queryable = new ParamsQueryableAsync<InferType<TEntity>>({
+        const queryable = new ParamsQueryableAsync<InferType<TEntity>>(this.schema as any, this.parent, {
             dataBridge: this.dataBridge as any,
             changeTracker: this.changeTracker as any
         });
@@ -223,7 +230,7 @@ export class DbSet<TEntity extends {}> {
     }
 
     sort(selector: EntityMap<InferType<TEntity>, InferType<TEntity>[keyof InferType<TEntity>]>) {
-        const result = new QueryableAsync<InferType<TEntity>>({
+        const result = new QueryableAsync<InferType<TEntity>>(this.schema as any, this.parent, {
             dataBridge: this.dataBridge as any,
             changeTracker: this.changeTracker as any
         });
@@ -231,7 +238,7 @@ export class DbSet<TEntity extends {}> {
     }
 
     sortDescending(selector: EntityMap<InferType<TEntity>, InferType<TEntity>[keyof InferType<TEntity>]>) {
-        const result = new QueryableAsync<InferType<TEntity>>({
+        const result = new QueryableAsync<InferType<TEntity>>(this.schema as any, this.parent, {
             dataBridge: this.dataBridge as any,
             changeTracker: this.changeTracker as any
         });
@@ -240,7 +247,7 @@ export class DbSet<TEntity extends {}> {
     }
 
     map<R extends TEntity[keyof TEntity] | {}>(expression: EntityMap<TEntity, R>) {
-        const result = new QueryableAsync<TEntity>({
+        const result = new QueryableAsync<TEntity>(this.schema as any, this.parent, {
             dataBridge: this.dataBridge as any,
             changeTracker: this.changeTracker as any
         });
@@ -248,7 +255,7 @@ export class DbSet<TEntity extends {}> {
     }
 
     skip(amount: number) {
-        const result = new QueryableAsync<InferType<TEntity>>({
+        const result = new QueryableAsync<InferType<TEntity>>(this.schema as any, this.parent, {
             dataBridge: this.dataBridge as any,
             changeTracker: this.changeTracker as any
         });
@@ -256,7 +263,7 @@ export class DbSet<TEntity extends {}> {
     }
 
     take(amount: number) {
-        const result = new QueryableAsync<InferType<TEntity>>({
+        const result = new QueryableAsync<InferType<TEntity>>(this.schema as any, this.parent, {
             dataBridge: this.dataBridge as any,
             changeTracker: this.changeTracker as any
         });
@@ -264,7 +271,7 @@ export class DbSet<TEntity extends {}> {
     }
 
     toArray(done: QueryResult<InferType<TEntity>[]>) {
-        const result = new SelectionQueryable<InferType<TEntity>>({
+        const result = new SelectionQueryable<InferType<TEntity>>(this.schema as any, this.parent, {
             dataBridge: this.dataBridge as any,
             changeTracker: this.changeTracker as any
         });
@@ -272,7 +279,7 @@ export class DbSet<TEntity extends {}> {
     }
 
     toArrayAsync(): Promise<InferType<TEntity>[]> {
-        const result = new SelectionQueryableAsync<InferType<TEntity>>({
+        const result = new SelectionQueryableAsync<InferType<TEntity>>(this.schema as any, this.parent, {
             dataBridge: this.dataBridge as any,
             changeTracker: this.changeTracker as any
         });
@@ -283,7 +290,7 @@ export class DbSet<TEntity extends {}> {
     first<P extends {}>(expression: ParamsFilter<TEntity, P>, params: P, done: QueryResult<InferType<TEntity>>): void;
     first(done: QueryResult<InferType<TEntity>>): void;
     first<P extends {} = never>(doneOrExpression: Filter<InferType<TEntity>> | ParamsFilter<TEntity, P> | QueryResult<InferType<TEntity>>, paramsOrDone?: P | QueryResult<InferType<TEntity>>, done?: QueryResult<InferType<TEntity>>) {
-        const result = new SelectionQueryable<InferType<TEntity>>({
+        const result = new SelectionQueryable<InferType<TEntity>>(this.schema as any, this.parent, {
             dataBridge: this.dataBridge as any,
             changeTracker: this.changeTracker as any
         });
@@ -295,7 +302,7 @@ export class DbSet<TEntity extends {}> {
     firstAsync<P extends {}>(expression: ParamsFilter<InferType<TEntity>, P>, params: P): Promise<InferType<TEntity>>;
     firstAsync(): Promise<InferType<TEntity>>;
     firstAsync<P extends {} = never>(expression?: Filter<InferType<TEntity>> | ParamsFilter<InferType<TEntity>, P>, params?: P): Promise<InferType<TEntity>> {
-        const result = new SelectionQueryableAsync<InferType<TEntity>>({
+        const result = new SelectionQueryableAsync<InferType<TEntity>>(this.schema as any, this.parent, {
             dataBridge: this.dataBridge as any,
             changeTracker: this.changeTracker as any
         });
@@ -307,7 +314,7 @@ export class DbSet<TEntity extends {}> {
     firstOrUndefined<P extends {}>(expression: ParamsFilter<InferType<TEntity>, P>, params: P, done: QueryResult<InferType<TEntity> | undefined>): void;
     firstOrUndefined(done: QueryResult<InferType<TEntity> | undefined>): void;
     firstOrUndefined<P extends {} = never>(doneOrExpression: Filter<InferType<TEntity>> | ParamsFilter<InferType<TEntity>, P> | QueryResult<InferType<TEntity> | undefined>, paramsOrDone?: P | QueryResult<InferType<TEntity> | undefined>, done?: QueryResult<InferType<TEntity> | undefined>) {
-        const result = new SelectionQueryable<InferType<TEntity>>({
+        const result = new SelectionQueryable<InferType<TEntity>>(this.schema as any, this.parent, {
             dataBridge: this.dataBridge as any,
             changeTracker: this.changeTracker as any
         });
@@ -319,7 +326,7 @@ export class DbSet<TEntity extends {}> {
     firstOrUndefinedAsync<P extends {}>(expression: ParamsFilter<TEntity, P>, params: P): Promise<InferType<TEntity> | undefined>;
     firstOrUndefinedAsync(): Promise<InferType<TEntity> | undefined>;
     firstOrUndefinedAsync<P extends {} = never>(expression?: Filter<InferType<TEntity>> | ParamsFilter<TEntity, P>, params?: P): Promise<InferType<TEntity> | undefined> {
-        const result = new SelectionQueryableAsync<InferType<TEntity>>({
+        const result = new SelectionQueryableAsync<InferType<TEntity>>(this.schema as any, this.parent, {
             dataBridge: this.dataBridge as any,
             changeTracker: this.changeTracker as any
         });
@@ -331,7 +338,7 @@ export class DbSet<TEntity extends {}> {
     some<P extends {}>(expression: ParamsFilter<TEntity, P>, params: P, done: QueryResult<boolean>): void;
     some(done: QueryResult<boolean>): void;
     some<P extends {} = never>(doneOrExpression: Filter<InferType<TEntity>> | ParamsFilter<TEntity, P> | QueryResult<boolean>, paramsOrDone?: P | QueryResult<boolean>, done?: QueryResult<boolean>) {
-        const result = new SelectionQueryable<InferType<TEntity>>({
+        const result = new SelectionQueryable<InferType<TEntity>>(this.schema as any, this.parent, {
             dataBridge: this.dataBridge as any,
             changeTracker: this.changeTracker as any
         });
@@ -343,7 +350,7 @@ export class DbSet<TEntity extends {}> {
     someAsync<P extends {}>(expression: ParamsFilter<InferType<TEntity>, P>, params: P): Promise<boolean>;
     someAsync(): Promise<boolean>;
     someAsync<P extends {} = never>(expression?: Filter<InferType<TEntity>> | ParamsFilter<InferType<TEntity>, P>, params?: P): Promise<boolean> {
-        const result = new SelectionQueryableAsync<InferType<TEntity>>({
+        const result = new SelectionQueryableAsync<InferType<TEntity>>(this.schema as any, this.parent, {
             dataBridge: this.dataBridge as any,
             changeTracker: this.changeTracker as any
         });
@@ -354,7 +361,7 @@ export class DbSet<TEntity extends {}> {
     every(expression: Filter<InferType<TEntity>>, done: QueryResult<boolean>): void;
     every<P extends {}>(expression: ParamsFilter<TEntity, P>, params: P, done: QueryResult<boolean>): void;
     every<P extends {} = never>(expression: Filter<InferType<TEntity>> | ParamsFilter<TEntity, P> | QueryResult<boolean>, paramsOrDone?: P | QueryResult<boolean>, done?: QueryResult<boolean>) {
-        const result = new SelectionQueryable<InferType<TEntity>>({
+        const result = new SelectionQueryable<InferType<TEntity>>(this.schema as any, this.parent, {
             dataBridge: this.dataBridge as any,
             changeTracker: this.changeTracker as any
         });
@@ -365,7 +372,7 @@ export class DbSet<TEntity extends {}> {
     everyAsync(expression: Filter<InferType<TEntity>>): Promise<boolean>;
     everyAsync<P extends {}>(expression: ParamsFilter<TEntity, P>, params: P): Promise<boolean>;
     everyAsync<P extends {} = never>(expression?: Filter<InferType<TEntity>> | ParamsFilter<TEntity, P>, params?: P): Promise<boolean> {
-        const result = new SelectionQueryableAsync<InferType<TEntity>>({
+        const result = new SelectionQueryableAsync<InferType<TEntity>>(this.schema as any, this.parent, {
             dataBridge: this.dataBridge as any,
             changeTracker: this.changeTracker as any
         });

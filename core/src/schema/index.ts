@@ -91,6 +91,15 @@ export type CompiledSchema<TEntity extends {}> = {
     definition: SchemaDefinition<TEntity>;
 }
 
+export type SchemaParent = {
+    allSchemas: () => CompiledSchema<any>[]
+}
+
+export type SchemaTarget<TEntity extends {}> = {
+    target: CompiledSchema<TEntity>;
+    parent: SchemaParent;
+}
+
 export type PropertySerializer<T extends any> = (value: T) => string | number;
 export type PropertyDeserializer<T extends any> = (value: string | number) => T;
 
@@ -110,7 +119,8 @@ export type SchemaModifiers = "default" | "deserialize" |
     "identity" | "key" |
     "nullable" | "optional" |
     "readonly" | "serialize" |
-    "unmapped" | "computed";
+    "unmapped" | "computed" |
+    "distinct";
 
 type InferPrimitive<T> =
     T extends SchemaArray<infer Y, infer __> ? InferPrimitive<Y>[]

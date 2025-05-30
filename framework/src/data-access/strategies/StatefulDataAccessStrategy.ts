@@ -1,8 +1,9 @@
-import { CompiledSchema, EntityChanges, EntityModificationResult, InferType, Query, assertIsNotNull, InferCreateType, DbPluginLogging, IDbPluginReplicator, OptimisticDbPluginReplicator, assertInstanceOfDbPluginLogging, IDbPlugin, DbPluginReplicator } from "@agrejus/db-framework-core";
+import { EntityModificationResult, InferType, Query, assertIsNotNull, InferCreateType, DbPluginLogging, IDbPluginReplicator, OptimisticDbPluginReplicator, assertInstanceOfDbPluginLogging, IDbPlugin, DbPluginReplicator } from "@agrejus/db-framework-core";
 import { IDataAccessStrategy } from "../types";
 import { DataAccessStrategyBase } from "./DataAccessStrategyBase";
 import { assertIsMemoryPlugin, MemoryPlugin } from "@agrejus/db-framework-plugin-memory";
 import { DbSetOptions, StatefulDbSetOptions } from "../../types";
+import { DbPluginBulkOperationsEvent, DbPluginQueryEvent } from "@agrejus/db-framework-core/dist/plugins/types";
 
 let dbPluginReplicator: IDbPluginReplicator;
 
@@ -30,12 +31,12 @@ const getReplicator = (dbPlugin: IDbPlugin, optimistic?: boolean) => {
 
 export class StatefulDataAccessStrategy<T extends {}> extends DataAccessStrategyBase<T> implements IDataAccessStrategy<T> {
 
-    bulkOperations(dbSetOptions: DbSetOptions, schema: CompiledSchema<T>, operations: EntityChanges<T>, done: (result: EntityModificationResult<T>, error?: any) => void) {
+    bulkOperations(dbSetOptions: DbSetOptions, event: DbPluginBulkOperationsEvent<T>, done: (result: EntityModificationResult<T>, error?: any) => void) {
         const optimistic = (dbSetOptions as StatefulDbSetOptions).optimistic;
-        getReplicator(this.dbPlugin, optimistic).bulkOperations(schema, operations, done);
+        getReplicator(this.dbPlugin, optimistic).bulkOperations(event, done);
     }
 
-    fetch<TShape>(_: DbSetOptions, query: Query<T, TShape>, done: (response: TShape, error?: any) => void) {
+    query<TShape>(_: DbSetOptions, event: DbPluginQueryEvent<T, TShape>, done: (response: TShape, error?: any) => void) {
 
         const replicator = getReplicator(this.dbPlugin);
 
@@ -56,9 +57,13 @@ export class StatefulDataAccessStrategy<T extends {}> extends DataAccessStrategy
         }
 
         if (readPlugin.size === 0) {
-            const queryAll = Query.all<T, InferType<T>[]>(this.schema);
+            const queryAll = Query.all<T, InferType<T>[]>();
 
-            this.dbPlugin.query<T, InferType<T>[]>(queryAll, (r, e) => {
+            this.dbPlugin.query<T, InferType<T>[]>({
+                operation: queryAll,
+                parent: event.parent,
+                schema: event.schema
+            }, (r, e) => {
 
                 if (e != null) {
                     done(null, e);
@@ -66,10 +71,14 @@ export class StatefulDataAccessStrategy<T extends {}> extends DataAccessStrategy
                 }
 
                 // Add data to the read plugin
-                readPlugin.bulkOperations(this.schema, {
-                    adds: r as InferCreateType<T>[],
-                    removes: [],
-                    updates: new Map()
+                readPlugin.bulkOperations({
+                    operation: {
+                        adds: r as InferCreateType<T>[],
+                        removes: [],
+                        updates: new Map()
+                    },
+                    parent: event.parent,
+                    schema: event.schema
                 }, (_, bulkOperationsError) => {
 
                     if (bulkOperationsError != null) {
@@ -78,12 +87,12 @@ export class StatefulDataAccessStrategy<T extends {}> extends DataAccessStrategy
                     }
 
                     // query the replicator now
-                    replicator.query(query, done);
+                    replicator.query(event, done);
                 })
             });
             return;
         }
 
-        return replicator.query(query, done);
+        return replicator.query(event, done);
     }
 }

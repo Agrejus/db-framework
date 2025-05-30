@@ -1,10 +1,23 @@
 import { CompiledSchema, DeepPartial, Expression, IdType, InferCreateType, InferType } from "..";
 import { Filterable } from "../expressions/types";
+import { SchemaParent } from "../schema";
 
 export interface IDbPlugin {
-    query<TEntity extends {}, TShape extends any = TEntity>(query: IQuery<TEntity, TShape>, done: (result: TShape, error?: any) => void): void;
+    query<TEntity extends {}, TShape extends any = TEntity>(event: DbPluginQueryEvent<TEntity, TShape>, done: (result: TShape, error?: any) => void): void;
     destroy(done: (error?: any) => void): void;
-    bulkOperations<TEntity extends {}>(schema: CompiledSchema<TEntity>, operations: EntityChanges<TEntity>, done: (result: EntityModificationResult<TEntity>, error?: any) => void): void;
+    bulkOperations<TEntity extends {}>(event: DbPluginBulkOperationsEvent<TEntity>, done: (result: EntityModificationResult<TEntity>, error?: any) => void): void;
+}
+
+export type DbPluginQueryEvent<TEntity extends {}, TShape extends any = TEntity> = DbPluginOperationEvent<TEntity, IQuery<TEntity, TShape>>;
+export type DbPluginBulkOperationsEvent<TEntity extends {}> = DbPluginOperationEvent<TEntity, EntityChanges<TEntity>>;
+
+export type DbPluginEvent<TEntity extends {}> = {
+    schema: CompiledSchema<TEntity>;
+    parent: SchemaParent;
+}
+
+export type DbPluginOperationEvent<TEntity extends {}, TOperation> = DbPluginEvent<TEntity> & {
+    operation: TOperation;
 }
 
 /**
@@ -51,7 +64,6 @@ export type QueryOptions = {
 export type QuerySort = { key: string, selector: (item: unknown) => unknown, direction: "asc" | "desc" };
 
 export type IQuery<TEntity extends {}, TShape extends any = TEntity> = {
-    schema: CompiledSchema<TEntity>;
     expression?: Expression;
     options: QueryOptions;
     filters: Filterable<TShape, any>[];

@@ -12,6 +12,8 @@ export abstract class SchemaBase<T extends any, TModifiers extends SchemaModifie
     isKey: boolean = false;
     isIdentity: boolean = false;
     isReadonly: boolean = false;
+    isDistict: boolean = false;
+    indexes: string[] = [];
 
     injected: any = null;
     defaultValue: DefaultValue<T> | null = null;
@@ -36,6 +38,7 @@ export abstract class SchemaBase<T extends any, TModifiers extends SchemaModifie
             this.defaultValue = entity.defaultValue;
             this.type = entity.type;
             this.injected = entity.injected;
+            this.indexes = entity.indexes;
         }
 
         if (literals) {

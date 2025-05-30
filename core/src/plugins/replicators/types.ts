@@ -1,5 +1,4 @@
-import { CompiledSchema } from '../../schema';
-import { EntityChanges, EntityModificationResult, IDbPlugin, IdbPluginCollection } from '../types';
+import { DbPluginBulkOperationsEvent, EntityModificationResult, IDbPlugin, IdbPluginCollection } from '../types';
 
 export type OperationsPayload = {
     plugins: IDbPlugin[];
@@ -8,9 +7,8 @@ export type OperationsPayload = {
 }
 
 export type PersistPayload<TEntity extends {}> = OperationsPayload & {
-    operations: EntityChanges<TEntity>;
+    event: DbPluginBulkOperationsEvent<TEntity>;
     result?: EntityModificationResult<TEntity>;
-    schema: CompiledSchema<TEntity>;
 }
 
 export type IDbPluginReplicator = IDbPlugin & {

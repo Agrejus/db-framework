@@ -1,6 +1,6 @@
 import { TrampolinePipeline } from '../../common/TrampolinePipeline';
-import { CompiledSchema, InferCreateType } from '../../schema';
-import { EntityChanges, EntityModificationResult, IDbPlugin, IdbPluginCollection, IQuery } from '../types';
+import { InferCreateType } from '../../schema';
+import { DbPluginBulkOperationsEvent, DbPluginQueryEvent, EntityModificationResult, IdbPluginCollection } from '../types';
 import { DbPluginReplicator } from './DbPluginReplicator';
 import { OperationsPayload, PersistPayload } from './types';
 
@@ -20,12 +20,12 @@ export class OptimisticDbPluginReplicator extends DbPluginReplicator {
     /**
      * Will query the read plugin if there is one, otherwise the source plugin will be queried
     */
-    query<TEntity extends {}, TShape extends any = TEntity>(query: IQuery<TEntity, TShape>, done: (result: TShape, error?: any) => void): void {
+    query<TEntity extends {}, TShape extends any = TEntity>(event: DbPluginQueryEvent<TEntity, TShape>, done: (result: TShape, error?: any) => void): void {
         try {
 
             const plugin = this.plugins.read != null ? this.plugins.read : this.plugins.source;
 
-            plugin.query(query, done);
+            plugin.query(event, done);
         } catch (e: any) {
             done(null, e);
         }
@@ -62,16 +62,20 @@ export class OptimisticDbPluginReplicator extends DbPluginReplicator {
     }
 
     private _optimisticPersist<TEntity extends {}>(payload: PersistPayload<TEntity>, done: (payload: PersistPayload<TEntity>) => void) {
-        const { plugins, index, schema, operations, result } = payload;
+        const { plugins, index, event } = payload;
         const plugin = plugins[index];
 
         // move next
         payload.index++;
 
-        plugin.bulkOperations(schema, {
-            adds: operations.adds, // pass in the resulting additions to get any keys that were set
-            updates: operations.updates,
-            removes: operations.removes
+        plugin.bulkOperations({
+            operation: {
+                adds: event.operation.adds, // pass in the resulting additions to get any keys that were set
+                updates: event.operation.updates,
+                removes: event.operation.removes
+            },
+            parent: event.parent,
+            schema: event.schema
         }, (_, e) => {
 
             if (e != null) {
@@ -82,7 +86,7 @@ export class OptimisticDbPluginReplicator extends DbPluginReplicator {
         });
     }
 
-    bulkOperations<TEntity extends {}>(schema: CompiledSchema<TEntity>, operations: EntityChanges<TEntity>, done: (result: EntityModificationResult<TEntity>, error?: any) => void): void {
+    bulkOperations<TEntity extends {}>(event: DbPluginBulkOperationsEvent<TEntity>, done: (result: EntityModificationResult<TEntity>, error?: any) => void): void {
         try {
 
             const deferredPipeline = new TrampolinePipeline<OperationsPayload>();
@@ -96,10 +100,14 @@ export class OptimisticDbPluginReplicator extends DbPluginReplicator {
                 deferredPipeline.pipe<PersistPayload<TEntity>>(this._optimisticPersist.bind(this))
             }
 
-            this.plugins.read.bulkOperations(schema, {
-                adds: operations.adds, // pass in the resulting additions to get any keys that were set
-                updates: operations.updates,
-                removes: operations.removes
+            this.plugins.read.bulkOperations({
+                operation: {
+                    adds: event.operation.adds, // pass in the resulting additions to get any keys that were set
+                    updates: event.operation.updates,
+                    removes: event.operation.removes
+                },
+                parent: event.parent,
+                schema: event.schema
             }, (r, e) => {
 
                 if (e != null) {
@@ -115,11 +123,14 @@ export class OptimisticDbPluginReplicator extends DbPluginReplicator {
                     plugins: deferredPlugins,
                     index: 0,
                     errors: [],
-                    schema,
-                    operations: {
-                        updates: operations.updates,
-                        removes: operations.removes,
-                        adds: r.adds as InferCreateType<TEntity>[] // pass in the new adds with the keys set
+                    event: {
+                        operation: {
+                            updates: event.operation.updates,
+                            removes: event.operation.removes,
+                            adds: r.adds as InferCreateType<TEntity>[] // pass in the new adds with the keys set
+                        },
+                        parent: event.parent,
+                        schema: event.schema
                     }
                 };
 

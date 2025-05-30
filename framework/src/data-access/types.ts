@@ -1,9 +1,10 @@
-import { CompiledSchema, EntityChanges, EntityModificationResult, InferType, Query } from "@agrejus/db-framework-core";
+import { EntityModificationResult } from "@agrejus/db-framework-core";
 import { DbSetOptions } from "../types";
+import { DbPluginBulkOperationsEvent, DbPluginQueryEvent } from "@agrejus/db-framework-core/dist/plugins/types";
 
 export type FetchOptions = { mergeResponse?: boolean }
 
 export interface IDataAccessStrategy<T extends {}> {
-    bulkOperations(dbSetOptions: DbSetOptions, schema: CompiledSchema<T>, operations: EntityChanges<T>, done: (result: EntityModificationResult<T>, error?: any) => void): void;
-    fetch<TShape>(dbSetOptions: DbSetOptions, query: Query<T, TShape>, done: (response: TShape, error?: any) => void): void;
+    bulkOperations(dbSetOptions: DbSetOptions, event: DbPluginBulkOperationsEvent<T>, done: (result: EntityModificationResult<T>, error?: any) => void): void;
+    query<TShape>(dbSetOptions: DbSetOptions, event: DbPluginQueryEvent<T, TShape>, done: (response: TShape, error?: any) => void): void;
 }

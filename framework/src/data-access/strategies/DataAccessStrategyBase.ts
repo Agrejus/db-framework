@@ -1,16 +1,15 @@
-import { CompiledSchema, EntityChanges, EntityModificationResult, Filter, Filterable, IDbPlugin, InferType, ParamsFilter, Query } from "@agrejus/db-framework-core";
+import { EntityModificationResult, IDbPlugin } from "@agrejus/db-framework-core";
+import { DbPluginBulkOperationsEvent } from "@agrejus/db-framework-core/dist/plugins/types";
 
 export class DataAccessStrategyBase<T extends {}> {
 
-    protected readonly schema: CompiledSchema<T>;
     protected readonly dbPlugin: IDbPlugin;
 
-    constructor(schema: CompiledSchema<T>, dbPlugin: IDbPlugin) {
-        this.schema = schema;
+    constructor(dbPlugin: IDbPlugin) {
         this.dbPlugin = dbPlugin;
     }
 
-    protected _bulkOperations(schema: CompiledSchema<T>, operations: EntityChanges<T>, done: (result: EntityModificationResult<T>, error?: any) => void) {
-        this.dbPlugin.bulkOperations(schema, operations, done);
+    protected _bulkOperations(event: DbPluginBulkOperationsEvent<T>, done: (result: EntityModificationResult<T>, error?: any) => void) {
+        this.dbPlugin.bulkOperations(event, done);
     }
 }
