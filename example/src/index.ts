@@ -77,16 +77,8 @@ const nested = s.define("products", {
     _rev: s.string().identity(),
     order: s.number().index().default((d) => d.test, { test: 1 }),
     name: s.string().index(),
-    child: s.object({
-        name: s.string(),
-        nested: s.object({
-            winner: s.number(),
-            more: s.object({
-                final: s.number(),
-                array: s.array(s.string())
-            })
-        })
-    })
+    cool: s.string().index("one"),
+    two: s.string().index("one")
 }).modify(w => ({
     documentType: w.computed((_, t) => t).tracked()
 })).compile();
@@ -146,11 +138,18 @@ const r = async () => {
         const ctx = new Ctx();
 
 
-        // await ctx.date.addAsync({
-        //     name: "James"
-        // });
+        await ctx.nested.addAsync({
+            cool: "cool",
+            two: "two",
+            name: "James",
+            more: {
+                one: "one",
+                two: "two"
+            },
+            order: 1000
+        });
 
-        // await ctx.saveChangesAsync();
+        await ctx.saveChangesAsync();
         const xx2 = await ctx.nested.firstOrUndefinedAsync(w => w.name === "James");
         debugger;
         const xx5 = await ctx.nested.sort(w => w.name).firstOrUndefinedAsync(w => w._id !== "");
@@ -162,16 +161,8 @@ const r = async () => {
         console.log(xx, xx1, xx2, xx3, xx4, xx5);
 
         await ctx.nested.addAsync({
-            child: {
-                name: "Child Name",
-                nested: {
-                    more: {
-                        array: ["test"],
-                        final: 1
-                    },
-                    winner: 100
-                }
-            },
+            cool: "cool",
+            two: "two",
             name: "James",
             more: {
                 one: "one",

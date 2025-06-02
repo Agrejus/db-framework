@@ -32,7 +32,6 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
         this.instance = schema;
         this.isNullable = false;
         this.isOptional = false;
-        this.indexes = [];
     }
 
     modify<R>(builder: (d: {
@@ -41,8 +40,8 @@ export class SchemaDefinition<T extends {}> extends SchemaBase<T, any> {
     }) => R) {
 
         const b = {
-            function: <UU, I = never>(fn: (entity: InferType<CompiledSchema<T>>, collectionName: string, injected: I) => UU, injected?: I) => new SchemaFunction<UU, I, "unmapped">(fn as any, injected, this.instance as any),
-            computed: <UU, I = never>(fn: (entity: InferType<CompiledSchema<T>>, collectionName: string, injected: I) => UU, injected?: I) => new SchemaComputed<UU, I, "unmapped">(fn as any, injected, this.instance as any)
+            function: <UU, I = never>(fn: (entity: InferType<CompiledSchema<T>>, collectionName: string, injected?: I) => UU, injected?: I) => new SchemaFunction<UU, I, "unmapped">(fn as any, injected),
+            computed: <UU, I = never>(fn: (entity: InferType<CompiledSchema<T>>, collectionName: string, injected?: I) => UU, injected?: I) => new SchemaComputed<UU, I, "unmapped">(fn as any, injected)
         }
 
         const r = builder(b)

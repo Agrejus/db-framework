@@ -192,20 +192,32 @@ export class PropertyInfo<T extends {}> {
         }
 
         const pathArray = this.getPathArray();
+        const length = pathArray.length;
+
+        // Fast path for single level properties
+        if (length === 1) {
+            (instance as any)[pathArray[0]] = value;
+            return;
+        }
+
         let current: any = instance;
+        let i = 0;
 
         // Navigate to the parent of the target property
-        for (let i = 0; i < pathArray.length - 1; i++) {
+        while (i < length - 1) {
             const prop = pathArray[i];
-            if (current[prop] == null) {
+            const next = current[prop];
+
+            // Only create new object if next level doesn't exist
+            if (next == null) {
                 current[prop] = {};
             }
             current = current[prop];
+            i++;
         }
 
         // Set the value on the final property
-        const finalProp = pathArray[pathArray.length - 1];
-        current[finalProp] = value;
+        current[pathArray[length - 1]] = value;
     }
 
     getSelectrorPath(options: { parent: string, assignmentType?: AssignmentType }) {

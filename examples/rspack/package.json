@@ -8,10 +8,11 @@
     "preview": "rspack preview"
   },
   "dependencies": {
-    "@agrejus/db-framework": "file://../framework",
-    "@agrejus/db-framework-core": "file://../core",
-    "@agrejus/db-framework-plugin-memory": "file://../plugins/memory",
-    "@agrejus/db-framework-plugin-pouchdb": "file://../plugins/pouchdb",
+    "@agrejus/db-framework": "file://../../framework",
+    "@agrejus/db-framework-core": "file://../../core",
+    "@agrejus/db-framework-plugin-memory": "file://../../plugins/memory",
+    "@agrejus/db-framework-plugin-pouchdb": "file://../../plugins/pouchdb",
+    "@agrejus/db-framework-plugin-dexie": "file://../../plugins/dexie",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },

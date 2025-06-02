@@ -9,23 +9,29 @@ function App() {
 
 	const onClick = async () => {
 
+		const result = await contextRef.current.products.where(x => x.name === "James").firstOrUndefinedAsync();
+
+		console.log(result);
+		debugger;
+
 		await contextRef.current.products.addAsync({
-			child: {
-				name: "Child Name",
-				nested: {
-					more: {
-						array: ["test"],
-						final: 1
-					},
-					winner: 100
-				}
+			cool: "cool2",
+			two: "two2",
+			name: "James1",
+			more: {
+				one: "one",
+				two: "two"
 			},
+			order: 1000
+		}, {
+			cool: "cool1",
+			two: "two1",
 			name: "James",
 			more: {
 				one: "one",
 				two: "two"
 			},
-			order: 100
+			order: 10
 		});
 
 		const response = await contextRef.current.saveChangesAsync();

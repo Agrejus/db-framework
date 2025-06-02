@@ -108,7 +108,6 @@ export class PouchDbPlugin implements IDbPlugin {
 
                 });
             } catch (e) {
-                console.error(e);
                 d(result, [e, ...errors])
             }
         }, done);
@@ -188,7 +187,6 @@ export class PouchDbPlugin implements IDbPlugin {
 
             if (shouldClose) {
                 db.close(() => done(result, error));
-                return
             }
 
             done(result, error);

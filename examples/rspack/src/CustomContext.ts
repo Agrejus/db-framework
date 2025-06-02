@@ -1,28 +1,16 @@
-import { DataContext } from "@agrejus/db-framework";
+import { DataContext } from "@agrejus/db-framework"
 import { DbPluginLogging } from "@agrejus/db-framework-core";
 import { product } from "./schemas/product";
-import { PouchDbPlugin, toMango, setQueryOptions } from "@agrejus/db-framework-plugin-pouchdb";
+import { DexiePlugin } from "@agrejus/db-framework-plugin-dexie";
 
-const pouchDbPlugin = new PouchDbPlugin("test-db");
-const pouchDbPluginWithLogging = DbPluginLogging.create(pouchDbPlugin).setHook("onQueryRequest", (data) => {
-    if (data.query.expression != null) {
+const plugin = new DexiePlugin("dexie-db");
+const pluginWithLogging = DbPluginLogging.create(plugin);
 
-        const request = {
-            selector: {}
-        };
-
-        request.selector = toMango(data.query.expression);
-
-        setQueryOptions(data.query.options, request);
-
-        data.query.mango = request;
-    }
-})
 
 export class CustomContext extends DataContext {
 
     constructor() {
-        super(pouchDbPluginWithLogging);
+        super(pluginWithLogging);
     }
 
     // constructor() {

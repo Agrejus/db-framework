@@ -7,7 +7,7 @@ export class SchemaComputed<T extends any, I, TModifiers extends SchemaModifiers
     type = SchemaTypes.Computed;
     private _schemaComputed = true;
 
-    constructor(fn: T, injected: I, current: SchemaBase<T, TModifiers>) {
+    constructor(fn: T, injected: I, current?: SchemaBase<T, TModifiers>) {
         super(current);
         this.injected = injected;
         this.isUnmapped = true;
